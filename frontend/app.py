@@ -27,7 +27,7 @@ try:
         from backend.enhanced_rag_pipeline import EnhancedRAGPipeline
         from backend.netcdf_processor import ARGONetCDFProcessor
         from backend.vector_store import ARGOVectorStore
-        from backend.geospatial_viz import ARGOVeospatialVisualizer
+        from backend.geospatial_viz import ARGOGeospatialVisualizer
         from backend.data_export import ARGODataExporter
         ENHANCED_FEATURES_AVAILABLE = True
     except ImportError as e:

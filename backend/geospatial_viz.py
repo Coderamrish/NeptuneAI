@@ -83,13 +83,17 @@ class ARGOGeospatialVisualizer:
         
         # Add ARGO data points
         if color_by in df.columns and size_by in df.columns:
+            # Handle potential NaN values
+            size_data = df[size_by].fillna(df[size_by].mean())
+            color_data = df[color_by].fillna(df[color_by].mean())
+            
             fig.add_trace(go.Scattermapbox(
                 lat=df['latitude'],
                 lon=df['longitude'],
                 mode='markers',
                 marker=dict(
-                    size=df[size_by] / df[size_by].max() * 20 + 5,
-                    color=df[color_by],
+                    size=size_data / size_data.max() * 20 + 5,
+                    color=color_data,
                     colorscale=self.ocean_colors.get(color_by, 'viridis'),
                     colorbar=dict(
                         title=f"{color_by.title()}",
@@ -100,8 +104,8 @@ class ARGOGeospatialVisualizer:
                 ),
                 text=df.apply(lambda row: f"""
                 <b>Location:</b> {row['latitude']:.2f}°N, {row['longitude']:.2f}°E<br>
-                <b>{color_by.title()}:</b> {row[color_by]:.2f}<br>
-                <b>{size_by.title()}:</b> {row[size_by]:.2f}<br>
+                <b>{color_by.title()}:</b> {row.get(color_by, 'N/A'):.2f}<br>
+                <b>{size_by.title()}:</b> {row.get(size_by, 'N/A'):.2f}<br>
                 <b>Platform:</b> {row.get('platform_number', 'N/A')}<br>
                 <b>Date:</b> {row.get('date', 'N/A')}
                 """, axis=1),

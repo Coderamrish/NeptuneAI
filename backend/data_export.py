@@ -88,6 +88,8 @@ class ARGODataExporter:
             for col in export_df.columns:
                 if export_df[col].dtype == 'datetime64[ns]':
                     export_df[col] = export_df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+                elif 'datetime' in str(export_df[col].dtype):
+                    export_df[col] = export_df[col].astype(str)
             
             # Write CSV with metadata header if requested
             with open(output_path, 'w', newline='', encoding='utf-8') as f:

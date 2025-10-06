@@ -77,7 +77,8 @@ class ARGOVectorStore:
                 
                 # Rebuild ID mapping
                 for i, meta in enumerate(self.metadata):
-                    self.id_to_metadata[meta['id']] = i
+                    if 'id' in meta:
+                        self.id_to_metadata[meta['id']] = i
                 
                 logger.info(f"Loaded {len(self.metadata)} metadata entries")
                 

@@ -16,7 +16,7 @@ from pathlib import Path
 from netcdf_processor import ARGONetCDFProcessor
 from vector_store import ARGOVectorStore
 from mcp_integration import MCPHandler, MCPClient, ToolType
-from geospatial_viz import ARGOVeospatialVisualizer
+from geospatial_viz import ARGOGeospatialVisualizer
 from data_export import ARGODataExporter
 from query_engine import get_db_engine, get_unique_regions, query_by_region
 from plots import create_profiler_dashboard
@@ -45,7 +45,7 @@ class EnhancedRAGPipeline:
         # Initialize components
         self.netcdf_processor = ARGONetCDFProcessor(netcdf_processor_path)
         self.vector_store = ARGOVectorStore(vector_store_path)
-        self.geospatial_viz = ARGOVeospatialVisualizer()
+        self.geospatial_viz = ARGOGeospatialVisualizer()
         self.data_exporter = ARGODataExporter(export_path)
         
         # Initialize MCP handler
@@ -252,29 +252,16 @@ class EnhancedRAGPipeline:
             if vector_context:
                 context_parts.append("Relevant ocean data context:")
                 for ctx in vector_context[:3]:
-                    context_parts.append(f"- {ctx['content'][:200]}...")
+                    if 'content' in ctx:
+                        context_parts.append(f"- {ctx['content'][:200]}...")
             
             # Add database context
             if db_data is not None and not db_data.empty:
                 context_parts.append(f"Database query returned {len(db_data)} records")
-                if intent['region']:
+                if intent.get('region'):
                     context_parts.append(f"Data from {intent['region']}")
             
             context = "\n".join(context_parts)
-            
-            # Create MCP request for text generation
-            mcp_request = self.mcp_handler.create_request(
-                ToolType.ANALYZE_PATTERNS,
-                {
-                    'data': db_data.to_dict('records') if db_data is not None else [],
-                    'analysis_type': 'text_generation',
-                    'parameters': {
-                        'user_query': user_input,
-                        'context': context,
-                        'intent': intent
-                    }
-                }
-            )
             
             # For now, create a simple response
             # In a full implementation, this would use the MCP handler
