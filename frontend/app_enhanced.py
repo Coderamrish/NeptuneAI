@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-NeptuneAI ARGO Ocean Data Platform - Modern Interactive Frontend
-A comprehensive Streamlit application with modern UI/UX design
+NeptuneAI ARGO Ocean Data Platform - Enhanced Frontend with Backend Integration
+A comprehensive Streamlit application with modern UI/UX design and full backend integration
 """
 
 import streamlit as st
@@ -20,9 +20,26 @@ from pathlib import Path
 import hashlib
 import sqlite3
 import bcrypt
+import traceback
 
 # Add backend to path
 sys.path.append('../backend')
+
+# Try to import backend modules
+try:
+    from enhanced_rag_pipeline import EnhancedRAGPipeline
+    from netcdf_processor import ARGONetCDFProcessor
+    from vector_store import ARGOVectorStore
+    from geospatial_viz import ARGOGeospatialVisualizer
+    from data_export import ARGODataExporter
+    from query_engine import get_db_engine, get_unique_regions, query_by_region
+    from plots import create_profiler_dashboard
+    BACKEND_AVAILABLE = True
+    st.success("✅ Backend modules loaded successfully!")
+except ImportError as e:
+    BACKEND_AVAILABLE = False
+    st.warning(f"⚠️ Backend modules not available: {e}")
+    st.info("Running in demo mode with sample data only.")
 
 # Page configuration
 st.set_page_config(
@@ -79,13 +96,15 @@ def load_css():
         margin: 0.5rem 0 0 0;
     }
     
-    /* Sidebar Styles */
-    .css-1d391kg {
-        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+    /* Status Indicators */
+    .status-online {
+        color: #27ae60;
+        font-weight: 600;
     }
     
-    .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+    .status-offline {
+        color: #e74c3c;
+        font-weight: 600;
     }
     
     /* Card Styles */
@@ -112,16 +131,6 @@ def load_css():
         transform: translateY(-5px);
     }
     
-    .feature-card h3 {
-        color: #2c3e50;
-        margin-bottom: 1rem;
-    }
-    
-    .feature-card p {
-        color: #7f8c8d;
-        line-height: 1.6;
-    }
-    
     /* Button Styles */
     .stButton > button {
         background: linear-gradient(45deg, #3498db, #2980b9);
@@ -139,18 +148,6 @@ def load_css():
         box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
     }
     
-    /* Input Styles */
-    .stTextInput > div > div > input {
-        border-radius: 10px;
-        border: 2px solid #ecf0f1;
-        padding: 0.5rem 1rem;
-    }
-    
-    .stSelectbox > div > div > select {
-        border-radius: 10px;
-        border: 2px solid #ecf0f1;
-    }
-    
     /* Chart Container */
     .chart-container {
         background: white;
@@ -158,63 +155,6 @@ def load_css():
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         margin-bottom: 2rem;
-    }
-    
-    /* Status Indicators */
-    .status-online {
-        color: #27ae60;
-        font-weight: 600;
-    }
-    
-    .status-offline {
-        color: #e74c3c;
-        font-weight: 600;
-    }
-    
-    /* Loading Animation */
-    .loading-spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #3498db;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .main-header h1 {
-            font-size: 2rem;
-        }
-        
-        .feature-card {
-            margin-bottom: 1rem;
-        }
-    }
-    
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #3498db;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #2980b9;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -229,12 +169,39 @@ def init_session_state():
         st.session_state.username = None
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'Home'
-    if 'dark_mode' not in st.session_state:
-        st.session_state.dark_mode = False
+    if 'backend_initialized' not in st.session_state:
+        st.session_state.backend_initialized = False
     if 'ai_insights' not in st.session_state:
         st.session_state.ai_insights = []
     if 'uploaded_files' not in st.session_state:
         st.session_state.uploaded_files = []
+
+# Initialize backend components
+def init_backend():
+    """Initialize backend components if available"""
+    if not BACKEND_AVAILABLE or st.session_state.backend_initialized:
+        return
+    
+    try:
+        # Initialize components
+        st.session_state.vector_store = ARGOVectorStore("vector_index")
+        st.session_state.netcdf_processor = ARGONetCDFProcessor("data/processed")
+        st.session_state.geospatial_viz = ARGOGeospatialVisualizer()
+        st.session_state.data_exporter = ARGODataExporter("exports")
+        
+        # Initialize enhanced RAG pipeline
+        st.session_state.rag_pipeline = EnhancedRAGPipeline(
+            vector_store_path="vector_index",
+            netcdf_processor_path="data/processed",
+            export_path="exports"
+        )
+        
+        st.session_state.backend_initialized = True
+        st.success("✅ Backend components initialized successfully!")
+        
+    except Exception as e:
+        st.error(f"❌ Failed to initialize backend: {e}")
+        st.session_state.backend_initialized = False
 
 # Database functions
 def init_database():
@@ -354,6 +321,19 @@ def render_sidebar():
     selected = st.sidebar.selectbox("Select Page", list(nav_options.keys()))
     st.session_state.current_page = nav_options[selected]
     
+    # Backend status
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("## 🔧 System Status")
+    
+    if BACKEND_AVAILABLE and st.session_state.backend_initialized:
+        st.sidebar.markdown("**Backend:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
+        st.sidebar.markdown("**Vector Store:** <span class='status-online'>Ready</span>", unsafe_allow_html=True)
+        st.sidebar.markdown("**AI Pipeline:** <span class='status-online'>Active</span>", unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown("**Backend:** <span class='status-offline'>Demo Mode</span>", unsafe_allow_html=True)
+        st.sidebar.markdown("**Vector Store:** <span class='status-offline'>N/A</span>", unsafe_allow_html=True)
+        st.sidebar.markdown("**AI Pipeline:** <span class='status-offline'>N/A</span>", unsafe_allow_html=True)
+    
     # User authentication section
     st.sidebar.markdown("---")
     st.sidebar.markdown("## 🔐 Authentication")
@@ -401,14 +381,6 @@ def render_sidebar():
             st.session_state.user_id = None
             st.session_state.username = None
             st.rerun()
-    
-    # Dark mode toggle
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("## 🎨 Theme")
-    dark_mode = st.sidebar.toggle("Dark Mode", value=st.session_state.dark_mode)
-    if dark_mode != st.session_state.dark_mode:
-        st.session_state.dark_mode = dark_mode
-        st.rerun()
 
 def render_home_page():
     """Render the home/landing page"""
@@ -487,18 +459,6 @@ def render_home_page():
             <p>Get automated insights, pattern recognition, and predictive analytics for your ocean data.</p>
         </div>
         """, unsafe_allow_html=True)
-    
-    # Latest updates
-    st.markdown("## 📰 Latest Updates")
-    
-    with st.expander("Recent Platform Updates", expanded=True):
-        st.markdown("""
-        - **v2.0.0** - Complete UI redesign with modern interface
-        - **v1.9.0** - Added AI-powered data insights
-        - **v1.8.0** - Enhanced NetCDF processing capabilities
-        - **v1.7.0** - New geospatial visualization tools
-        - **v1.6.0** - Improved vector search performance
-        """)
 
 def render_analytics_page():
     """Render the analytics page with interactive charts"""
@@ -620,6 +580,194 @@ def render_analytics_page():
     st.markdown("#### 📋 Data Table")
     st.dataframe(filtered_df.head(100), use_container_width=True)
 
+def render_ai_insights_page():
+    """Render the AI insights page"""
+    st.markdown("## 🤖 AI-Powered Insights")
+    
+    # AI query input
+    st.markdown("### Ask AI About Your Data")
+    
+    query = st.text_area(
+        "Enter your question about ocean data:",
+        placeholder="e.g., What are the temperature trends in the Indian Ocean over the past year?",
+        height=100
+    )
+    
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        analyze_btn = st.button("🔍 Analyze", use_container_width=True)
+    
+    if analyze_btn and query:
+        with st.spinner("AI is analyzing your query..."):
+            if BACKEND_AVAILABLE and st.session_state.backend_initialized:
+                try:
+                    # Use real AI pipeline
+                    result = st.session_state.rag_pipeline.process_query(query)
+                    
+                    st.markdown("### 🤖 AI Analysis Results")
+                    st.markdown(f"**Query:** {query}")
+                    st.markdown(f"**Response:** {result.get('text_response', 'No response generated')}")
+                    
+                    if 'visualization' in result and result['visualization']:
+                        st.plotly_chart(result['visualization'], use_container_width=True)
+                    
+                    # Add to session state
+                    st.session_state.ai_insights.append({
+                        'query': query,
+                        'response': result.get('text_response', 'No response'),
+                        'timestamp': datetime.now()
+                    })
+                    
+                except Exception as e:
+                    st.error(f"AI analysis failed: {e}")
+                    st.info("Falling back to demo mode...")
+                    
+                    # Fallback to demo response
+                    demo_response = f"""
+                    **AI Analysis Results:**
+                    
+                    Based on your query: "{query}"
+                    
+                    **Key Insights:**
+                    - Temperature trends show a 0.5°C increase over the past year
+                    - Salinity patterns indicate seasonal variations
+                    - Data quality is excellent with 98.5% valid measurements
+                    
+                    **Recommendations:**
+                    - Consider analyzing seasonal patterns
+                    - Look into correlation with atmospheric conditions
+                    - Monitor for long-term climate trends
+                    
+                    **Confidence Level:** 87%
+                    """
+                    
+                    st.markdown(demo_response)
+                    
+                    st.session_state.ai_insights.append({
+                        'query': query,
+                        'response': demo_response,
+                        'timestamp': datetime.now()
+                    })
+            else:
+                # Demo mode
+                demo_response = f"""
+                **AI Analysis Results (Demo Mode):**
+                
+                Based on your query: "{query}"
+                
+                **Key Insights:**
+                - Temperature trends show a 0.5°C increase over the past year
+                - Salinity patterns indicate seasonal variations
+                - Data quality is excellent with 98.5% valid measurements
+                
+                **Recommendations:**
+                - Consider analyzing seasonal patterns
+                - Look into correlation with atmospheric conditions
+                - Monitor for long-term climate trends
+                
+                **Confidence Level:** 87%
+                """
+                
+                st.markdown(demo_response)
+                
+                st.session_state.ai_insights.append({
+                    'query': query,
+                    'response': demo_response,
+                    'timestamp': datetime.now()
+                })
+    
+    # Previous insights
+    if st.session_state.ai_insights:
+        st.markdown("### 📚 Previous Insights")
+        
+        for i, insight in enumerate(reversed(st.session_state.ai_insights[-5:])):
+            with st.expander(f"Query {len(st.session_state.ai_insights) - i}: {insight['query'][:50]}...", expanded=False):
+                st.markdown(insight['response'])
+                st.caption(f"Generated: {insight['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
+
+def render_upload_page():
+    """Render the data upload page"""
+    st.markdown("## 📤 Upload Ocean Data")
+    
+    # Upload section
+    st.markdown("### Upload Files")
+    
+    uploaded_files = st.file_uploader(
+        "Choose files to upload",
+        accept_multiple_files=True,
+        type=['nc', 'netcdf', 'csv', 'parquet'],
+        help="Supported formats: NetCDF (.nc), CSV (.csv), Parquet (.parquet)"
+    )
+    
+    if uploaded_files:
+        st.success(f"Uploaded {len(uploaded_files)} file(s)")
+        
+        # Process uploaded files
+        for file in uploaded_files:
+            st.write(f"📄 {file.name} ({file.size} bytes)")
+            
+            # Add to session state
+            if file.name not in [f.name for f in st.session_state.uploaded_files]:
+                st.session_state.uploaded_files.append(file)
+        
+        # Processing options
+        st.markdown("### Processing Options")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            process_format = st.selectbox("Output Format", ["CSV", "Parquet", "NetCDF"])
+            quality_control = st.checkbox("Apply Quality Control", value=True)
+        
+        with col2:
+            include_metadata = st.checkbox("Include Metadata", value=True)
+            generate_visualizations = st.checkbox("Generate Visualizations", value=True)
+        
+        if st.button("🚀 Process Files", use_container_width=True):
+            with st.spinner("Processing files..."):
+                if BACKEND_AVAILABLE and st.session_state.backend_initialized:
+                    try:
+                        # Use real backend processing
+                        for file in uploaded_files:
+                            # Save uploaded file temporarily
+                            temp_path = f"temp_{file.name}"
+                            with open(temp_path, "wb") as f:
+                                f.write(file.getbuffer())
+                            
+                            # Process with NetCDF processor
+                            if file.name.endswith(('.nc', '.netcdf')):
+                                result = st.session_state.netcdf_processor.process_file(temp_path)
+                                st.success(f"Processed {file.name}: {result['profiles_processed']} profiles")
+                            
+                            # Clean up temp file
+                            os.remove(temp_path)
+                        
+                        st.success("Files processed successfully with backend!")
+                        
+                    except Exception as e:
+                        st.error(f"Backend processing failed: {e}")
+                        st.info("Falling back to demo processing...")
+                        
+                        # Fallback to demo processing
+                        import time
+                        time.sleep(2)
+                        st.success("Files processed successfully (demo mode)!")
+                else:
+                    # Demo mode processing
+                    import time
+                    time.sleep(2)
+                    st.success("Files processed successfully (demo mode)!")
+                
+                # Show processing results
+                st.markdown("### Processing Results")
+                results_df = pd.DataFrame({
+                    'File': [f.name for f in uploaded_files],
+                    'Status': ['Processed'] * len(uploaded_files),
+                    'Records': [np.random.randint(100, 1000) for _ in uploaded_files],
+                    'Format': [process_format] * len(uploaded_files)
+                })
+                st.dataframe(results_df, use_container_width=True)
+
 def render_datasets_page():
     """Render the datasets page"""
     st.markdown("## 🗂️ Available Datasets")
@@ -680,170 +828,6 @@ def render_datasets_page():
         st.markdown("### Processed Data")
         st.info("Processed data products coming soon!")
 
-def render_upload_page():
-    """Render the data upload page"""
-    st.markdown("## 📤 Upload Ocean Data")
-    
-    # Upload section
-    st.markdown("### Upload Files")
-    
-    uploaded_files = st.file_uploader(
-        "Choose files to upload",
-        accept_multiple_files=True,
-        type=['nc', 'netcdf', 'csv', 'parquet'],
-        help="Supported formats: NetCDF (.nc), CSV (.csv), Parquet (.parquet)"
-    )
-    
-    if uploaded_files:
-        st.success(f"Uploaded {len(uploaded_files)} file(s)")
-        
-        # Process uploaded files
-        for file in uploaded_files:
-            st.write(f"📄 {file.name} ({file.size} bytes)")
-            
-            # Add to session state
-            if file.name not in [f.name for f in st.session_state.uploaded_files]:
-                st.session_state.uploaded_files.append(file)
-        
-        # Processing options
-        st.markdown("### Processing Options")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            process_format = st.selectbox("Output Format", ["CSV", "Parquet", "NetCDF"])
-            quality_control = st.checkbox("Apply Quality Control", value=True)
-        
-        with col2:
-            include_metadata = st.checkbox("Include Metadata", value=True)
-            generate_visualizations = st.checkbox("Generate Visualizations", value=True)
-        
-        if st.button("🚀 Process Files", use_container_width=True):
-            with st.spinner("Processing files..."):
-                # Simulate processing
-                import time
-                time.sleep(2)
-                st.success("Files processed successfully!")
-                
-                # Show processing results
-                st.markdown("### Processing Results")
-                results_df = pd.DataFrame({
-                    'File': [f.name for f in uploaded_files],
-                    'Status': ['Processed'] * len(uploaded_files),
-                    'Records': [np.random.randint(100, 1000) for _ in uploaded_files],
-                    'Format': [process_format] * len(uploaded_files)
-                })
-                st.dataframe(results_df, use_container_width=True)
-    
-    # Data validation
-    st.markdown("### Data Validation")
-    
-    if st.button("🔍 Validate Data Quality"):
-        with st.spinner("Validating data..."):
-            # Simulate validation
-            import time
-            time.sleep(1)
-            
-            st.success("Data validation completed!")
-            
-            # Show validation results
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Valid Records", "98.5%")
-            with col2:
-                st.metric("Missing Data", "1.2%")
-            with col3:
-                st.metric("Outliers", "0.3%")
-
-def render_ai_insights_page():
-    """Render the AI insights page"""
-    st.markdown("## 🤖 AI-Powered Insights")
-    
-    # AI query input
-    st.markdown("### Ask AI About Your Data")
-    
-    query = st.text_area(
-        "Enter your question about ocean data:",
-        placeholder="e.g., What are the temperature trends in the Indian Ocean over the past year?",
-        height=100
-    )
-    
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        analyze_btn = st.button("🔍 Analyze", use_container_width=True)
-    
-    if analyze_btn and query:
-        with st.spinner("AI is analyzing your query..."):
-            # Simulate AI analysis
-            import time
-            time.sleep(2)
-            
-            # Generate AI response
-            ai_response = f"""
-            **AI Analysis Results:**
-            
-            Based on your query: "{query}"
-            
-            **Key Insights:**
-            - Temperature trends show a 0.5°C increase over the past year
-            - Salinity patterns indicate seasonal variations
-            - Data quality is excellent with 98.5% valid measurements
-            
-            **Recommendations:**
-            - Consider analyzing seasonal patterns
-            - Look into correlation with atmospheric conditions
-            - Monitor for long-term climate trends
-            
-            **Confidence Level:** 87%
-            """
-            
-            st.markdown(ai_response)
-            
-            # Add to session state
-            st.session_state.ai_insights.append({
-                'query': query,
-                'response': ai_response,
-                'timestamp': datetime.now()
-            })
-    
-    # Previous insights
-    if st.session_state.ai_insights:
-        st.markdown("### 📚 Previous Insights")
-        
-        for i, insight in enumerate(reversed(st.session_state.ai_insights[-5:])):
-            with st.expander(f"Query {len(st.session_state.ai_insights) - i}: {insight['query'][:50]}...", expanded=False):
-                st.markdown(insight['response'])
-                st.caption(f"Generated: {insight['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    # AI capabilities
-    st.markdown("### 🧠 AI Capabilities")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        **🔍 Pattern Recognition**
-        - Identify trends and anomalies
-        - Detect seasonal patterns
-        - Find correlations between variables
-        """)
-    
-    with col2:
-        st.markdown("""
-        **📊 Data Analysis**
-        - Statistical analysis
-        - Quality assessment
-        - Data validation
-        """)
-    
-    with col3:
-        st.markdown("""
-        **🔮 Predictive Modeling**
-        - Forecast future trends
-        - Climate predictions
-        - Risk assessment
-        """)
-
 def render_profile_page():
     """Render the user profile page"""
     if not st.session_state.authenticated:
@@ -891,32 +875,6 @@ def render_profile_page():
         st.metric("Data Processed", "2.3 GB")
     with col4:
         st.metric("Visualizations", "23")
-    
-    # Account settings
-    st.markdown("### ⚙️ Account Settings")
-    
-    with st.expander("Change Password", expanded=False):
-        with st.form("change_password"):
-            current_password = st.text_input("Current Password", type="password")
-            new_password = st.text_input("New Password", type="password")
-            confirm_password = st.text_input("Confirm New Password", type="password")
-            
-            if st.form_submit_button("Update Password"):
-                if new_password == confirm_password:
-                    st.success("Password updated successfully!")
-                else:
-                    st.error("Passwords don't match!")
-    
-    with st.expander("Export Data", expanded=False):
-        st.markdown("Export your data and settings")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📥 Export Profile Data"):
-                st.success("Profile data exported!")
-        with col2:
-            if st.button("📥 Export Usage History"):
-                st.success("Usage history exported!")
 
 def render_about_page():
     """Render the about page"""
@@ -964,7 +922,10 @@ def render_about_page():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("**Database:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
+        if BACKEND_AVAILABLE and st.session_state.backend_initialized:
+            st.markdown("**Backend:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("**Backend:** <span class='status-offline'>Demo Mode</span>", unsafe_allow_html=True)
     with col2:
         st.markdown("**AI Services:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
     with col3:
@@ -981,6 +942,10 @@ def main():
     
     # Initialize database
     init_database()
+    
+    # Initialize backend if available
+    if BACKEND_AVAILABLE:
+        init_backend()
     
     # Render header
     render_header()
