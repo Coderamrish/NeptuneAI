@@ -13,6 +13,14 @@ from query_engine import (
     get_geographic_coverage,
 )
 
+# Import enhanced components
+try:
+    from enhanced_rag_pipeline import EnhancedRAGPipeline
+    ENHANCED_AVAILABLE = True
+except ImportError as e:
+    print(f"Enhanced RAG pipeline not available: {e}")
+    ENHANCED_AVAILABLE = False
+
 load_dotenv()
 
 # Initialize Groq client
@@ -396,6 +404,28 @@ def generate_fallback_response(ocean_data: dict, deployment_data: dict):
 def answer_query(user_input: str):
     """Main query processing with comprehensive ocean data."""
     
+    # Use enhanced pipeline if available
+    if ENHANCED_AVAILABLE:
+        try:
+            # Initialize enhanced pipeline (singleton pattern)
+            if not hasattr(answer_query, 'enhanced_pipeline'):
+                answer_query.enhanced_pipeline = EnhancedRAGPipeline()
+            
+            # Process query with enhanced pipeline
+            result = answer_query.enhanced_pipeline.process_query(user_input)
+            
+            # Convert to expected format
+            return {
+                "summary": result.get('text_response', 'No response generated'),
+                "plot": result.get('visualization'),
+                "data": result.get('data'),
+                "enhanced": True
+            }
+            
+        except Exception as e:
+            print(f"Enhanced pipeline error: {e}, falling back to basic pipeline")
+    
+    # Fallback to original implementation
     try:
         # Analyze sentiment
         engine = get_db_engine()

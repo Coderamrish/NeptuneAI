@@ -21,6 +21,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'b
 try:
     from backend.rag_pipeline import answer_query
     from backend.query_engine import get_db_engine, get_unique_regions, get_monthly_distribution, get_profiler_stats, get_geographic_coverage
+    
+    # Try to import enhanced components
+    try:
+        from backend.enhanced_rag_pipeline import EnhancedRAGPipeline
+        from backend.netcdf_processor import ARGONetCDFProcessor
+        from backend.vector_store import ARGOVectorStore
+        from backend.geospatial_viz import ARGOVeospatialVisualizer
+        from backend.data_export import ARGODataExporter
+        ENHANCED_FEATURES_AVAILABLE = True
+    except ImportError as e:
+        print(f"Enhanced features not available: {e}")
+        ENHANCED_FEATURES_AVAILABLE = False
+        
 except ImportError as e:
     st.error(f"Failed to import from the backend. Error: {e}")
     st.stop()
@@ -1520,6 +1533,174 @@ def render_dashboard_tab():
         st.plotly_chart(fig_scatter, use_container_width=True)
 
 # -----------------------------
+# Advanced Features Tab
+# -----------------------------
+def render_advanced_features_tab():
+    """Render advanced features tab with NetCDF processing, vector search, and exports"""
+    st.markdown("### 🌊 Advanced Ocean Data Features")
+    
+    if not ENHANCED_FEATURES_AVAILABLE:
+        st.warning("Enhanced features are not available. Please install required dependencies.")
+        return
+    
+    # Initialize enhanced pipeline
+    if 'enhanced_pipeline' not in st.session_state:
+        with st.spinner("Initializing enhanced features..."):
+            st.session_state.enhanced_pipeline = EnhancedRAGPipeline()
+    
+    pipeline = st.session_state.enhanced_pipeline
+    
+    # Create tabs for different advanced features
+    feature_tabs = st.tabs(["📁 NetCDF Processing", "🔍 Vector Search", "📤 Data Export", "🗺️ Geospatial Analysis"])
+    
+    with feature_tabs[0]:
+        st.markdown("#### NetCDF File Processing")
+        st.info("Process ARGO NetCDF files and convert to structured formats")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            netcdf_dir = st.text_input("NetCDF Directory Path", value="data/netcdf/")
+            file_pattern = st.selectbox("File Pattern", ["*.nc", "*.netcdf", "*.nc4"], index=0)
+            
+            if st.button("Process NetCDF Files", type="primary"):
+                with st.spinner("Processing NetCDF files..."):
+                    result = pipeline.process_netcdf_files(netcdf_dir, file_pattern)
+                    
+                    if result['status'] == 'success':
+                        st.success(f"✅ Processed {result['summary']['total_files_processed']} files")
+                        st.json(result['summary'])
+                    else:
+                        st.error(f"❌ Error: {result['message']}")
+        
+        with col2:
+            st.markdown("**NetCDF Processing Features:**")
+            st.markdown("• Direct NetCDF file ingestion")
+            st.markdown("• ARGO data format conversion")
+            st.markdown("• Quality control filtering")
+            st.markdown("• Vector store integration")
+            st.markdown("• Metadata extraction")
+    
+    with feature_tabs[1]:
+        st.markdown("#### Vector Store Search")
+        st.info("Search ocean data using semantic similarity")
+        
+        search_query = st.text_input("Search Query", placeholder="e.g., temperature anomalies in Indian Ocean")
+        search_k = st.slider("Number of Results", 1, 50, 10)
+        
+        if st.button("Search Vector Store", type="primary"):
+            if search_query:
+                with st.spinner("Searching vector store..."):
+                    results = pipeline.vector_store.search(search_query, k=search_k)
+                    
+                    if results:
+                        st.success(f"Found {len(results)} relevant results")
+                        
+                        for i, result in enumerate(results[:5]):  # Show top 5
+                            with st.expander(f"Result {i+1} (Score: {result['similarity_score']:.3f})"):
+                                st.markdown(f"**Content:** {result['content'][:200]}...")
+                                st.markdown(f"**Type:** {result['doc_type']}")
+                                st.markdown(f"**Metadata:** {result['metadata']}")
+                    else:
+                        st.warning("No results found")
+            else:
+                st.warning("Please enter a search query")
+    
+    with feature_tabs[2]:
+        st.markdown("#### Data Export")
+        st.info("Export ocean data in various formats")
+        
+        # Get sample data for export
+        try:
+            engine = get_db_engine()
+            sample_data = query_by_region(engine, "Indian Ocean", limit=100)
+            
+            if not sample_data.empty:
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if st.button("Export to CSV", type="primary"):
+                        file_path = pipeline.export_data(sample_data, 'csv')
+                        if file_path:
+                            st.success(f"✅ Exported to: {file_path}")
+                
+                with col2:
+                    if st.button("Export to NetCDF", type="primary"):
+                        file_path = pipeline.export_data(sample_data, 'netcdf')
+                        if file_path:
+                            st.success(f"✅ Exported to: {file_path}")
+                
+                with col3:
+                    if st.button("Export to JSON", type="primary"):
+                        file_path = pipeline.export_data(sample_data, 'json')
+                        if file_path:
+                            st.success(f"✅ Exported to: {file_path}")
+                
+                st.markdown(f"**Sample Data:** {len(sample_data)} records ready for export")
+            else:
+                st.warning("No data available for export")
+                
+        except Exception as e:
+            st.error(f"Error loading data: {e}")
+    
+    with feature_tabs[3]:
+        st.markdown("#### Geospatial Analysis")
+        st.info("Advanced geospatial visualizations and analysis")
+        
+        try:
+            engine = get_db_engine()
+            geo_data = query_by_region(engine, "Indian Ocean", limit=500)
+            
+            if not geo_data.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    viz_type = st.selectbox("Visualization Type", [
+                        "Interactive World Map",
+                        "Trajectory Map", 
+                        "Heatmap",
+                        "Comprehensive Dashboard"
+                    ])
+                
+                with col2:
+                    region_filter = st.selectbox("Region Filter", [
+                        "Indian Ocean", "Pacific Ocean", "Atlantic Ocean", "Global"
+                    ])
+                
+                if st.button("Generate Visualization", type="primary"):
+                    with st.spinner("Generating visualization..."):
+                        if viz_type == "Interactive World Map":
+                            fig = pipeline.geospatial_viz.create_interactive_world_map(
+                                geo_data, region=region_filter if region_filter != "Global" else None
+                            )
+                        elif viz_type == "Trajectory Map":
+                            fig = pipeline.geospatial_viz.create_trajectory_map(geo_data)
+                        elif viz_type == "Heatmap":
+                            fig = pipeline.geospatial_viz.create_heatmap_plot(geo_data)
+                        else:
+                            fig = pipeline.geospatial_viz.create_comprehensive_dashboard(
+                                geo_data, region=region_filter if region_filter != "Global" else None
+                            )
+                        
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.warning("Could not generate visualization")
+            else:
+                st.warning("No geographic data available")
+                
+        except Exception as e:
+            st.error(f"Error generating visualization: {e}")
+    
+    # System Statistics
+    st.markdown("---")
+    st.markdown("#### 📊 System Statistics")
+    
+    if st.button("Refresh Statistics"):
+        stats = pipeline.get_system_stats()
+        st.json(stats)
+
+# -----------------------------
 # Comprehensive Features Tab
 # -----------------------------
 def render_features_tab():
@@ -1608,7 +1789,10 @@ def main():
         render_enhanced_sidebar()
         
         # Main content area with tabs
-        tabs = st.tabs(["🤖 AI Assistant", "📊 Dashboard", "⚡ Features"])
+        if ENHANCED_FEATURES_AVAILABLE:
+            tabs = st.tabs(["🤖 AI Assistant", "📊 Dashboard", "🌊 Advanced Features", "⚡ Features"])
+        else:
+            tabs = st.tabs(["🤖 AI Assistant", "📊 Dashboard", "⚡ Features"])
         
         with tabs[0]:
             render_ai_chat_tab()
@@ -1616,8 +1800,14 @@ def main():
         with tabs[1]:
             render_dashboard_tab()
         
-        with tabs[2]:
-            render_features_tab()
+        if ENHANCED_FEATURES_AVAILABLE:
+            with tabs[2]:
+                render_advanced_features_tab()
+            with tabs[3]:
+                render_features_tab()
+        else:
+            with tabs[2]:
+                render_features_tab()
 
 # Run the application
 if __name__ == "__main__":

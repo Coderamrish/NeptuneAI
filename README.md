@@ -64,16 +64,18 @@ Built on authentic ARGO float measurements — the same data used by oceanograph
 └─────────────────────────────────────────────────────────────────┘
                               ↓
         ┌───────────────────────────────────────┐
-        │  🤖  AI Processing & Analysis         │
-        │  • Query understanding                 │
-        │  • Data retrieval from 1M+ records    │
-        │  • Statistical analysis                │
-        │  • Insight generation                  │
+        │  🤖  Enhanced AI Processing           │
+        │  • NetCDF file ingestion              │
+        │  • Vector store semantic search       │
+        │  • MCP protocol integration           │
+        │  • RAG-powered analysis               │
+        │  • Quality control filtering          │
         └───────────────────────────────────────┘
                               ↓
 ┌──────────────────┬──────────────────┬──────────────────────┐
-│ 📈 Time Series   │ 🗺️ Geographic   │ 💾 Export Options   │
-│ Interactive Plot │ Heat Map         │ CSV, PNG, HTML       │
+│ 📈 Interactive   │ 🗺️ Geospatial   │ 💾 Multi-Format     │
+│ Visualizations   │ Maps & Trajectories│ Export (NetCDF,    │
+│ (Plotly, Maps)   │ (Leaflet/Cesium) │ CSV, JSON, ASCII)   │
 └──────────────────┴──────────────────┴──────────────────────┘
 ```
 
@@ -84,10 +86,21 @@ Built on authentic ARGO float measurements — the same data used by oceanograph
 | **🗣️ Natural Language Queries** | Ask questions in plain English, get scientific answers | ✅ Live |
 | **📊 Dynamic Dashboards** | Real-time analytics with interactive Plotly visualizations | ✅ Live |
 | **🌍 Geospatial Analysis** | Global ocean mapping with layer controls and filtering | ✅ Live |
-| **💾 Data Export** | Download cleaned datasets, charts, and chat history | ✅ Live |
+| **💾 Multi-Format Export** | Download data in CSV, NetCDF, JSON, ASCII formats | ✅ Live |
 | **🔐 Secure Authentication** | Encrypted credentials with personalized sessions | ✅ Live |
 | **⚡ Advanced Filtering** | Precision data selection by date, region, depth, and more | ✅ Live |
 | **📱 Responsive Design** | Seamless experience across desktop, tablet, and mobile | ✅ Live |
+
+### Advanced Features (NEW!)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **📁 NetCDF Processing** | Direct ARGO NetCDF file ingestion and conversion | ✅ Live |
+| **🔍 Vector Search** | Semantic search using FAISS vector database | ✅ Live |
+| **🤖 MCP Integration** | Model Context Protocol for structured LLM communication | ✅ Live |
+| **🗺️ Advanced Visualizations** | Interactive maps, trajectories, heatmaps, depth profiles | ✅ Live |
+| **📈 RAG Pipeline** | Retrieval-Augmented Generation for context-aware responses | ✅ Live |
+| **🔬 Quality Control** | Automated data quality filtering and validation | ✅ Live |
 
 ---
 
@@ -205,7 +218,27 @@ PostgreSQL 12+
 Git
 ```
 
-### Installation
+### Quick Setup (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/Coderamrish/NeptuneAI.git
+cd NeptuneAI
+
+# Run automated setup
+python setup.py
+
+# Edit configuration
+nano .env  # Add your API keys and database credentials
+
+# Set up database
+psql -U postgres -f database_schema.sql
+
+# Launch the application
+streamlit run frontend/app.py
+```
+
+### Manual Installation
 
 ```bash
 # Clone the repository
@@ -216,18 +249,32 @@ cd NeptuneAI
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install core dependencies
+pip install -r backend/requirements.txt
 
 # Set up environment variables
 cp .env.example .env
 # Edit .env with your API keys and database credentials
 
 # Initialize database
-python scripts/init_db.py
+psql -U postgres -f database_schema.sql
 
 # Launch the application
 streamlit run frontend/app.py
+```
+
+### Docker Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/Coderamrish/NeptuneAI.git
+cd NeptuneAI
+
+# Launch with Docker Compose
+docker-compose up -d
+
+# Access the application
+open http://localhost:8501
 ```
 
 ### Environment Configuration
