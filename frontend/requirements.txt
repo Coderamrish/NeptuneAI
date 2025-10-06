@@ -1,0 +1,23 @@
+# NeptuneAI Frontend Requirements
+# Core Streamlit and UI
+streamlit>=1.50.0
+plotly>=6.3.1
+pydeck>=0.9.1
+
+# Data Processing
+pandas>=2.3.3
+numpy>=2.3.3
+xarray>=2025.9.1
+
+# Database and Authentication
+sqlite3
+bcrypt>=5.0.0
+
+# Additional UI Libraries
+altair>=5.5.0
+pillow>=11.3.0
+
+# Optional: Enhanced features
+streamlit-option-menu>=0.3.6
+streamlit-aggrid>=0.3.4
+streamlit-plotly-events>=0.0.6
