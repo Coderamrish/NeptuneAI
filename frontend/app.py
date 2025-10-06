@@ -16,7 +16,7 @@ from PIL import Image
 import numpy as np
 
 # Add the project root to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend' )))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..',  )))
 
 try:
     from backend.rag_pipeline import answer_query
