@@ -5,3 +5,13 @@ python-dotenv
 openai
 streamlit
 plotly
+xarray
+netCDF4
+numpy
+scipy
+faiss-cpu
+sentence-transformers
+groq
+bcrypt
+pathlib
+asyncio

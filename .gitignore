@@ -1,6 +1,17 @@
-venv/
-__pycache__/
+# Python
 *.pyc
-*.pyo
+__pycache__/
+*.db
+venv/
+.env
+
+# Frontend
+node_modules/
+build/
+
+# IDEs
+.vscode/
+.idea/
+
+# System
 .DS_Store
-.streamlit/

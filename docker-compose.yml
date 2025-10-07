@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  neptuneai:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=neptuneai
+      - DB_PASS=neptuneai123
+      - DB_NAME=neptuneai
+    depends_on:
+      - postgres
+    volumes:
+      - ./data:/app/data
+      - ./exports:/app/exports
+      - ./vector_index:/app/vector_index
+
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=neptuneai
+      - POSTGRES_USER=neptuneai
+      - POSTGRES_PASSWORD=neptuneai123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database_schema.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
