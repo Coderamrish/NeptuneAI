@@ -16,13 +16,11 @@ import {
 import {
   Visibility,
   VisibilityOff,
-  Email,
   Lock,
   Person,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const Login = ({ onSwitchToSignup }) => {
   const [formData, setFormData] = useState({
@@ -34,7 +32,6 @@ const Login = ({ onSwitchToSignup }) => {
   const [loading, setLoading] = useState(false);
   
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({

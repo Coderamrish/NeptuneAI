@@ -13,8 +13,6 @@ import {
   IconButton,
   Tooltip,
   Divider,
-  Card,
-  CardContent,
   List,
   ListItem,
   ListItemText,
@@ -26,23 +24,18 @@ import {
 import {
   Psychology,
   Send,
-  Refresh,
-  Download,
-  Share,
   History,
   Clear,
   SmartToy,
   TrendingUp,
   Water,
-  Thermostat,
   Speed,
   LocationOn,
   Chat,
-  NewChat,
+  Add,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Plot from 'react-plotly.js';
-import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const AIInsights = () => {
@@ -55,7 +48,6 @@ const AIInsights = () => {
   const [showSessions, setShowSessions] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const messagesEndRef = useRef(null);
-  const { user } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -248,7 +240,7 @@ const AIInsights = () => {
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Tooltip title="New Chat">
             <IconButton onClick={createNewSession} sx={{ color: 'white' }}>
-              <NewChat />
+              <Add />
             </IconButton>
           </Tooltip>
           <Tooltip title="Chat History">

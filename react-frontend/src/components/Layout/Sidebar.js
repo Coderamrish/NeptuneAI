@@ -10,7 +10,6 @@ import {
   Box,
   Divider,
   IconButton,
-  Collapse,
   Chip,
   Slider,
   FormControl,
@@ -20,10 +19,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Switch,
-  FormControlLabel,
-  Badge,
-  Tooltip,
 } from '@mui/material';
 import {
   ChevronLeft,
@@ -39,11 +34,7 @@ import {
   Thermostat,
   Speed,
   LocationOn,
-  FilterList,
-  Settings,
-  Notifications,
   TrendingUp,
-  Timeline,
   Map,
   BarChart,
 } from '@mui/icons-material';
@@ -57,9 +48,7 @@ const Sidebar = ({ open, onClose }) => {
     filters: false,
     tools: false
   });
-  const [oceanParameters, setOceanParameters] = useState([]);
   const [regions, setRegions] = useState([]);
-  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
   const menuItems = [
@@ -90,29 +79,10 @@ const Sidebar = ({ open, onClose }) => {
 
   useEffect(() => {
     if (open) {
-      fetchOceanParameters();
       fetchRegions();
     }
   }, [open]);
 
-  const fetchOceanParameters = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('neptuneai_token');
-      const response = await fetch('/api/ocean/parameters', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOceanParameters(data.parameters);
-      }
-    } catch (err) {
-      console.error('Failed to fetch ocean parameters:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchRegions = async () => {
     try {
@@ -379,20 +349,6 @@ const Sidebar = ({ open, onClose }) => {
               </Select>
             </FormControl>
 
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  onChange={(e) => handleParameterChange('realTime', e.target.checked)}
-                  sx={{
-                    '& .MuiSwitch-switchBase.Mui-checked': { color: '#4ecdc4' },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: '#4ecdc4' }
-                  }}
-                />
-              }
-              label="Real-time Data"
-              sx={{ color: 'white', '& .MuiFormControlLabel-label': { fontSize: '0.9rem' }}
-            />
           </Box>
         </AccordionDetails>
       </Accordion>

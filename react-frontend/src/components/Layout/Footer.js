@@ -9,16 +9,13 @@ import {
   TextField,
   Button,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  InputAdornment,
   Alert,
   Snackbar,
+  List,
+  ListItem,
 } from '@mui/material';
 import {
   Facebook,
@@ -30,7 +27,6 @@ import {
   LocationOn,
   ExpandMore,
   Send,
-  Notifications,
   TrendingUp,
   Water,
   Thermostat,
@@ -48,14 +44,10 @@ import {
   Code,
   School,
   Public,
-  Eco,
+  Nature,
   Timeline,
-  Map,
   BarChart,
-  Download,
-  Share,
   Star,
-  ThumbUp,
   Comment,
   Work,
   Handshake,
@@ -89,14 +81,6 @@ const Footer = () => {
     }));
   };
 
-  const platformFeatures = [
-    { name: 'Real-time Analytics', icon: <TrendingUp />, description: 'Live ocean data monitoring' },
-    { name: 'AI-Powered Insights', icon: <Psychology />, description: 'Machine learning analysis' },
-    { name: 'Interactive Maps', icon: <Map />, description: 'Global ocean visualization' },
-    { name: 'Data Export', icon: <Download />, description: 'Multiple format support' },
-    { name: 'Custom Dashboards', icon: <Dashboard />, description: 'Personalized views' },
-    { name: 'Collaborative Tools', icon: <Share />, description: 'Team sharing features' }
-  ];
 
   const oceanParameters = [
     { name: 'Temperature', icon: <Thermostat />, unit: '°C' },
@@ -104,7 +88,7 @@ const Footer = () => {
     { name: 'Pressure', icon: <Speed />, unit: 'dbar' },
     { name: 'Currents', icon: <Timeline />, unit: 'm/s' },
     { name: 'Depth', icon: <TrendingUp />, unit: 'm' },
-    { name: 'pH Levels', icon: <Eco />, unit: 'pH' }
+    { name: 'pH Levels', icon: <Nature />, unit: 'pH' }
   ];
 
   const quickLinks = [

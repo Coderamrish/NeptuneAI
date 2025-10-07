@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, email, password) => {
+  const register = async (username, email, password, full_name) => {
     try {
       setLoading(true);
       const response = await fetch('/api/auth/register', {
@@ -91,11 +91,10 @@ export const AuthProvider = ({ children }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username, email, password, full_name }),
       });
 
       if (response.ok) {
-        const data = await response.json();
         toast.success('Registration successful! Please login.');
         return { success: true };
       } else {

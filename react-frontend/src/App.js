@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Box, CssBaseline } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 // Components
 import Navbar from './components/Layout/Navbar';
@@ -22,7 +22,7 @@ import Dashboard from './pages/Dashboard';
 import DataExplorer from './pages/DataExplorer';
 
 // Context
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 // Main App Content Component
