@@ -1,340 +1,287 @@
-<div align="center">
+# 🌊 NeptuneAI Ocean Data Platform v2.0
 
-# 🌊 NeptuneAI
+**Advanced AI-Powered Ocean Data Analytics & Visualization Platform**
 
-### *Dive Deep. Ask Smart. Discover Oceans.*
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.68.0-green.svg)](https://fastapi.tiangolo.com)
+[![Material-UI](https://img.shields.io/badge/Material--UI-5.11.10-blue.svg)](https://mui.com)
 
-**Transform complex oceanographic data into conversational insights with AI-powered intelligence**
+## 🚀 Features
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Launch_Platform-0066FF?style=for-the-badge&labelColor=000000)](https://coderamrish-neptuneai-frontendapp-8luqnx.streamlit.app/)
-[![Python](https://img.shields.io/badge/Python-3.9+-FFD43B?style=for-the-badge&logo=python&logoColor=blue)](https://www.python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![License](https://img.shields.io/badge/License-MIT-00C853?style=for-the-badge)](LICENSE)
+### 🔐 Authentication & User Management
+- **Secure Login/Signup** with JWT tokens
+- **User Profile Management** with real-time updates
+- **Role-based Access Control**
+- **Session Management** with persistent login
 
-![NeptuneAI Demo](https://raw.githubusercontent.com/Coderamrish/NeptuneAI/main/assets/demo.gif)
+### 📊 Advanced Analytics Dashboard
+- **Real-time Ocean Data Visualization**
+- **Interactive Charts & Graphs** with Plotly.js
+- **Geographic Data Mapping** with filtering
+- **Customizable Time Series Analysis**
+- **Data Export** (CSV, JSON formats)
 
-[Features](#-why-neptuneai) • [Demo](#-see-it-in-action) • [Architecture](#-under-the-hood) • [Quick Start](#-quick-start) • [Contributing](#-join-the-crew)
+### 🤖 AI-Powered Insights
+- **Real-time AI Chatbot** with ocean data expertise
+- **Natural Language Queries** about marine data
+- **Automated Plot Generation** from AI responses
+- **Chat History & Session Management**
+- **Intelligent Data Analysis**
 
----
+### 🔍 Data Explorer
+- **Advanced Filtering System** by region, year, parameters
+- **Interactive Data Tables** with pagination
+- **Multiple Visualization Modes** (Table, Charts, Map)
+- **Real-time Parameter Monitoring**
+- **Data Quality Indicators**
 
-</div>
+### 🎨 Modern UI/UX
+- **Responsive Design** for all devices
+- **Dark/Light Mode Toggle**
+- **Smooth Animations** with Framer Motion
+- **Professional Ocean Theme**
+- **Accessibility Features**
 
-## 🎯 The Vision
+### 🔔 Notification System
+- **Real-time Notifications** for data updates
+- **System Status Alerts**
+- **User Activity Notifications**
+- **Interactive Notification Center**
 
-Imagine asking questions about the world's oceans as easily as chatting with a colleague. **NeptuneAI makes this reality.**
+## 🛠️ Technology Stack
 
-The oceans hold 97% of Earth's water and regulate our climate, yet their data remains locked behind complex scientific interfaces. We're changing that. NeptuneAI democratizes oceanographic insights, empowering everyone from marine researchers to curious students to explore ARGO float data through natural conversation.
+### Backend
+- **FastAPI** - Modern, fast web framework
+- **SQLite** - Lightweight database
+- **SQLAlchemy** - ORM for database operations
+- **JWT** - Secure authentication
+- **bcrypt** - Password hashing
+- **Pandas** - Data manipulation
+- **Plotly** - Data visualization
 
-> *"The ocean stirs the heart, inspires the imagination and brings eternal joy to the soul."* — Wyland
+### Frontend
+- **React 18** - Modern UI library
+- **Material-UI (MUI)** - Component library
+- **React Router** - Client-side routing
+- **Framer Motion** - Animations
+- **Plotly.js** - Interactive charts
+- **Axios** - HTTP client
+- **React Query** - Data fetching
 
----
-
-## ✨ Why NeptuneAI?
-
-<table>
-<tr>
-<td width="50%">
-
-### 🧠 **Conversational Intelligence**
-Skip the complex queries. Just ask. Our RAG-powered AI understands context, analyzes trends, and delivers insights in plain English. It's like having an oceanographer in your pocket.
-
-### 📊 **Visual Storytelling**
-Data comes alive through interactive dashboards, real-time charts, and publication-ready visualizations. Every metric tells a story.
-
-</td>
-<td width="50%">
-
-### 🗺️ **Global Perspective**
-Explore ocean data on an interactive globe. Track temperature anomalies, salinity patterns, and float trajectories across all major ocean basins.
-
-### 🔬 **Research-Grade Data**
-Built on authentic ARGO float measurements — the same data used by oceanographers worldwide. No compromises on accuracy.
-
-</td>
-</tr>
-</table>
-
----
-
-## 🚀 Feature Showcase
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  🎤  "Show me temperature trends in the Pacific over 2023"      │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-        ┌───────────────────────────────────────┐
-        │  🤖  AI Processing & Analysis         │
-        │  • Query understanding                 │
-        │  • Data retrieval from 1M+ records    │
-        │  • Statistical analysis                │
-        │  • Insight generation                  │
-        └───────────────────────────────────────┘
-                              ↓
-┌──────────────────┬──────────────────┬──────────────────────┐
-│ 📈 Time Series   │ 🗺️ Geographic   │ 💾 Export Options   │
-│ Interactive Plot │ Heat Map         │ CSV, PNG, HTML       │
-└──────────────────┴──────────────────┴──────────────────────┘
-```
-
-### Core Capabilities
-
-| Feature | Description | Status |
-|---------|-------------|--------|
-| **🗣️ Natural Language Queries** | Ask questions in plain English, get scientific answers | ✅ Live |
-| **📊 Dynamic Dashboards** | Real-time analytics with interactive Plotly visualizations | ✅ Live |
-| **🌍 Geospatial Analysis** | Global ocean mapping with layer controls and filtering | ✅ Live |
-| **💾 Data Export** | Download cleaned datasets, charts, and chat history | ✅ Live |
-| **🔐 Secure Authentication** | Encrypted credentials with personalized sessions | ✅ Live |
-| **⚡ Advanced Filtering** | Precision data selection by date, region, depth, and more | ✅ Live |
-| **📱 Responsive Design** | Seamless experience across desktop, tablet, and mobile | ✅ Live |
-
----
-
-## 🎬 See It in Action
-
-<div align="center">
-
-### [**🚀 Launch Live Demo**](https://coderamrish-neptuneai-frontendapp-8luqnx.streamlit.app/)
-
-</div>
-
-**Try These Sample Queries:**
-
-```python
-💬 "What's the average temperature at 500m depth in the Indian Ocean?"
-
-💬 "Plot salinity vs temperature for the Mediterranean Sea in summer 2023"
-
-💬 "Show me all float trajectories in the Southern Ocean"
-
-💬 "Compare temperature profiles between Atlantic and Pacific"
-
-💬 "What are the temperature anomalies in the Arctic over the past year?"
-```
-
----
-
-## 🏗️ Under the Hood
-
-NeptuneAI leverages a sophisticated **Retrieval-Augmented Generation (RAG)** architecture, combining vector search with large language models to deliver contextually accurate responses grounded in real oceanographic data.
-
-### System Architecture
-
-```mermaid
-graph TB
-    subgraph "🎨 Presentation Layer"
-        A[Streamlit UI]
-        B[Interactive Maps]
-        C[Plotly Dashboards]
-    end
-    
-    subgraph "🧠 AI Core"
-        D[Query Parser]
-        E[RAG Pipeline]
-        F[Vector DB - FAISS]
-        G[LLM - GPT/LLaMA]
-    end
-    
-    subgraph "💾 Data Layer"
-        H[PostgreSQL]
-        I[ARGO NetCDF Files]
-        J[Processed Parquet]
-    end
-    
-    A --> D
-    D --> E
-    E --> F
-    E --> G
-    G --> H
-    H --> I
-    H --> J
-    G --> C
-    C --> A
-    B --> A
-    
-    style A fill:#FF4B4B
-    style E fill:#0066FF
-    style G fill:#00C853
-    style H fill:#FFD43B
-```
-
-### Technology Stack
-
-<table>
-<tr>
-<td valign="top" width="33%">
-
-**🎨 Frontend**
-- Streamlit
-- Plotly
-- Folium
-- Streamlit-Option-Menu
-
-</td>
-<td valign="top" width="33%">
-
-**🧠 AI/ML**
-- LangChain
-- OpenAI GPT / LLaMA
-- FAISS / ChromaDB
-- HuggingFace Embeddings
-
-</td>
-<td valign="top" width="33%">
-
-**💾 Data & Backend**
-- PostgreSQL
-- Pandas / NumPy
-- NetCDF4 / xarray
-- FastAPI (optional)
-
-</td>
-</tr>
-</table>
-
----
+### AI & Data Processing
+- **OpenAI API** - AI-powered insights
+- **Sentence Transformers** - Text embeddings
+- **FAISS** - Vector similarity search
+- **Pandas** - Data analysis
+- **NumPy** - Numerical computing
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
-```bash
-Python 3.9+
-PostgreSQL 12+
-Git
-```
+- Python 3.8+
+- Node.js 16+
+- npm or yarn
 
 ### Installation
 
+1. **Clone the repository**
 ```bash
-# Clone the repository
-git clone https://github.com/Coderamrish/NeptuneAI.git
-cd NeptuneAI
+git clone <repository-url>
+cd neptuneai-ocean-platform
+```
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+2. **Run the automated setup**
+```bash
+python launch_full_stack.py
+```
 
-# Install dependencies
+This script will:
+- ✅ Check system requirements
+- 📦 Install all dependencies
+- 🗄️ Setup the database
+- 🚀 Start both backend and frontend servers
+
+### Manual Installation
+
+#### Backend Setup
+```bash
+cd backend
 pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys and database credentials
-
-# Initialize database
-python scripts/init_db.py
-
-# Launch the application
-streamlit run frontend/app.py
+python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Environment Configuration
-
-Create a `.env` file in the root directory:
-
-```env
-# API Keys
-OPENAI_API_KEY=your_openai_key_here
-HUGGINGFACE_API_KEY=your_hf_key_here
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/neptuneai
-
-# Application
-DEBUG=True
-LOG_LEVEL=INFO
+#### Frontend Setup
+```bash
+cd react-frontend
+npm install
+npm start
 ```
 
----
+## 🌐 Access Points
 
-## 📖 Documentation
+- **Frontend Application**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Interactive API Explorer**: http://localhost:8000/redoc
 
-- **[User Guide](docs/USER_GUIDE.md)** - Learn how to use NeptuneAI effectively
-- **[API Reference](docs/API.md)** - Detailed API documentation
-- **[Data Sources](docs/DATA_SOURCES.md)** - Information about ARGO float data
-- **[Architecture Deep Dive](docs/ARCHITECTURE.md)** - Technical implementation details
+## 📱 Application Features
 
----
+### 🏠 Dashboard
+- Real-time ocean data overview
+- Key performance indicators
+- System status monitoring
+- Quick access to all features
 
-## 🗺️ Roadmap
+### 📊 Analytics
+- Interactive data visualization
+- Geographic data mapping
+- Time series analysis
+- Customizable charts and graphs
+- Data export capabilities
 
-- [x] Core conversational AI interface
-- [x] Interactive dashboard and maps
-- [x] User authentication system
-- [ ] Multi-language support
-- [ ] Real-time ARGO data ingestion
-- [ ] Mobile application (iOS/Android)
-- [ ] Advanced ML models for prediction
-- [ ] Collaborative annotation features
-- [ ] API for third-party integrations
+### 🔍 Data Explorer
+- Advanced filtering system
+- Multiple data views
+- Real-time parameter monitoring
+- Interactive data tables
 
----
+### 🤖 AI Insights
+- Natural language queries
+- Real-time AI responses
+- Automated visualization generation
+- Chat history management
 
-## 🤝 Join the Crew
+### 👤 User Profile
+- Profile management
+- Account settings
+- Activity history
+- Notification preferences
 
-We welcome contributions from developers, oceanographers, data scientists, and ocean enthusiasts!
+## 🔧 API Endpoints
 
-### How to Contribute
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/verify` - Token verification
+- `PUT /api/auth/profile` - Update profile
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/AmazingFeature`)
-3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** to the branch (`git push origin feature/AmazingFeature`)
-5. **Open** a Pull Request
+### Data Management
+- `GET /api/dashboard/stats` - Dashboard statistics
+- `GET /api/dashboard/geographic-data` - Geographic data
+- `GET /api/dashboard/profiler-stats` - Profiler statistics
+- `GET /api/dashboard/monthly-distribution` - Monthly data
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+### AI Chat
+- `POST /api/chat/message` - Send chat message
+- `POST /api/chat/session` - Create chat session
+- `GET /api/chat/sessions` - Get chat sessions
+- `GET /api/chat/messages/{session_id}` - Get chat messages
 
-### Contributors
+### Notifications
+- `GET /api/notifications` - Get notifications
+- `POST /api/notifications` - Create notification
+- `PUT /api/notifications/{id}/read` - Mark as read
 
-<a href="https://github.com/Coderamrish/NeptuneAI/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Coderamrish/NeptuneAI" />
-</a>
+### Data Export
+- `GET /api/export/csv` - Export CSV data
+- `GET /api/export/json` - Export JSON data
 
----
+## 🎨 UI Components
 
-## 📊 Project Stats
+### Layout Components
+- **Navbar** - Top navigation with user menu and notifications
+- **Sidebar** - Collapsible navigation with ocean parameters
+- **Footer** - Comprehensive footer with links and information
 
-![GitHub stars](https://img.shields.io/github/stars/Coderamrish/NeptuneAI?style=social)
-![GitHub forks](https://img.shields.io/github/forks/Coderamrish/NeptuneAI?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/Coderamrish/NeptuneAI?style=social)
-![GitHub issues](https://img.shields.io/github/issues/Coderamrish/NeptuneAI)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/Coderamrish/NeptuneAI)
+### Page Components
+- **Dashboard** - Main overview page
+- **Analytics** - Data visualization and analysis
+- **DataExplorer** - Advanced data exploration
+- **AIInsights** - AI-powered chat interface
+- **Profile** - User profile management
 
----
+### Authentication Components
+- **Login** - User login form
+- **Signup** - User registration form
+- **AuthWrapper** - Authentication wrapper
+
+## 🔒 Security Features
+
+- **JWT Authentication** - Secure token-based auth
+- **Password Hashing** - bcrypt encryption
+- **CORS Protection** - Cross-origin request security
+- **Input Validation** - Pydantic model validation
+- **SQL Injection Prevention** - Parameterized queries
+
+## 📈 Performance Features
+
+- **Lazy Loading** - Component-based code splitting
+- **Data Pagination** - Efficient data handling
+- **Caching** - React Query caching
+- **Optimized Queries** - Database query optimization
+- **Responsive Design** - Mobile-first approach
+
+## 🧪 Testing
+
+```bash
+# Backend tests
+cd backend
+python -m pytest
+
+# Frontend tests
+cd react-frontend
+npm test
+```
+
+## 📦 Deployment
+
+### Docker Deployment
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+```
+
+### Production Deployment
+```bash
+# Backend
+cd backend
+gunicorn api:app -w 4 -k uvicorn.workers.UvicornWorker
+
+# Frontend
+cd react-frontend
+npm run build
+# Serve the build folder with nginx or similar
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
+## 🙏 Acknowledgments
 
-## 🌟 Acknowledgments
+- **ARGO Program** - Ocean data source
+- **Material-UI** - UI component library
+- **FastAPI** - Backend framework
+- **React** - Frontend library
+- **OpenAI** - AI capabilities
 
-- **ARGO Program** - For providing open-access oceanographic data
-- **Streamlit Team** - For the incredible framework
-- **OpenAI** - For GPT models that power our conversational AI
-- **Open Source Community** - For the amazing tools and libraries
+## 📞 Support
 
----
-
-## 📬 Contact & Support
-
-<div align="center">
-
-**Questions? Feedback? Collaboration?**
-
-[![GitHub](https://img.shields.io/badge/GitHub-Issues-black?style=for-the-badge&logo=github)](https://github.com/Coderamrish/NeptuneAI/issues)
-[![Email](https://img.shields.io/badge/Email-Contact-red?style=for-the-badge&logo=gmail)](mailto:your.email@example.com)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=for-the-badge&logo=linkedin)](https://linkedin.com/in/yourprofile)
+- **Email**: contact@neptuneai.com
+- **Documentation**: [docs.neptuneai.com](https://docs.neptuneai.com)
+- **Issues**: [GitHub Issues](https://github.com/neptuneai/issues)
 
 ---
 
-### ⭐ If NeptuneAI helps your research or project, consider giving us a star!
+**Made with ❤️ for Ocean Research and Marine Science**
 
-**Made with 💙 for ocean lovers worldwide**
-
-*Exploring the depths, one conversation at a time.*
-
-</div>
+*NeptuneAI v2.0 - Advanced Ocean Data Analytics Platform*

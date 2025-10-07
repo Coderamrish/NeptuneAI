@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('neptuneai_token', data.token);
+        localStorage.setItem('neptuneai_token', data.access_token);
         setUser(data.user);
         setAuthenticated(true);
         toast.success('Login successful!');
@@ -71,8 +71,8 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Login failed');
-        return { success: false, error: error.message };
+        toast.error(error.detail || 'Login failed');
+        return { success: false, error: error.detail };
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -100,8 +100,8 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Registration failed');
-        return { success: false, error: error.message };
+        toast.error(error.detail || 'Registration failed');
+        return { success: false, error: error.detail };
       }
     } catch (error) {
       console.error('Registration error:', error);

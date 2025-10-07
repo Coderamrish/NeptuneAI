@@ -8,6 +8,7 @@ import bcrypt
 import sqlite3
 from contextlib import contextmanager
 from fastapi import Header
+import uvicorn
 
 from rag_pipeline import answer_query
 from query_engine import (
@@ -15,7 +16,6 @@ from query_engine import (
     get_unique_regions,
     get_monthly_distribution,
     get_profiler_stats,
-    
     get_geographic_coverage,
     get_data_for_plotting
 )
@@ -25,7 +25,7 @@ app = FastAPI(title="NeptuneAI API", version="1.0.0")
 # CORS configuration for React
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3002", "http://localhost:5173"],  # React dev servers
+    allow_origins=["http://localhost:3000", "http://localhost:3002", "http://localhost:5173"],  # React dev servers
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,6 +57,10 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+
 class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
@@ -68,6 +72,11 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: Dict
+
+class NotificationCreate(BaseModel):
+    title: str
+    message: str
+    type: str = "info"  # info, warning, error, success
 
 # Helper functions
 def create_access_token(data: dict):
@@ -148,6 +157,76 @@ async def login(credentials: UserLogin):
         
         token = create_access_token({"sub": user['username'], "user_id": user['id']})
         return {"access_token": token, "token_type": "bearer", "user": user_data}
+
+# Token verification endpoint
+@app.get("/api/auth/verify")
+async def verify_token_endpoint(user: dict = Depends(get_current_user)):
+    with get_user_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, username, email, full_name, role, created_at, last_login
+            FROM users WHERE id = ? AND is_active = 1
+        ''', (user['user_id'],))
+        
+        user_data = cursor.fetchone()
+        if not user_data:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        return {
+            'id': user_data['id'],
+            'username': user_data['username'],
+            'email': user_data['email'],
+            'full_name': user_data['full_name'],
+            'role': user_data['role'],
+            'created_at': user_data['created_at'],
+            'last_login': user_data['last_login']
+        }
+
+# Profile update endpoint
+@app.put("/api/auth/profile")
+async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_current_user)):
+    with get_user_db() as conn:
+        cursor = conn.cursor()
+        
+        # Build update query dynamically
+        update_fields = []
+        values = []
+        
+        if profile_data.full_name is not None:
+            update_fields.append("full_name = ?")
+            values.append(profile_data.full_name)
+        
+        if profile_data.email is not None:
+            update_fields.append("email = ?")
+            values.append(profile_data.email)
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        values.append(user['user_id'])
+        
+        cursor.execute(f'''
+            UPDATE users SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', values)
+        conn.commit()
+        
+        # Return updated user data
+        cursor.execute('''
+            SELECT id, username, email, full_name, role, created_at, last_login
+            FROM users WHERE id = ? AND is_active = 1
+        ''', (user['user_id'],))
+        
+        updated_user = cursor.fetchone()
+        return {
+            'id': updated_user['id'],
+            'username': updated_user['username'],
+            'email': updated_user['email'],
+            'full_name': updated_user['full_name'],
+            'role': updated_user['role'],
+            'created_at': updated_user['created_at'],
+            'last_login': updated_user['last_login']
+        }
 
 # Protected route dependency
 async def get_current_user(authorization: str = Header(None)):
@@ -289,6 +368,134 @@ async def get_monthly_stats(
         engine = get_db_engine()
         monthly = get_monthly_distribution(engine, region=region)
         return {"data": monthly.to_dict('records') if not monthly.empty else []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Notification endpoints
+@app.get("/api/notifications")
+async def get_notifications(user: dict = Depends(get_current_user)):
+    with get_user_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, title, message, type, created_at, is_read
+            FROM notifications WHERE user_id = ? OR user_id IS NULL
+            ORDER BY created_at DESC LIMIT 20
+        ''', (user['user_id'],))
+        
+        notifications = [dict(row) for row in cursor.fetchall()]
+        return {"notifications": notifications}
+
+@app.post("/api/notifications")
+async def create_notification(notification: NotificationCreate, user: dict = Depends(get_current_user)):
+    with get_user_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO notifications (user_id, title, message, type, created_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (user['user_id'], notification.title, notification.message, notification.type))
+        conn.commit()
+        
+        return {"message": "Notification created successfully"}
+
+@app.put("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int, user: dict = Depends(get_current_user)):
+    with get_user_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?
+        ''', (notification_id, user['user_id']))
+        conn.commit()
+        
+        return {"message": "Notification marked as read"}
+
+# Data export endpoints
+@app.get("/api/export/csv")
+async def export_csv(
+    region: Optional[str] = None,
+    limit: int = 10000,
+    user: dict = Depends(get_current_user)
+):
+    try:
+        import pandas as pd
+        import io
+        from fastapi.responses import StreamingResponse
+        
+        engine = get_db_engine()
+        df = get_data_for_plotting(engine, region=region, limit=limit)
+        
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No data found")
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        
+        # Create streaming response
+        def iter_csv():
+            yield output.getvalue()
+        
+        return StreamingResponse(
+            iter_csv(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=ocean_data_{region or 'all'}.csv"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/export/json")
+async def export_json(
+    region: Optional[str] = None,
+    limit: int = 10000,
+    user: dict = Depends(get_current_user)
+):
+    try:
+        engine = get_db_engine()
+        df = get_data_for_plotting(engine, region=region, limit=limit)
+        
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No data found")
+        
+        return {"data": df.to_dict('records')}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Ocean parameters endpoint
+@app.get("/api/ocean/parameters")
+async def get_ocean_parameters(user: dict = Depends(get_current_user)):
+    try:
+        engine = get_db_engine()
+        
+        # Get available parameters from the database
+        from query_engine import run_query
+        from sqlalchemy import text
+        
+        # Get column information
+        columns_query = text("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'oceanbench_data'
+            ORDER BY ordinal_position
+        """)
+        
+        try:
+            columns_df = run_query(engine, columns_query)
+            parameters = columns_df.to_dict('records')
+        except:
+            # Fallback for SQLite
+            parameters = [
+                {"column_name": "temperature", "data_type": "numeric"},
+                {"column_name": "salinity", "data_type": "numeric"},
+                {"column_name": "pressure", "data_type": "numeric"},
+                {"column_name": "latitude", "data_type": "numeric"},
+                {"column_name": "longitude", "data_type": "numeric"},
+                {"column_name": "depth", "data_type": "numeric"},
+                {"column_name": "region", "data_type": "text"},
+                {"column_name": "year", "data_type": "integer"},
+                {"column_name": "month", "data_type": "integer"}
+            ]
+        
+        return {"parameters": parameters}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
