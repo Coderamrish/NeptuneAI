@@ -1,0 +1,467 @@
+{
+    "metadata": {
+        "export_timestamp": "2025-10-07T17:03:03.203518",
+        "total_records": 50,
+        "columns": [
+            "latitude",
+            "longitude",
+            "temperature",
+            "salinity",
+            "pressure",
+            "platform_number",
+            "date"
+        ]
+    },
+    "data": [
+        {
+            "latitude": -6.062036943535283,
+            "longitude": 106.89100003978818,
+            "temperature": 21.592336770189267,
+            "salinity": 34.751723874613546,
+            "pressure": 850.401640266861,
+            "platform_number": "ARGO_000000",
+            "date": "2023-01-01 00:00:00"
+        },
+        {
+            "latitude": 8.819890508262901,
+            "longitude": 54.56658566020746,
+            "temperature": 18.53579305916565,
+            "salinity": 36.99217607580237,
+            "pressure": 751.1442299334277,
+            "platform_number": "ARGO_000001",
+            "date": "2023-01-02 00:00:00"
+        },
+        {
+            "latitude": -35.229712356309435,
+            "longitude": 62.63328815384795,
+            "temperature": 26.064702190203192,
+            "salinity": 34.79389793304686,
+            "pressure": 1048.3773174662247,
+            "platform_number": "ARGO_000002",
+            "date": "2023-01-03 00:00:00"
+        },
+        {
+            "latitude": 14.322503497561378,
+            "longitude": 68.3350153121551,
+            "temperature": 15.309931853308138,
+            "salinity": 34.92364605586831,
+            "pressure": 1392.0522944626648,
+            "platform_number": "ARGO_000003",
+            "date": "2023-01-04 00:00:00"
+        },
+        {
+            "latitude": -36.70972194945807,
+            "longitude": 88.68213275125048,
+            "temperature": 28.21228821048085,
+            "salinity": 34.64798354932239,
+            "pressure": 979.4638244560232,
+            "platform_number": "ARGO_000004",
+            "date": "2023-01-05 00:00:00"
+        },
+        {
+            "latitude": -31.04014554320381,
+            "longitude": 76.88999793488246,
+            "temperature": 28.22026980120168,
+            "salinity": 36.79979018664481,
+            "pressure": 1625.3856550624987,
+            "platform_number": "ARGO_000005",
+            "date": "2023-01-06 00:00:00"
+        },
+        {
+            "latitude": -8.231289448220696,
+            "longitude": 72.77317174238419,
+            "temperature": 27.068762563744606,
+            "salinity": 35.09279051028618,
+            "pressure": 385.6559731019318,
+            "platform_number": "ARGO_000006",
+            "date": "2023-01-07 00:00:00"
+        },
+        {
+            "latitude": -1.590867639400848,
+            "longitude": 59.184576261001965,
+            "temperature": 20.955117502548475,
+            "salinity": 36.00097080938779,
+            "pressure": 904.9333965399092,
+            "platform_number": "ARGO_000007",
+            "date": "2023-01-08 00:00:00"
+        },
+        {
+            "latitude": -16.144224852017693,
+            "longitude": 99.06104802574585,
+            "temperature": 24.55919618342625,
+            "salinity": 36.5843111320952,
+            "pressure": 385.49864762748246,
+            "platform_number": "ARGO_000008",
+            "date": "2023-01-09 00:00:00"
+        },
+        {
+            "latitude": -6.146801240307347,
+            "longitude": 48.511127236410886,
+            "temperature": 25.793701681941272,
+            "salinity": 35.84546286754356,
+            "pressure": 305.7058752598405,
+            "platform_number": "ARGO_000009",
+            "date": "2023-01-10 00:00:00"
+        },
+        {
+            "latitude": -34.39898025666108,
+            "longitude": 110.15518801061187,
+            "temperature": 15.382453465491574,
+            "salinity": 33.416746409570955,
+            "pressure": 424.15222013157126,
+            "platform_number": "ARGO_000010",
+            "date": "2023-01-11 00:00:00"
+        },
+        {
+            "latitude": 3.1440707828728875,
+            "longitude": 85.23289906851592,
+            "temperature": 21.002672891776758,
+            "salinity": 35.16700557219011,
+            "pressure": 1272.7099502591436,
+            "platform_number": "ARGO_000011",
+            "date": "2023-01-12 00:00:00"
+        },
+        {
+            "latitude": 12.578626873665556,
+            "longitude": 56.139093919138936,
+            "temperature": 21.36006503954396,
+            "salinity": 33.468140846856535,
+            "pressure": 1721.4762441443934,
+            "platform_number": "ARGO_000012",
+            "date": "2023-01-13 00:00:00"
+        },
+        {
+            "latitude": -23.38217673815568,
+            "longitude": 71.17816295482103,
+            "temperature": 26.398029709491425,
+            "salinity": 35.027099846929936,
+            "pressure": 343.50323641340765,
+            "platform_number": "ARGO_000013",
+            "date": "2023-01-14 00:00:00"
+        },
+        {
+            "latitude": -33.51903102117524,
+            "longitude": 49.26480799724778,
+            "temperature": 22.702401603947497,
+            "salinity": 35.28206763780378,
+            "pressure": 802.1562992065361,
+            "platform_number": "ARGO_000014",
+            "date": "2023-01-15 00:00:00"
+        },
+        {
+            "latitude": -2.4829562905849727,
+            "longitude": 58.6570801652686,
+            "temperature": 23.844808970108758,
+            "salinity": 35.722562635272155,
+            "pressure": 913.0175847772483,
+            "platform_number": "ARGO_000015",
+            "date": "2023-01-16 00:00:00"
+        },
+        {
+            "latitude": -38.21468688017628,
+            "longitude": 97.40969287047878,
+            "temperature": 28.54785389169863,
+            "salinity": 33.58445401001261,
+            "pressure": 1737.1551782092454,
+            "platform_number": "ARGO_000016",
+            "date": "2023-01-17 00:00:00"
+        },
+        {
+            "latitude": -34.15324592023315,
+            "longitude": 116.4160120935986,
+            "temperature": 16.818997853443587,
+            "salinity": 34.934472743382976,
+            "pressure": 453.8110211891286,
+            "platform_number": "ARGO_000017",
+            "date": "2023-01-18 00:00:00"
+        },
+        {
+            "latitude": -39.67962871391434,
+            "longitude": 42.32533371907682,
+            "temperature": 16.76562306797455,
+            "salinity": 33.925740530032016,
+            "pressure": 7.045072461355328,
+            "platform_number": "ARGO_000018",
+            "date": "2023-01-19 00:00:00"
+        },
+        {
+            "latitude": 10.509901625410755,
+            "longitude": 117.04936534601721,
+            "temperature": 21.150623895845044,
+            "salinity": 36.305391331071206,
+            "pressure": 908.3436170558404,
+            "platform_number": "ARGO_000019",
+            "date": "2023-01-20 00:00:00"
+        },
+        {
+            "latitude": -38.3545543810008,
+            "longitude": 111.15773090044469,
+            "temperature": 24.45111450487193,
+            "salinity": 33.70297121472454,
+            "pressure": 1834.2523516715078,
+            "platform_number": "ARGO_000020",
+            "date": "2023-01-21 00:00:00"
+        },
+        {
+            "latitude": -2.1995959119082045,
+            "longitude": 46.218897850699776,
+            "temperature": 28.190120167894747,
+            "salinity": 36.02840895750731,
+            "pressure": 1055.3201735642283,
+            "platform_number": "ARGO_000021",
+            "date": "2023-01-22 00:00:00"
+        },
+        {
+            "latitude": 3.7584709442624984,
+            "longitude": 43.646402200402086,
+            "temperature": 17.439555202221594,
+            "salinity": 34.15168024771686,
+            "pressure": 259.22090309672717,
+            "platform_number": "ARGO_000022",
+            "date": "2023-01-23 00:00:00"
+        },
+        {
+            "latitude": -38.16562804990122,
+            "longitude": 66.01062915970127,
+            "temperature": 24.33647178809943,
+            "salinity": 33.80840819657949,
+            "pressure": 1265.3974633479866,
+            "platform_number": "ARGO_000023",
+            "date": "2023-01-24 00:00:00"
+        },
+        {
+            "latitude": 4.916295555609402,
+            "longitude": 49.207169620449676,
+            "temperature": 22.98867872188123,
+            "salinity": 34.51952392952092,
+            "pressure": 262.78268522930847,
+            "platform_number": "ARGO_000024",
+            "date": "2023-01-25 00:00:00"
+        },
+        {
+            "latitude": 5.622666114384586,
+            "longitude": 115.14605177005093,
+            "temperature": 16.497896548263576,
+            "salinity": 33.622940494052976,
+            "pressure": 490.09479137791766,
+            "platform_number": "ARGO_000025",
+            "date": "2023-01-26 00:00:00"
+        },
+        {
+            "latitude": 21.29593742542042,
+            "longitude": 105.06693497679916,
+            "temperature": 21.367040703890112,
+            "salinity": 36.72573370448267,
+            "pressure": 261.3721298133578,
+            "platform_number": "ARGO_000026",
+            "date": "2023-01-27 00:00:00"
+        },
+        {
+            "latitude": 11.9996731566753,
+            "longitude": 41.649736678197335,
+            "temperature": 17.657825998134953,
+            "salinity": 35.105362742584894,
+            "pressure": 914.7585889737828,
+            "platform_number": "ARGO_000027",
+            "date": "2023-01-28 00:00:00"
+        },
+        {
+            "latitude": 16.766734428330807,
+            "longitude": 116.56329326308422,
+            "temperature": 26.278795911343575,
+            "salinity": 33.986346696874776,
+            "pressure": 617.4991347435728,
+            "platform_number": "ARGO_000028",
+            "date": "2023-01-29 00:00:00"
+        },
+        {
+            "latitude": -9.398263896466233,
+            "longitude": 118.26369220040031,
+            "temperature": 23.809171247978945,
+            "salinity": 34.70372549250077,
+            "pressure": 610.1500029881793,
+            "platform_number": "ARGO_000029",
+            "date": "2023-01-30 00:00:00"
+        },
+        {
+            "latitude": 22.513898139578878,
+            "longitude": 83.7236927377783,
+            "temperature": 24.846837810649944,
+            "salinity": 33.2862312914157,
+            "pressure": 757.8561102969892,
+            "platform_number": "ARGO_000030",
+            "date": "2023-01-31 00:00:00"
+        },
+        {
+            "latitude": 1.8926789195877447,
+            "longitude": 100.79083017371315,
+            "temperature": 16.315303709470278,
+            "salinity": 34.608502648744775,
+            "pressure": 1578.4562451275117,
+            "platform_number": "ARGO_000031",
+            "date": "2023-02-01 00:00:00"
+        },
+        {
+            "latitude": -27.970794612751632,
+            "longitude": 48.58276155021895,
+            "temperature": 21.320074184551913,
+            "salinity": 36.265135167075705,
+            "pressure": 1908.9128184885888,
+            "platform_number": "ARGO_000032",
+            "date": "2023-02-02 00:00:00"
+        },
+        {
+            "latitude": -2.636269086109351,
+            "longitude": 79.98320074030782,
+            "temperature": 21.350443496626042,
+            "salinity": 36.32779012454448,
+            "pressure": 634.1262085518844,
+            "platform_number": "ARGO_000033",
+            "date": "2023-02-03 00:00:00"
+        },
+        {
+            "latitude": -34.38109946682518,
+            "longitude": 75.56702158333638,
+            "temperature": 29.775790871521533,
+            "salinity": 34.011556555515746,
+            "pressure": 1628.8654537641787,
+            "platform_number": "ARGO_000034",
+            "date": "2023-02-04 00:00:00"
+        },
+        {
+            "latitude": -13.863458260011786,
+            "longitude": 99.039610532296,
+            "temperature": 28.17935306187939,
+            "salinity": 33.18345635349889,
+            "pressure": 1886.0060381304359,
+            "platform_number": "ARGO_000035",
+            "date": "2023-02-05 00:00:00"
+        },
+        {
+            "latitude": 1.7510128356680994,
+            "longitude": 62.58417720868481,
+            "temperature": 16.432487316519744,
+            "salinity": 35.74446683836182,
+            "pressure": 990.6372556077652,
+            "platform_number": "ARGO_000036",
+            "date": "2023-02-06 00:00:00"
+        },
+        {
+            "latitude": -1.7657570498356208,
+            "longitude": 45.912519987335486,
+            "temperature": 16.367764163977704,
+            "salinity": 34.05492468365215,
+            "pressure": 787.5093034022198,
+            "platform_number": "ARGO_000037",
+            "date": "2023-02-07 00:00:00"
+        },
+        {
+            "latitude": -35.849656963087384,
+            "longitude": 85.63686929172268,
+            "temperature": 17.667387503305644,
+            "salinity": 35.00849995680952,
+            "pressure": 1412.9399374376571,
+            "platform_number": "ARGO_000038",
+            "date": "2023-02-08 00:00:00"
+        },
+        {
+            "latitude": 17.23137977356727,
+            "longitude": 52.626077680276715,
+            "temperature": 24.296932298060923,
+            "salinity": 34.90846410564251,
+            "pressure": 1886.4349769023586,
+            "platform_number": "ARGO_000039",
+            "date": "2023-02-09 00:00:00"
+        },
+        {
+            "latitude": 18.001665385878873,
+            "longitude": 105.40150897168598,
+            "temperature": 23.937098506642478,
+            "salinity": 33.396674404610536,
+            "pressure": 1143.7599522342093,
+            "platform_number": "ARGO_000040",
+            "date": "2023-02-10 00:00:00"
+        },
+        {
+            "latitude": -32.18438050532355,
+            "longitude": 52.29142406837428,
+            "temperature": 20.937318448424787,
+            "salinity": 33.00229099103948,
+            "pressure": 855.9999945499084,
+            "platform_number": "ARGO_000041",
+            "date": "2023-02-11 00:00:00"
+        },
+        {
+            "latitude": 21.476277098953986,
+            "longitude": 52.82402725514722,
+            "temperature": 15.637818053370891,
+            "salinity": 33.53197596625213,
+            "pressure": 1414.9049314943127,
+            "platform_number": "ARGO_000042",
+            "date": "2023-02-12 00:00:00"
+        },
+        {
+            "latitude": 9.279202316306097,
+            "longitude": 102.36073606647665,
+            "temperature": 18.205148029172914,
+            "salinity": 36.42721579575364,
+            "pressure": 719.1561403505086,
+            "platform_number": "ARGO_000043",
+            "date": "2023-02-13 00:00:00"
+        },
+        {
+            "latitude": -19.601183520068275,
+            "longitude": 109.177426133471,
+            "temperature": 29.026041817475743,
+            "salinity": 34.33198881627005,
+            "pressure": 1405.558159958695,
+            "platform_number": "ARGO_000044",
+            "date": "2023-02-14 00:00:00"
+        },
+        {
+            "latitude": -11.370365312401724,
+            "longitude": 92.73602105677173,
+            "temperature": 22.112678459462753,
+            "salinity": 34.78991783175143,
+            "pressure": 171.14140371969233,
+            "platform_number": "ARGO_000045",
+            "date": "2023-02-15 00:00:00"
+        },
+        {
+            "latitude": -37.50589797329948,
+            "longitude": 56.27142967658459,
+            "temperature": 23.659043242851293,
+            "salinity": 36.02963956087262,
+            "pressure": 722.3774565738144,
+            "platform_number": "ARGO_000046",
+            "date": "2023-02-16 00:00:00"
+        },
+        {
+            "latitude": -24.548253711046467,
+            "longitude": 40.57035137194739,
+            "temperature": 26.985122579223194,
+            "salinity": 33.08818578189717,
+            "pressure": 743.1482327643772,
+            "platform_number": "ARGO_000047",
+            "date": "2023-02-17 00:00:00"
+        },
+        {
+            "latitude": 0.45670558313370435,
+            "longitude": 107.43771867612392,
+            "temperature": 22.71008248528334,
+            "salinity": 34.430755854340745,
+            "pressure": 193.99772858155927,
+            "platform_number": "ARGO_000048",
+            "date": "2023-02-18 00:00:00"
+        },
+        {
+            "latitude": -21.694923602827288,
+            "longitude": 64.0510409285487,
+            "temperature": 16.286251009093952,
+            "salinity": 34.50515869131929,
+            "pressure": 1881.4902208281296,
+            "platform_number": "ARGO_000049",
+            "date": "2023-02-19 00:00:00"
+        }
+    ]
+}

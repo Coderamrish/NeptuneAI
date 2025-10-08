@@ -1,0 +1,53 @@
+[
+  {
+    "id": "579cd36a007fe879d043bc59716e2f55",
+    "content": "Location: 10.50\u00b0N, 60.20\u00b0E | Date: 2023-01-15 | Temperature: 25.50 | Salinity: 35.20",
+    "metadata": {
+      "profile_index": 0,
+      "latitude": 10.5,
+      "longitude": 60.2,
+      "date": "2023-01-15",
+      "platform_number": null,
+      "cycle_number": null,
+      "temperature": 25.5,
+      "salinity": 35.2
+    },
+    "doc_type": "profile",
+    "created_at": "2025-10-07T17:09:33.845576",
+    "updated_at": "2025-10-07T17:09:33.845576"
+  },
+  {
+    "id": "97a485618cf424ba3e779ecd745554ca",
+    "content": "Location: 20.30\u00b0N, 70.80\u00b0E | Date: 2023-02-20 | Temperature: 22.10 | Salinity: 34.80",
+    "metadata": {
+      "profile_index": 1,
+      "latitude": 20.3,
+      "longitude": 70.8,
+      "date": "2023-02-20",
+      "platform_number": null,
+      "cycle_number": null,
+      "temperature": 22.1,
+      "salinity": 34.8
+    },
+    "doc_type": "profile",
+    "created_at": "2025-10-07T17:09:33.862062",
+    "updated_at": "2025-10-07T17:09:33.862062"
+  },
+  {
+    "id": "da3a463666ad0016502b5be1857341ab",
+    "content": "Location: 30.10\u00b0N, 80.50\u00b0E | Date: 2023-03-10 | Temperature: 18.70 | Salinity: 35.10",
+    "metadata": {
+      "profile_index": 2,
+      "latitude": 30.1,
+      "longitude": 80.5,
+      "date": "2023-03-10",
+      "platform_number": null,
+      "cycle_number": null,
+      "temperature": 18.7,
+      "salinity": 35.1
+    },
+    "doc_type": "profile",
+    "created_at": "2025-10-07T17:09:33.873483",
+    "updated_at": "2025-10-07T17:09:33.873483"
+  }
+]

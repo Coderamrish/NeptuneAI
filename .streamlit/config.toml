@@ -1,0 +1,13 @@
+# .streamlit/config.toml
+
+[theme]
+primaryColor = "#06d436ff"        # Bright teal
+backgroundColor = "#000000ff"     # Deep blue-black
+secondaryBackgroundColor = "#d3d2d8ff" # Steel blue
+textColor = "#060f0dff"          # Teal-tinted white
+font = "Source Sans Pro, sans-serif" # Clean and readable
+[client]
+showSidebarNavigation = true
+
+[ui]
+hideTopBar = false
