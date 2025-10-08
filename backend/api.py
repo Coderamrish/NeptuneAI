@@ -716,6 +716,96 @@ async def get_ocean_parameters(user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Additional missing endpoints
+@app.get("/api/analytics")
+async def get_analytics(user: dict = Depends(get_current_user)):
+    """Get analytics data"""
+    try:
+        # Generate sample analytics data
+        return {
+            "stats": {
+                "totalRecords": 125000,
+                "avgTemperature": 15.2,
+                "avgSalinity": 35.1,
+                "maxDepth": 5000,
+                "dataPoints": 200
+            },
+            "temperatureData": [],
+            "salinityData": [],
+            "depthData": [],
+            "geographicData": [],
+            "monthlyData": [],
+            "correlationData": []
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/data/explorer")
+async def get_data_explorer(user: dict = Depends(get_current_user)):
+    """Get data explorer data"""
+    try:
+        # Generate sample data for explorer
+        import random
+        data = []
+        for i in range(1000):
+            data.append({
+                "id": i + 1,
+                "timestamp": datetime.now().isoformat(),
+                "latitude": -90 + random.random() * 180,
+                "longitude": -180 + random.random() * 360,
+                "temperature": 10 + random.random() * 20,
+                "salinity": 30 + random.random() * 10,
+                "pressure": random.random() * 1000,
+                "depth": random.random() * 5000,
+                "region": random.choice(['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern']),
+                "year": 2020 + random.randint(0, 4),
+                "station_id": f"ST{str(i + 1).zfill(4)}",
+                "quality": random.choice(['Good', 'Poor'])
+            })
+        return {"data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/user/stats")
+async def get_user_stats(user: dict = Depends(get_current_user)):
+    """Get user statistics"""
+    try:
+        return {
+            "totalDownloads": 47,
+            "totalChats": 23,
+            "totalUploads": 8,
+            "dataPoints": 125000,
+            "lastActivity": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/user/activity")
+async def get_user_activity(user: dict = Depends(get_current_user)):
+    """Get user activity"""
+    try:
+        activities = [
+            {
+                "id": 1,
+                "type": "download",
+                "description": "Downloaded ocean temperature data",
+                "timestamp": datetime.now().isoformat(),
+                "icon": "Download",
+                "color": "primary"
+            },
+            {
+                "id": 2,
+                "type": "chat",
+                "description": "Asked about salinity patterns",
+                "timestamp": datetime.now().isoformat(),
+                "icon": "Chat",
+                "color": "success"
+            }
+        ]
+        return {"activities": activities}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Health check
 @app.get("/api/health")
 async def health_check():
