@@ -158,6 +158,15 @@ async def login(credentials: UserLogin):
         token = create_access_token({"sub": user['username'], "user_id": user['id']})
         return {"access_token": token, "token_type": "bearer", "user": user_data}
 
+# Protected route dependency
+async def get_current_user(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = authorization.split(" ")[1]
+    payload = verify_token(token)
+    return payload
+
 # Token verification endpoint
 @app.get("/api/auth/verify")
 async def verify_token_endpoint(user: dict = Depends(get_current_user)):
@@ -438,15 +447,6 @@ I'm here to help you explore and understand ocean data. I can provide insights o
 What would you like to know about our oceans?""",
             "plots": []
         }
-
-# Protected route dependency
-async def get_current_user(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    token = authorization.split(" ")[1]
-    payload = verify_token(token)
-    return payload
 
 # Chat endpoints
 @app.post("/api/chat/message")
