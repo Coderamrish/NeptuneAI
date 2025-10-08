@@ -237,27 +237,46 @@ async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_curr
             'last_login': updated_user['last_login']
         }
 
-# AI Response Generation
+# AI Response Generation with RAG Pipeline
 def generate_ai_response(query: str):
-    """Generate AI response based on user query about ocean data using Groq AI"""
+    """Generate AI response using RAG pipeline and database integration"""
     try:
-        # Use Groq AI for intelligent responses
+        # Import RAG pipeline
+        from rag_pipeline import RAGPipeline
+        
+        # Initialize RAG pipeline
+        rag = RAGPipeline()
+        
+        # Get context from database using RAG
+        context_data = rag.get_context_for_query(query)
+        
+        # Use Groq AI with database context
         if groq_client:
-            response = groq_client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are NeptuneAI, an expert ocean data analyst assistant. You help users understand ocean data including temperature, salinity, pressure, depth, and other oceanographic parameters. 
+            system_prompt = f"""You are NeptuneAI, an expert ocean data analyst assistant. You help users understand ocean data including temperature, salinity, pressure, depth, and other oceanographic parameters.
+
+Database Context:
+{context_data.get('summary', 'No specific data found')}
+
+Available Data:
+- Total Records: {context_data.get('total_records', 0)}
+- Regions: {', '.join(context_data.get('regions', []))}
+- Date Range: {context_data.get('date_range', 'N/A')}
 
 You can:
-- Analyze ocean data trends and patterns
+- Analyze ocean data trends and patterns using the provided context
 - Explain oceanographic phenomena
 - Generate insights about marine ecosystems
 - Create visualizations and charts
 - Answer questions about ocean science
 
-Always provide accurate, scientific information and suggest relevant data visualizations when appropriate. Be conversational but professional."""
+Always provide accurate, scientific information based on the available data and suggest relevant data visualizations when appropriate. Be conversational but professional."""
+
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt
                     },
                     {
                         "role": "user",
@@ -265,23 +284,25 @@ Always provide accurate, scientific information and suggest relevant data visual
                     }
                 ],
                 temperature=0.7,
-                max_tokens=1000
+                max_tokens=1500
             )
             
             ai_content = response.choices[0].message.content
             
-            # Generate relevant plots based on query
-            plots = generate_relevant_plots(query)
+            # Generate relevant plots based on query and context
+            plots = generate_relevant_plots(query, context_data)
             
             return {
                 "content": ai_content,
-                "plots": plots
+                "plots": plots,
+                "context_used": context_data.get('summary', ''),
+                "data_points": context_data.get('total_records', 0)
             }
         else:
             # Fallback to rule-based responses if Groq is not available
             return generate_fallback_response(query)
     except Exception as e:
-        print(f"Groq AI error: {e}")
+        print(f"RAG Pipeline error: {e}")
         return generate_fallback_response(query)
 
 def generate_fallback_response(query: str):
@@ -530,69 +551,109 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
             "timestamp": datetime.now().isoformat()
         }
 
-def generate_relevant_plots(query: str):
-    """Generate relevant plots based on the user query"""
+def generate_relevant_plots(query: str, context_data: dict = None):
+    """Generate relevant plots based on the user query and database context"""
     query_lower = query.lower()
     plots = []
     
-    if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
-        plots.append({
-            "data": [{
-                "x": ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
-                "y": [25, 20, 15, 10, 5, 2],
-                "type": "scatter",
-                "mode": "lines+markers",
-                "name": "Temperature",
-                "line": {"color": "#ff6b6b", "width": 3},
-                "marker": {"size": 8}
-            }],
-            "layout": {
-                "title": "Ocean Temperature vs Depth Profile",
-                "xaxis": {"title": "Depth"},
-                "yaxis": {"title": "Temperature (°C)"},
-                "height": 300
-            }
-        })
+    # Use real data from context if available
+    if context_data and context_data.get('data'):
+        data = context_data['data']
+        
+        if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
+            # Generate temperature plot with real data
+            temp_data = data.get('temperature_data', [])
+            if temp_data:
+                plots.append({
+                    "data": [{
+                        "x": [item.get('depth', 0) for item in temp_data],
+                        "y": [item.get('temperature', 0) for item in temp_data],
+                        "type": "scatter",
+                        "mode": "lines+markers",
+                        "name": "Temperature",
+                        "line": {"color": "#ff6b6b", "width": 3},
+                        "marker": {"size": 8}
+                    }],
+                    "layout": {
+                        "title": f"Ocean Temperature vs Depth Profile ({len(temp_data)} data points)",
+                        "xaxis": {"title": "Depth (m)"},
+                        "yaxis": {"title": "Temperature (°C)"},
+                        "height": 300
+                    }
+                })
+        
+        elif any(word in query_lower for word in ['salinity', 'salt', 'saltwater']):
+            # Generate salinity plot with real data
+            sal_data = data.get('salinity_data', [])
+            if sal_data:
+                plots.append({
+                    "data": [{
+                        "x": [item.get('depth', 0) for item in sal_data],
+                        "y": [item.get('salinity', 0) for item in sal_data],
+                        "type": "scatter",
+                        "mode": "lines+markers",
+                        "name": "Salinity",
+                        "line": {"color": "#4fc3f7", "width": 3},
+                        "marker": {"size": 8}
+                    }],
+                    "layout": {
+                        "title": f"Ocean Salinity vs Depth Profile ({len(sal_data)} data points)",
+                        "xaxis": {"title": "Depth (m)"},
+                        "yaxis": {"title": "Salinity (PSU)"},
+                        "height": 300
+                    }
+                })
+        
+        elif any(word in query_lower for word in ['map', 'location', 'geographic', 'region']):
+            # Generate geographic map with real data
+            geo_data = data.get('geographic_data', [])
+            if geo_data:
+                plots.append({
+                    "data": [{
+                        "type": "scattermapbox",
+                        "lat": [item.get('latitude', 0) for item in geo_data],
+                        "lon": [item.get('longitude', 0) for item in geo_data],
+                        "mode": "markers",
+                        "marker": {
+                            "size": 8,
+                            "color": [item.get('temperature', 0) for item in geo_data],
+                            "colorscale": "Viridis",
+                            "showscale": True,
+                            "colorbar": {"title": "Temperature (°C)"}
+                        },
+                        "text": [f"Temp: {item.get('temperature', 0):.1f}°C<br>Sal: {item.get('salinity', 0):.1f} PSU" for item in geo_data]
+                    }],
+                    "layout": {
+                        "mapbox": {
+                            "style": "open-street-map",
+                            "center": {"lat": 0, "lon": 0},
+                            "zoom": 1
+                        },
+                        "height": 400,
+                        "margin": {"t": 0, "b": 0, "l": 0, "r": 0}
+                    }
+                })
     
-    elif any(word in query_lower for word in ['salinity', 'salt', 'saltwater']):
-        plots.append({
-            "data": [{
-                "x": ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
-                "y": [35.5, 35.2, 34.8, 34.5, 34.2, 34.0],
-                "type": "scatter",
-                "mode": "lines+markers",
-                "name": "Salinity",
-                "line": {"color": "#4fc3f7", "width": 3},
-                "marker": {"size": 8}
-            }],
-            "layout": {
-                "title": "Ocean Salinity vs Depth Profile",
-                "xaxis": {"title": "Depth"},
-                "yaxis": {"title": "Salinity (PSU)"},
-                "height": 300
-            }
-        })
-    
-    elif any(word in query_lower for word in ['map', 'location', 'geographic', 'region']):
-        plots.append({
-            "data": [{
-                "type": "scattermapbox",
-                "lat": [40.7128, 34.0522, 51.5074, -33.8688, 35.6762],
-                "lon": [-74.0060, -118.2437, -0.1278, 151.2093, 139.6503],
-                "mode": "markers",
-                "marker": {"size": 10, "color": "red"},
-                "text": ["New York", "Los Angeles", "London", "Sydney", "Tokyo"]
-            }],
-            "layout": {
-                "mapbox": {
-                    "style": "open-street-map",
-                    "center": {"lat": 0, "lon": 0},
-                    "zoom": 1
-                },
-                "height": 400,
-                "margin": {"t": 0, "b": 0, "l": 0, "r": 0}
-            }
-        })
+    # Fallback to sample data if no real data available
+    if not plots:
+        if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
+            plots.append({
+                "data": [{
+                    "x": ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
+                    "y": [25, 20, 15, 10, 5, 2],
+                    "type": "scatter",
+                    "mode": "lines+markers",
+                    "name": "Temperature",
+                    "line": {"color": "#ff6b6b", "width": 3},
+                    "marker": {"size": 8}
+                }],
+                "layout": {
+                    "title": "Ocean Temperature vs Depth Profile (Sample Data)",
+                    "xaxis": {"title": "Depth"},
+                    "yaxis": {"title": "Temperature (°C)"},
+                    "height": 300
+                }
+            })
     
     return plots
 

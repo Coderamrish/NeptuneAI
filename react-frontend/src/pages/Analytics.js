@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Button,
   IconButton,
   FormControl,
   InputLabel,
@@ -17,8 +16,6 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  Chip,
-  Paper,
 } from '@mui/material';
 import {
   Download,
@@ -34,7 +31,6 @@ import {
   BarChart,
   PieChart,
   Timeline,
-  Public,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Plot from 'react-plotly.js';
@@ -67,11 +63,11 @@ const Analytics = () => {
     monthlyData: [],
     correlationData: [],
   });
-  const { user } = useAuth();
+  const { } = useAuth();
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAnalyticsData = async () => {
     try {

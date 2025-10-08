@@ -49,6 +49,24 @@ const AIInsights = () => {
   const [sessions, setSessions] = useState([]);
   const [showSessions, setShowSessions] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  const [aiCapabilities, setAiCapabilities] = useState([
+    'Ocean Temperature Analysis',
+    'Salinity Distribution',
+    'Depth Profile Charts',
+    'Geographic Mapping',
+    'Data Trends',
+    'Marine Ecosystems',
+    'Climate Patterns',
+    'Water Quality'
+  ]);
+  const [quickQuestions] = useState([
+    'What is the ocean temperature?',
+    'Show me salinity data',
+    'Create a depth profile',
+    'Generate an ocean map',
+    'Analyze temperature trends',
+    'What affects marine life?'
+  ]);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -383,6 +401,11 @@ const AIInsights = () => {
     toast.success('Chat cleared!');
   };
 
+  const handleQuickQuestion = (question) => {
+    setQuery(question);
+    setTimeout(() => sendMessage(), 100);
+  };
+
   const quickQuestions = [
     "What's the current ocean temperature?",
     "Show me salinity data",
@@ -417,6 +440,11 @@ const AIInsights = () => {
                 <Add />
               </IconButton>
             </Tooltip>
+            <Tooltip title="Clear Chat">
+              <IconButton onClick={clearMessages} sx={{ color: 'error' }}>
+                <Clear />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Test AI">
               <IconButton 
                 onClick={() => {
@@ -433,11 +461,6 @@ const AIInsights = () => {
                 <Badge badgeContent={sessions.length} color="error">
                   <History />
                 </Badge>
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Clear Chat">
-              <IconButton onClick={clearMessages} sx={{ color: 'primary' }}>
-                <Clear />
               </IconButton>
             </Tooltip>
           </Box>

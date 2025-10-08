@@ -5,10 +5,7 @@ import {
   Card,
   CardContent,
   Typography,
-  Button,
   IconButton,
-  LinearProgress,
-  Chip,
   Alert,
   CircularProgress,
   Tooltip,
@@ -27,10 +24,7 @@ import {
   BarChart,
   Map,
   Psychology,
-  CloudUpload,
-  Warning,
   CheckCircle,
-  Info,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import Plot from 'react-plotly.js';
@@ -55,7 +49,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchDashboardData = async () => {
     try {
