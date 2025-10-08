@@ -139,8 +139,8 @@ async def login(credentials: UserLogin):
         
         user = cursor.fetchone()
         
-        if not user or not bcrypt.checkpw(credentials.password.encode('utf-8'), 
-                                          user['password_hash'].encode('utf-8')):
+        import hashlib
+        if not user or not (hashlib.sha256(credentials.password.encode()).hexdigest() == user['password_hash']):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         cursor.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', 

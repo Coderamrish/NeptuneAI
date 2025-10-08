@@ -13,7 +13,6 @@ import {
   Alert,
   Tooltip,
   Divider,
-  Button,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -21,7 +20,6 @@ import {
   Badge,
   Tabs,
   Tab,
-  Chip,
   Grid,
 } from '@mui/material';
 import {
@@ -79,7 +77,7 @@ const AIInsights = () => {
 
   useEffect(() => {
     fetchChatSessions();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchChatSessions = async () => {
     try {
