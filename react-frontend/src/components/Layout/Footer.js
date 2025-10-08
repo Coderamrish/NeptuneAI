@@ -1,166 +1,411 @@
-import React from 'react';
-import { Box, Typography, Container, Grid, Link, IconButton, Divider } from '@mui/material';
-import { GitHub, Twitter, LinkedIn, Email } from '@mui/icons-material';
+import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  Link,
+  IconButton,
+  Divider,
+  TextField,
+  Button,
+  Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Alert,
+  Snackbar,
+} from '@mui/material';
+import {
+  Facebook,
+  Twitter,
+  LinkedIn,
+  GitHub,
+  Email,
+  Phone,
+  LocationOn,
+  ExpandMore,
+  Send,
+  TrendingUp,
+  Water,
+  Thermostat,
+  Speed,
+  Psychology,
+  DataObject,
+  CloudUpload,
+  Dashboard,
+  Analytics,
+  Info,
+  Person,
+  Security,
+  Support,
+  Description,
+  Code,
+  School,
+  Public,
+  Nature,
+  BarChart,
+  Star,
+  Comment,
+  Work,
+  Handshake,
+  BugReport,
+  YouTube,
+} from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const Footer = () => {
-  const currentYear = new Date().getFullYear();
+  const [expandedSections, setExpandedSections] = useState({
+    company: false,
+    platform: false,
+    resources: false,
+    support: false,
+  });
+  const [email, setEmail] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
+  const navigate = useNavigate();
+
+  const handleSectionToggle = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const handleNewsletterSubmit = (e) => {
+    e.preventDefault();
+    if (email) {
+      setSnackbar({ open: true, message: 'Thank you for subscribing to our newsletter!' });
+      setEmail('');
+    }
+  };
+
+  const handleNavigation = (path) => {
+    navigate(path);
+  };
+
+  const oceanParameters = [
+    { name: 'Temperature', icon: <Thermostat />, unit: '°C' },
+    { name: 'Salinity', icon: <Water />, unit: 'PSU' },
+    { name: 'Pressure', icon: <Speed />, unit: 'dbar' },
+    { name: 'Currents', icon: <TrendingUp />, unit: 'm/s' },
+    { name: 'Depth', icon: <TrendingUp />, unit: 'm' },
+    { name: 'pH Levels', icon: <Nature />, unit: 'pH' }
+  ];
+
+  const quickLinks = [
+    { name: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
+    { name: 'Analytics', icon: <Analytics />, path: '/analytics' },
+    { name: 'Data Explorer', icon: <DataObject />, path: '/data-explorer' },
+    { name: 'AI Insights', icon: <Psychology />, path: '/ai-insights' },
+    { name: 'Upload Data', icon: <CloudUpload />, path: '/upload' },
+    { name: 'Profile', icon: <Person />, path: '/profile' },
+  ];
+
+  const platformFeatures = [
+    { name: 'Real-time Analytics', icon: <TrendingUp />, description: 'Live ocean data monitoring' },
+    { name: 'AI-Powered Insights', icon: <Psychology />, description: 'Machine learning analysis' },
+    { name: 'Interactive Maps', icon: <Public />, description: 'Global ocean visualization' },
+    { name: 'Data Export', icon: <DataObject />, description: 'Multiple format support' },
+    { name: 'Custom Dashboards', icon: <Dashboard />, description: 'Personalized views' },
+    { name: 'Collaborative Tools', icon: <Work />, description: 'Team sharing features' }
+  ];
+
+  const resources = [
+    { name: 'Documentation', icon: <Description />, path: '/docs' },
+    { name: 'API Reference', icon: <Code />, path: '/api-docs' },
+    { name: 'Tutorials', icon: <School />, path: '/tutorials' },
+    { name: 'Blog', icon: <Comment />, path: '/blog' },
+    { name: 'Case Studies', icon: <BarChart />, path: '/case-studies' },
+    { name: 'Research Papers', icon: <Description />, path: '/research' },
+  ];
+
+  const supportLinks = [
+    { name: 'Help Center', icon: <Support />, path: '/help' },
+    { name: 'Contact Us', icon: <Email />, path: '/contact' },
+    { name: 'Bug Reports', icon: <BugReport />, path: '/bugs' },
+    { name: 'Feature Requests', icon: <Star />, path: '/features' },
+    { name: 'Community', icon: <Handshake />, path: '/community' },
+    { name: 'Status Page', icon: <TrendingUp />, path: '/status' },
+  ];
 
   return (
     <Box
       component="footer"
       sx={{
-        background: 'linear-gradient(90deg, #2c3e50 0%, #34495e 100%)',
+        background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
         color: 'white',
-        py: 4,
         mt: 'auto',
+        py: 4,
       }}
     >
-      <Container maxWidth="lg">
+      <Box sx={{ maxWidth: '1200px', mx: 'auto', px: 2 }}>
         <Grid container spacing={4}>
-          {/* Brand Section */}
-          <Grid item xs={12} md={4}>
+          {/* Company Info */}
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                🌊 NeptuneAI
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 2 }}>
-                Advanced ARGO Ocean Data Discovery & Visualization Platform
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <IconButton
-                  size="small"
-                  sx={{ color: 'rgba(255,255,255,0.7)' }}
-                  href="https://github.com/neptuneai"
-                  target="_blank"
-                >
-                  <GitHub />
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  🌊 NeptuneAI
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
+                  Advanced ocean data platform powered by AI. Monitor, analyze, and understand our oceans like never before.
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <Facebook />
                 </IconButton>
-                <IconButton
-                  size="small"
-                  sx={{ color: 'rgba(255,255,255,0.7)' }}
-                  href="https://twitter.com/neptuneai"
-                  target="_blank"
-                >
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
                   <Twitter />
                 </IconButton>
-                <IconButton
-                  size="small"
-                  sx={{ color: 'rgba(255,255,255,0.7)' }}
-                  href="https://linkedin.com/company/neptuneai"
-                  target="_blank"
-                >
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
                   <LinkedIn />
                 </IconButton>
-                <IconButton
-                  size="small"
-                  sx={{ color: 'rgba(255,255,255,0.7)' }}
-                  href="mailto:contact@neptuneai.com"
-                >
-                  <Email />
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <GitHub />
                 </IconButton>
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <YouTube />
+                </IconButton>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Email sx={{ fontSize: 16 }} />
+                <Typography variant="body2">contact@neptuneai.com</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Phone sx={{ fontSize: 16 }} />
+                <Typography variant="body2">+1 (555) 123-4567</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LocationOn sx={{ fontSize: 16 }} />
+                <Typography variant="body2">San Francisco, CA</Typography>
               </Box>
             </motion.div>
           </Grid>
 
-          {/* Quick Links */}
-          <Grid item xs={12} md={2}>
+          {/* Platform Features */}
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                Quick Links
+                Platform Features
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Link href="/analytics" color="inherit" sx={{ textDecoration: 'none' }}>
-                  Analytics
-                </Link>
-                <Link href="/datasets" color="inherit" sx={{ textDecoration: 'none' }}>
-                  Datasets
-                </Link>
-                <Link href="/upload" color="inherit" sx={{ textDecoration: 'none' }}>
-                  Upload Data
-                </Link>
-                <Link href="/ai-insights" color="inherit" sx={{ textDecoration: 'none' }}>
-                  AI Insights
-                </Link>
+                {platformFeatures.map((feature) => (
+                  <Box key={feature.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ color: '#4ecdc4' }}>{feature.icon}</Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {feature.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                        {feature.description}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
               </Box>
             </motion.div>
           </Grid>
 
-          {/* Resources */}
-          <Grid item xs={12} md={2}>
+          {/* Quick Links */}
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                Resources
+                Quick Links
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Link href="/docs" color="inherit" sx={{ textDecoration: 'none' }}>
-                  Documentation
-                </Link>
-                <Link href="/api" color="inherit" sx={{ textDecoration: 'none' }}>
-                  API Reference
-                </Link>
-                <Link href="/tutorials" color="inherit" sx={{ textDecoration: 'none' }}>
-                  Tutorials
-                </Link>
-                <Link href="/support" color="inherit" sx={{ textDecoration: 'none' }}>
-                  Support
-                </Link>
+                {quickLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    component="button"
+                    onClick={() => handleNavigation(link.path)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: 'rgba(255,255,255,0.8)',
+                      textDecoration: 'none',
+                      '&:hover': {
+                        color: 'white',
+                        textDecoration: 'none',
+                      },
+                      textAlign: 'left',
+                      p: 0,
+                    }}
+                  >
+                    <Box sx={{ color: '#4ecdc4' }}>{link.icon}</Box>
+                    {link.name}
+                  </Link>
+                ))}
               </Box>
             </motion.div>
           </Grid>
 
-          {/* Contact */}
-          <Grid item xs={12} md={4}>
+          {/* Resources & Support */}
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                Contact
+                Resources & Support
               </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
+                {resources.slice(0, 3).map((resource) => (
+                  <Link
+                    key={resource.name}
+                    component="button"
+                    onClick={() => handleNavigation(resource.path)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: 'rgba(255,255,255,0.8)',
+                      textDecoration: 'none',
+                      '&:hover': {
+                        color: 'white',
+                        textDecoration: 'none',
+                      },
+                      textAlign: 'left',
+                      p: 0,
+                    }}
+                  >
+                    <Box sx={{ color: '#4ecdc4' }}>{resource.icon}</Box>
+                    {resource.name}
+                  </Link>
+                ))}
+              </Box>
+
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  📧 contact@neptuneai.com
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  🌐 www.neptuneai.com
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  📍 Ocean Science Center, CA
-                </Typography>
+                {supportLinks.slice(0, 3).map((support) => (
+                  <Link
+                    key={support.name}
+                    component="button"
+                    onClick={() => handleNavigation(support.path)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: 'rgba(255,255,255,0.8)',
+                      textDecoration: 'none',
+                      '&:hover': {
+                        color: 'white',
+                        textDecoration: 'none',
+                      },
+                      textAlign: 'left',
+                      p: 0,
+                    }}
+                  >
+                    <Box sx={{ color: '#4ecdc4' }}>{support.icon}</Box>
+                    {support.name}
+                  </Link>
+                ))}
               </Box>
             </motion.div>
           </Grid>
         </Grid>
 
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 3 }} />
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 3 }} />
 
-        {/* Copyright */}
+        {/* Newsletter Subscription */}
         <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-              © {currentYear} NeptuneAI ARGO Ocean Data Platform v2.0 | Built with ❤️ for Ocean Science
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+              Stay Updated with Ocean Science
             </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 2 }}>
+              Subscribe to our newsletter for the latest ocean data insights and platform updates.
+            </Typography>
+            <Box
+              component="form"
+              onSubmit={handleNewsletterSubmit}
+              sx={{ display: 'flex', gap: 1, maxWidth: 400, mx: 'auto' }}
+            >
+              <TextField
+                size="small"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                sx={{
+                  flexGrow: 1,
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.3)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+                    '&.Mui-focused fieldset': { borderColor: 'white' },
+                  },
+                  '& .MuiInputBase-input::placeholder': { color: 'rgba(255,255,255,0.7)' },
+                }}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<Send />}
+                sx={{
+                  bgcolor: '#4ecdc4',
+                  '&:hover': { bgcolor: '#45b7d1' },
+                }}
+              >
+                Subscribe
+              </Button>
+            </Box>
           </Box>
         </motion.div>
-      </Container>
+
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 3 }} />
+
+        {/* Bottom Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              © 2024 NeptuneAI. All rights reserved. | Protecting our oceans through data science.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 3 }}>
+              <Link href="/privacy" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', '&:hover': { color: 'white' } }}>
+                Privacy Policy
+              </Link>
+              <Link href="/terms" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', '&:hover': { color: 'white' } }}>
+                Terms of Service
+              </Link>
+              <Link href="/cookies" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', '&:hover': { color: 'white' } }}>
+                Cookie Policy
+              </Link>
+            </Box>
+          </Box>
+        </motion.div>
+      </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
     </Box>
   );
 };
