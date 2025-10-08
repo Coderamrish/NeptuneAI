@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -14,41 +13,43 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session on app load
-    const checkAuth = async () => {
-      try {
-        const token = localStorage.getItem('neptuneai_token');
-        if (token) {
-          // Validate token with backend
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setAuthenticated(true);
-          } else {
-            localStorage.removeItem('neptuneai_token');
-          }
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('neptuneai_token');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
+    checkAuthStatus();
   }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = localStorage.getItem('neptuneai_token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/auth/verify', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setAuthenticated(true);
+      } else {
+        localStorage.removeItem('neptuneai_token');
+        setUser(null);
+        setAuthenticated(false);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      localStorage.removeItem('neptuneai_token');
+      setUser(null);
+      setAuthenticated(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (username, password) => {
     try {
@@ -67,7 +68,6 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
         setAuthenticated(true);
         toast.success('Login successful!');
-        navigate('/analytics');
         return { success: true };
       } else {
         const error = await response.json();
@@ -75,9 +75,8 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: error.detail };
       }
     } catch (error) {
-      console.error('Login error:', error);
       toast.error('Login failed. Please try again.');
-      return { success: false, error: 'Network error' };
+      return { success: false, error: error.message };
     } finally {
       setLoading(false);
     }
@@ -103,9 +102,8 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: error.detail };
       }
     } catch (error) {
-      console.error('Registration error:', error);
       toast.error('Registration failed. Please try again.');
-      return { success: false, error: 'Network error' };
+      return { success: false, error: error.message };
     } finally {
       setLoading(false);
     }
@@ -115,8 +113,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('neptuneai_token');
     setUser(null);
     setAuthenticated(false);
-    toast.success('Logged out successfully');
-    navigate('/');
+    toast.success('Logged out successfully!');
   };
 
   const updateProfile = async (profileData) => {
@@ -126,25 +123,24 @@ export const AuthProvider = ({ children }) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify(profileData)
       });
 
       if (response.ok) {
-        const updatedUser = await response.json();
-        setUser(updatedUser);
-        toast.success('Profile updated successfully');
+        const data = await response.json();
+        setUser(data.user);
+        toast.success('Profile updated successfully!');
         return { success: true };
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Profile update failed');
-        return { success: false, error: error.message };
+        toast.error(error.detail || 'Failed to update profile');
+        return { success: false, error: error.detail };
       }
     } catch (error) {
-      console.error('Profile update error:', error);
-      toast.error('Profile update failed. Please try again.');
-      return { success: false, error: 'Network error' };
+      toast.error('Failed to update profile');
+      return { success: false, error: error.message };
     }
   };
 

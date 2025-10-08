@@ -19,14 +19,18 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Card,
+  CardContent,
+  LinearProgress,
+  Tooltip,
 } from '@mui/material';
 import {
   ChevronLeft,
   Dashboard,
   Analytics,
   DataObject,
-  CloudUpload,
   Psychology,
+  CloudUpload,
   Person,
   Info,
   ExpandMore,
@@ -37,9 +41,17 @@ import {
   TrendingUp,
   Map,
   BarChart,
+  FilterList,
+  Settings,
+  Notifications,
+  Timeline,
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
+
+const drawerWidth = 280;
 
 const Sidebar = ({ open, onClose }) => {
   const [expandedSections, setExpandedSections] = useState({
@@ -49,7 +61,20 @@ const Sidebar = ({ open, onClose }) => {
     tools: false
   });
   const [regions, setRegions] = useState([]);
+  const [oceanParameters, setOceanParameters] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    region: '',
+    year: '',
+    temperature: [0, 30],
+    salinity: [0, 40],
+    depth: [0, 5000],
+    latitude: [-90, 90],
+    longitude: [-180, 180],
+  });
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard', badge: null },
@@ -62,27 +87,27 @@ const Sidebar = ({ open, onClose }) => {
   ];
 
   const oceanParams = [
-    { name: 'Temperature', icon: <Thermostat />, unit: '°C', range: [0, 30], color: '#ff6b6b' },
-    { name: 'Salinity', icon: <Water />, unit: 'PSU', range: [0, 40], color: '#4ecdc4' },
-    { name: 'Pressure', icon: <Speed />, unit: 'dbar', range: [0, 1000], color: '#a55eea' },
-    { name: 'Depth', icon: <TrendingUp />, unit: 'm', range: [0, 2000], color: '#feca57' },
-    { name: 'Latitude', icon: <LocationOn />, unit: '°', range: [-90, 90], color: '#ff9ff3' },
-    { name: 'Longitude', icon: <LocationOn />, unit: '°', range: [-180, 180], color: '#54a0ff' },
+    { name: 'Temperature', icon: <Thermostat />, unit: '°C', range: [0, 30], color: '#ff6b6b', value: 15.2 },
+    { name: 'Salinity', icon: <Water />, unit: 'PSU', range: [0, 40], color: '#4ecdc4', value: 35.1 },
+    { name: 'Pressure', icon: <Speed />, unit: 'dbar', range: [0, 1000], color: '#45b7d1', value: 250.5 },
+    { name: 'Depth', icon: <TrendingUp />, unit: 'm', range: [0, 5000], color: '#96ceb4', value: 1200.0 },
+    { name: 'Current Speed', icon: <Timeline />, unit: 'm/s', range: [0, 5], color: '#feca57', value: 1.8 },
+    { name: 'pH Level', icon: <Water />, unit: 'pH', range: [6, 9], color: '#ff9ff3', value: 8.1 },
   ];
 
-  const quickTools = [
-    { name: 'Generate Map', icon: <Map />, action: 'map' },
-    { name: 'Create Chart', icon: <BarChart />, action: 'chart' },
-    { name: 'Export Data', icon: <CloudUpload />, action: 'export' },
+  const quickActions = [
+    { name: 'Generate Report', icon: <BarChart />, action: 'report' },
+    { name: 'Export Data', icon: <DataObject />, action: 'export' },
+    { name: 'Create Map', icon: <Map />, action: 'map' },
     { name: 'AI Analysis', icon: <Psychology />, action: 'ai' },
   ];
 
   useEffect(() => {
     if (open) {
       fetchRegions();
+      fetchOceanParameters();
     }
   }, [open]);
-
 
   const fetchRegions = async () => {
     try {
@@ -90,13 +115,35 @@ const Sidebar = ({ open, onClose }) => {
       const response = await fetch('/api/dashboard/stats', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (response.ok) {
+        const data = await response.json();
+        setRegions(data.regions || ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern']);
+      }
+    } catch (error) {
+      console.error('Failed to fetch regions:', error);
+      setRegions(['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern']);
+    }
+  };
+
+  const fetchOceanParameters = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('neptuneai_token');
+      const response = await fetch('/api/ocean/parameters', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
       if (response.ok) {
         const data = await response.json();
-        setRegions(data.regions || []);
+        setOceanParameters(data.parameters || oceanParams);
+      } else {
+        setOceanParameters(oceanParams);
       }
     } catch (err) {
-      console.error('Failed to fetch regions:', err);
+      console.error('Failed to fetch ocean parameters:', err);
+      setOceanParameters(oceanParams);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,96 +154,113 @@ const Sidebar = ({ open, onClose }) => {
     }));
   };
 
-  const handleParameterChange = (paramName, value) => {
-    // This would typically update a global filter state
-    console.log(`Parameter ${paramName} changed to:`, value);
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
   };
 
-  const handleToolAction = (action) => {
-    // This would trigger different actions based on the tool
-    console.log(`Tool action: ${action}`);
+  const handleQuickAction = (action) => {
+    switch (action) {
+      case 'report':
+        toast.success('Generating ocean data report...');
+        navigate('/analytics');
+        break;
+      case 'export':
+        toast.success('Preparing data export...');
+        navigate('/data-explorer');
+        break;
+      case 'map':
+        toast.success('Creating ocean map...');
+        navigate('/analytics');
+        break;
+      case 'ai':
+        toast.success('Starting AI analysis...');
+        navigate('/ai-insights');
+        break;
+      default:
+        break;
+    }
   };
+
+  const isActive = (path) => location.pathname === path;
 
   return (
     <Drawer
       variant="temporary"
-      anchor="left"
       open={open}
       onClose={onClose}
+      ModalProps={{
+        keepMounted: true,
+      }}
       sx={{
+        width: drawerWidth,
+        flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: 320,
+          width: drawerWidth,
+          boxSizing: 'border-box',
           background: 'linear-gradient(180deg, #1e3c72 0%, #2a5298 100%)',
           color: 'white',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           overflowY: 'auto',
-          '&::-webkit-scrollbar': { width: '6px' },
-          '&::-webkit-scrollbar-track': { background: 'rgba(255,255,255,0.1)' },
-          '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.3)', borderRadius: '3px' }
         },
       }}
     >
-      {/* Header */}
       <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
-            🌊 NeptuneAI
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
+            🌊 Ocean Data
           </Typography>
           <IconButton onClick={onClose} sx={{ color: 'white' }}>
             <ChevronLeft />
           </IconButton>
         </Box>
-        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 1 }}>
-          Ocean Data Platform
-        </Typography>
-      </Box>
 
-      <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)' }} />
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', mb: 2 }} />
 
-      {/* Navigation Section */}
-      <Accordion 
-        expanded={expandedSections.navigation} 
-        onChange={() => handleSectionToggle('navigation')}
-        sx={{ 
-          background: 'transparent', 
-          boxShadow: 'none',
-          '&:before': { display: 'none' },
-          '&.Mui-expanded': { margin: 0 }
-        }}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-          sx={{ minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}
+        {/* Navigation */}
+        <Accordion 
+          expanded={expandedSections.navigation} 
+          onChange={() => handleSectionToggle('navigation')}
+          sx={{ 
+            bgcolor: 'transparent', 
+            boxShadow: 'none',
+            '&:before': { display: 'none' },
+            '&.Mui-expanded': { margin: 0 }
+          }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
-            Navigation
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>
-          <List dense>
-            {menuItems.map((item, index) => (
-              <motion.div
-                key={item.text}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <ListItem disablePadding sx={{ mb: 0.5 }}>
+          <AccordionSummary expandIcon={<ExpandMore sx={{ color: 'white' }} />}>
+            <Typography sx={{ color: 'white', fontWeight: 600 }}>Navigation</Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 0 }}>
+            <List>
+              {menuItems.map((item) => (
+                <ListItem key={item.text} disablePadding>
                   <ListItemButton
+                    onClick={() => {
+                      navigate(item.path);
+                      onClose();
+                    }}
                     sx={{
                       borderRadius: 1,
-                      py: 1,
+                      mb: 0.5,
+                      bgcolor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
                       '&:hover': {
-                        background: 'rgba(255,255,255,0.1)',
+                        bgcolor: 'rgba(255,255,255,0.05)',
                       },
                     }}
                   >
-                    <ListItemIcon sx={{ color: 'white', minWidth: 36 }}>
+                    <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
                       {item.icon}
                     </ListItemIcon>
                     <ListItemText 
-                      primary={item.text}
-                      primaryTypographyProps={{ fontSize: '0.9rem' }}
+                      primary={item.text} 
+                      sx={{ 
+                        '& .MuiListItemText-primary': { 
+                          color: 'white',
+                          fontWeight: isActive(item.path) ? 600 : 400,
+                        }
+                      }} 
                     />
                     {item.badge && (
                       <Chip 
@@ -204,7 +268,7 @@ const Sidebar = ({ open, onClose }) => {
                         size="small" 
                         sx={{ 
                           bgcolor: '#ff6b6b', 
-                          color: 'white', 
+                          color: 'white',
                           fontSize: '0.7rem',
                           height: 20
                         }} 
@@ -212,220 +276,216 @@ const Sidebar = ({ open, onClose }) => {
                     )}
                   </ListItemButton>
                 </ListItem>
-              </motion.div>
-            ))}
-          </List>
-        </AccordionDetails>
-      </Accordion>
+              ))}
+            </List>
+          </AccordionDetails>
+        </Accordion>
 
-      <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 2 }} />
 
-      {/* Ocean Parameters Section */}
-      <Accordion 
-        expanded={expandedSections.parameters} 
-        onChange={() => handleSectionToggle('parameters')}
-        sx={{ 
-          background: 'transparent', 
-          boxShadow: 'none',
-          '&:before': { display: 'none' },
-          '&.Mui-expanded': { margin: 0 }
-        }}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-          sx={{ minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}
+        {/* Ocean Parameters */}
+        <Accordion 
+          expanded={expandedSections.parameters} 
+          onChange={() => handleSectionToggle('parameters')}
+          sx={{ 
+            bgcolor: 'transparent', 
+            boxShadow: 'none',
+            '&:before': { display: 'none' },
+            '&.Mui-expanded': { margin: 0 }
+          }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
-            Ocean Parameters
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {oceanParams.map((param, index) => (
-              <motion.div
-                key={param.name}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Box sx={{ color: param.color, mr: 1 }}>
-                      {param.icon}
+          <AccordionSummary expandIcon={<ExpandMore sx={{ color: 'white' }} />}>
+            <Typography sx={{ color: 'white', fontWeight: 600 }}>Ocean Parameters</Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 0 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {oceanParams.map((param, index) => (
+                <Card key={param.name} sx={{ bgcolor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Box sx={{ color: param.color }}>{param.icon}</Box>
+                      <Typography variant="body2" sx={{ color: 'white', fontWeight: 500 }}>
+                        {param.name}
+                      </Typography>
                     </Box>
-                    <Typography variant="body2" sx={{ color: 'white', fontWeight: 500 }}>
-                      {param.name}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', ml: 1 }}>
-                      ({param.unit})
-                    </Typography>
-                  </Box>
-                  <Slider
-                    size="small"
-                    value={param.range}
-                    min={param.range[0]}
-                    max={param.range[1]}
-                    onChange={(e, newValue) => handleParameterChange(param.name, newValue)}
-                    sx={{
-                      color: param.color,
-                      '& .MuiSlider-thumb': { width: 12, height: 12 },
-                      '& .MuiSlider-track': { height: 4 },
-                      '& .MuiSlider-rail': { height: 4, bgcolor: 'rgba(255,255,255,0.2)' }
-                    }}
-                  />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                      {param.range[0]}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                      {param.range[1]}
-                    </Typography>
-                  </Box>
-                </Box>
-              </motion.div>
-            ))}
-          </Box>
-        </AccordionDetails>
-      </Accordion>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="h6" sx={{ color: 'white' }}>
+                        {param.value} {param.unit}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                        {param.range[0]}-{param.range[1]} {param.unit}
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={(param.value / param.range[1]) * 100}
+                      sx={{
+                        mt: 1,
+                        height: 4,
+                        borderRadius: 2,
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor: param.color,
+                        },
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          </AccordionDetails>
+        </Accordion>
 
-      <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 2 }} />
 
-      {/* Filters Section */}
-      <Accordion 
-        expanded={expandedSections.filters} 
-        onChange={() => handleSectionToggle('filters')}
-        sx={{ 
-          background: 'transparent', 
-          boxShadow: 'none',
-          '&:before': { display: 'none' },
-          '&.Mui-expanded': { margin: 0 }
-        }}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-          sx={{ minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}
+        {/* Quick Filters */}
+        <Accordion 
+          expanded={expandedSections.filters} 
+          onChange={() => handleSectionToggle('filters')}
+          sx={{ 
+            bgcolor: 'transparent', 
+            boxShadow: 'none',
+            '&:before': { display: 'none' },
+            '&.Mui-expanded': { margin: 0 }
+          }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
-            Quick Filters
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControl size="small" fullWidth>
-              <InputLabel sx={{ color: 'rgba(255,255,255,0.7)' }}>Region</InputLabel>
-              <Select
-                value=""
-                onChange={(e) => handleParameterChange('region', e.target.value)}
-                sx={{
-                  color: 'white',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' }
-                }}
-              >
-                <MenuItem value="">All Regions</MenuItem>
-                {regions.map(region => (
-                  <MenuItem key={region} value={region}>{region}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <AccordionSummary expandIcon={<ExpandMore sx={{ color: 'white' }} />}>
+            <Typography sx={{ color: 'white', fontWeight: 600 }}>Quick Filters</Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 0 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel sx={{ color: 'white' }}>Region</InputLabel>
+                <Select
+                  value={filters.region}
+                  onChange={(e) => handleFilterChange('region', e.target.value)}
+                  sx={{ 
+                    color: 'white',
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                  }}
+                >
+                  {regions.map((region) => (
+                    <MenuItem key={region} value={region}>{region}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-            <FormControl size="small" fullWidth>
-              <InputLabel sx={{ color: 'rgba(255,255,255,0.7)' }}>Year</InputLabel>
-              <Select
-                value=""
-                onChange={(e) => handleParameterChange('year', e.target.value)}
-                sx={{
-                  color: 'white',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' }
-                }}
-              >
-                <MenuItem value="">All Years</MenuItem>
-                <MenuItem value="2023">2023</MenuItem>
-                <MenuItem value="2022">2022</MenuItem>
-                <MenuItem value="2021">2021</MenuItem>
-              </Select>
-            </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel sx={{ color: 'white' }}>Year</InputLabel>
+                <Select
+                  value={filters.year}
+                  onChange={(e) => handleFilterChange('year', e.target.value)}
+                  sx={{ 
+                    color: 'white',
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                  }}
+                >
+                  <MenuItem value="2024">2024</MenuItem>
+                  <MenuItem value="2023">2023</MenuItem>
+                  <MenuItem value="2022">2022</MenuItem>
+                  <MenuItem value="2021">2021</MenuItem>
+                </Select>
+              </FormControl>
 
-          </Box>
-        </AccordionDetails>
-      </Accordion>
+              <Box>
+                <Typography variant="body2" sx={{ color: 'white', mb: 1 }}>
+                  Temperature: {filters.temperature[0]}°C - {filters.temperature[1]}°C
+                </Typography>
+                <Slider
+                  value={filters.temperature}
+                  onChange={(e, value) => handleFilterChange('temperature', value)}
+                  valueLabelDisplay="auto"
+                  min={0}
+                  max={30}
+                  sx={{
+                    color: '#ff6b6b',
+                    '& .MuiSlider-thumb': { bgcolor: '#ff6b6b' },
+                    '& .MuiSlider-track': { bgcolor: '#ff6b6b' },
+                  }}
+                />
+              </Box>
 
-      <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
+              <Box>
+                <Typography variant="body2" sx={{ color: 'white', mb: 1 }}>
+                  Salinity: {filters.salinity[0]} - {filters.salinity[1]} PSU
+                </Typography>
+                <Slider
+                  value={filters.salinity}
+                  onChange={(e, value) => handleFilterChange('salinity', value)}
+                  valueLabelDisplay="auto"
+                  min={0}
+                  max={40}
+                  sx={{
+                    color: '#4ecdc4',
+                    '& .MuiSlider-thumb': { bgcolor: '#4ecdc4' },
+                    '& .MuiSlider-track': { bgcolor: '#4ecdc4' },
+                  }}
+                />
+              </Box>
 
-      {/* Quick Tools Section */}
-      <Accordion 
-        expanded={expandedSections.tools} 
-        onChange={() => handleSectionToggle('tools')}
-        sx={{ 
-          background: 'transparent', 
-          boxShadow: 'none',
-          '&:before': { display: 'none' },
-          '&.Mui-expanded': { margin: 0 }
-        }}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-          sx={{ minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}
+              <Box>
+                <Typography variant="body2" sx={{ color: 'white', mb: 1 }}>
+                  Depth: {filters.depth[0]} - {filters.depth[1]} m
+                </Typography>
+                <Slider
+                  value={filters.depth}
+                  onChange={(e, value) => handleFilterChange('depth', value)}
+                  valueLabelDisplay="auto"
+                  min={0}
+                  max={5000}
+                  sx={{
+                    color: '#96ceb4',
+                    '& .MuiSlider-thumb': { bgcolor: '#96ceb4' },
+                    '& .MuiSlider-track': { bgcolor: '#96ceb4' },
+                  }}
+                />
+              </Box>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 2 }} />
+
+        {/* Quick Tools */}
+        <Accordion 
+          expanded={expandedSections.tools} 
+          onChange={() => handleSectionToggle('tools')}
+          sx={{ 
+            bgcolor: 'transparent', 
+            boxShadow: 'none',
+            '&:before': { display: 'none' },
+            '&.Mui-expanded': { margin: 0 }
+          }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
-            Quick Tools
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {quickTools.map((tool, index) => (
-              <motion.div
-                key={tool.name}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <ListItem disablePadding>
-                  <ListItemButton
-                    onClick={() => handleToolAction(tool.action)}
+          <AccordionSummary expandIcon={<ExpandMore sx={{ color: 'white' }} />}>
+            <Typography sx={{ color: 'white', fontWeight: 600 }}>Quick Tools</Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 0 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {quickActions.map((action) => (
+                <Tooltip key={action.name} title={action.name}>
+                  <Chip
+                    icon={action.icon}
+                    label={action.name}
+                    onClick={() => handleQuickAction(action.action)}
                     sx={{
-                      borderRadius: 1,
-                      py: 1,
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.2)',
                       '&:hover': {
-                        background: 'rgba(255,255,255,0.1)',
+                        bgcolor: 'rgba(255,255,255,0.2)',
                       },
                     }}
-                  >
-                    <ListItemIcon sx={{ color: 'white', minWidth: 36 }}>
-                      {tool.icon}
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={tool.name}
-                      primaryTypographyProps={{ fontSize: '0.9rem' }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              </motion.div>
-            ))}
-          </Box>
-        </AccordionDetails>
-      </Accordion>
-
-      <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
-
-      {/* User Info */}
-      <Box sx={{ p: 2, mt: 'auto' }}>
-        <Box sx={{ 
-          p: 2, 
-          bgcolor: 'rgba(255,255,255,0.05)', 
-          borderRadius: 1,
-          textAlign: 'center'
-        }}>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-            Welcome back,
-          </Typography>
-          <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 600 }}>
-            {user?.full_name || user?.username || 'User'}
-          </Typography>
-        </Box>
+                  />
+                </Tooltip>
+              ))}
+            </Box>
+          </AccordionDetails>
+        </Accordion>
       </Box>
     </Drawer>
   );

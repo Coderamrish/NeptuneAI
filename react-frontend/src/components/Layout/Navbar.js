@@ -4,26 +4,21 @@ import {
   Toolbar,
   Typography,
   IconButton,
+  Button,
   Box,
-  Badge,
   Avatar,
   Menu,
   MenuItem,
-  Switch,
-  FormControlLabel,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Divider,
-  Button,
+  Badge,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  Tooltip,
   CircularProgress,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -43,10 +38,11 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../App';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
-const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
+const Navbar = ({ onMenuClick }) => {
   const [notificationAnchor, setNotificationAnchor] = useState(null);
   const [profileDialog, setProfileDialog] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -54,9 +50,11 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
   const [profileData, setProfileData] = useState({
     full_name: '',
     email: '',
+    username: '',
   });
   const [editMode, setEditMode] = useState(false);
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout } = useAuth();
+  const { darkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,13 +62,11 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
       setProfileData({
         full_name: user.full_name || '',
         email: user.email || '',
+        username: user.username || '',
       });
+      fetchNotifications();
     }
   }, [user]);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
 
   const fetchNotifications = async () => {
     try {
@@ -78,22 +74,13 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
       const response = await fetch('/api/notifications', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-
       if (response.ok) {
         const data = await response.json();
         setNotifications(data.notifications || []);
       }
-    } catch (err) {
-      console.error('Failed to fetch notifications:', err);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
     }
-  };
-
-  const handleProfileMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
   };
 
   const handleNotificationMenuOpen = (event) => {
@@ -106,7 +93,7 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
 
   const handleProfileDialogOpen = () => {
     setProfileDialog(true);
-    handleMenuClose();
+    setEditMode(false);
   };
 
   const handleProfileDialogClose = () => {
@@ -115,14 +102,30 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
   };
 
   const handleProfileUpdate = async () => {
-    setLoading(true);
     try {
-      const result = await updateProfile(profileData);
-      if (result.success) {
+      setLoading(true);
+      const token = localStorage.getItem('neptuneai_token');
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          full_name: profileData.full_name,
+          email: profileData.email
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Profile updated successfully!');
         setEditMode(false);
+      } else {
+        const error = await response.json();
+        toast.error(error.detail || 'Failed to update profile');
       }
-    } catch (err) {
-      console.error('Profile update failed:', err);
+    } catch (error) {
+      toast.error('Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -130,7 +133,8 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
 
   const handleLogout = () => {
     logout();
-    handleMenuClose();
+    navigate('/auth');
+    toast.success('Logged out successfully!');
   };
 
   const markNotificationAsRead = async (notificationId) => {
@@ -141,17 +145,8 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       fetchNotifications();
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err);
-    }
-  };
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'success': return <CheckCircle sx={{ color: '#4ecdc4' }} />;
-      case 'warning': return <Warning sx={{ color: '#feca57' }} />;
-      case 'error': return <Error sx={{ color: '#ff6b6b' }} />;
-      default: return <Info sx={{ color: '#4ecdc4' }} />;
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -159,16 +154,15 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
 
   return (
     <>
-      <AppBar
-        position="fixed"
-        sx={{
-          background: 'linear-gradient(90deg, #1e3c72 0%, #2a5298 100%)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-          zIndex: 1300,
+      <AppBar 
+        position="fixed" 
+        sx={{ 
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          background: 'linear-gradient(135deg, #1976d2 0%, #00bcd4 100%)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
         }}
       >
         <Toolbar>
-          {/* Menu Button */}
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -179,209 +173,133 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
             <MenuIcon />
           </IconButton>
 
-          {/* Logo and Title */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
+          <Typography 
+            variant="h6" 
+            component="div" 
+            sx={{ 
+              flexGrow: 1,
+              fontWeight: 600,
+              fontSize: '1.5rem',
+              background: 'linear-gradient(45deg, #fff 30%, #e3f2fd 90%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
           >
-            <Typography
-              variant="h6"
-              noWrap
-              component="div"
-              sx={{
-                flexGrow: 1,
-                fontWeight: 700,
-                fontSize: '1.5rem',
-                background: 'linear-gradient(45deg, #ffffff, #85c1e9)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              🌊 NeptuneAI
-            </Typography>
-          </motion.div>
+            🌊 NeptuneAI
+          </Typography>
 
-          <Box sx={{ flexGrow: 1 }} />
-
-          {/* Right side items */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* Dark Mode Toggle */}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={darkMode}
-                  onChange={onToggleDarkMode}
-                  icon={<LightMode />}
-                  checkedIcon={<DarkMode />}
-                  sx={{
-                    '& .MuiSwitch-thumb': {
-                      background: 'linear-gradient(45deg, #f39c12, #e67e22)',
-                    },
-                  }}
-                />
-              }
-              label=""
-              sx={{ m: 0 }}
-            />
+            <Tooltip title="Toggle Dark Mode">
+              <IconButton onClick={toggleDarkMode} color="inherit">
+                {darkMode ? <LightMode /> : <DarkMode />}
+              </IconButton>
+            </Tooltip>
 
-            {/* Notifications */}
             <Tooltip title="Notifications">
-              <IconButton color="inherit" onClick={handleNotificationMenuOpen}>
+              <IconButton onClick={handleNotificationMenuOpen} color="inherit">
                 <Badge badgeContent={unreadCount} color="error">
                   <Notifications />
                 </Badge>
               </IconButton>
             </Tooltip>
 
-            {/* Profile Menu */}
             <Tooltip title="Profile">
-              <IconButton
-                size="large"
-                edge="end"
-                aria-label="account of current user"
-                aria-controls="primary-search-account-menu"
-                aria-haspopup="true"
-                onClick={handleProfileMenuOpen}
-                color="inherit"
-              >
-                <Avatar sx={{ bgcolor: 'secondary.main' }}>
-                  {user?.full_name ? user.full_name.charAt(0).toUpperCase() : <AccountCircle />}
+              <IconButton onClick={handleProfileDialogOpen} color="inherit">
+                <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.2)' }}>
+                  {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
                 </Avatar>
               </IconButton>
             </Tooltip>
-
-            {/* Profile Menu */}
-            <Menu
-              anchorEl={anchorEl}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-            >
-              <MenuItem onClick={handleProfileDialogOpen}>
-                <ListItemIcon>
-                  <Person />
-                </ListItemIcon>
-                Profile
-              </MenuItem>
-              <MenuItem onClick={() => navigate('/settings')}>
-                <ListItemIcon>
-                  <Settings />
-                </ListItemIcon>
-                Settings
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>
-                <ListItemIcon>
-                  <Logout />
-                </ListItemIcon>
-                Logout
-              </MenuItem>
-            </Menu>
-
-            {/* Notifications Menu */}
-            <Menu
-              anchorEl={notificationAnchor}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(notificationAnchor)}
-              onClose={handleNotificationMenuClose}
-              PaperProps={{
-                sx: { width: 350, maxHeight: 400 }
-              }}
-            >
-              <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Typography variant="h6">Notifications</Typography>
-              </Box>
-              <List sx={{ maxHeight: 300, overflow: 'auto' }}>
-                {notifications.length === 0 ? (
-                  <ListItem>
-                    <ListItemText 
-                      primary="No notifications" 
-                      sx={{ textAlign: 'center', color: 'text.secondary' }}
-                    />
-                  </ListItem>
-                ) : (
-                  notifications.map((notification) => (
-                    <ListItem
-                      key={notification.id}
-                      button
-                      onClick={() => markNotificationAsRead(notification.id)}
-                      sx={{
-                        bgcolor: notification.is_read ? 'transparent' : 'rgba(78, 205, 196, 0.1)',
-                        borderLeft: notification.is_read ? 'none' : '3px solid #4ecdc4'
-                      }}
-                    >
-                      <ListItemIcon>
-                        {getNotificationIcon(notification.type)}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={notification.title}
-                        secondary={notification.message}
-                        primaryTypographyProps={{ fontSize: '0.9rem' }}
-                        secondaryTypographyProps={{ fontSize: '0.8rem' }}
-                      />
-                    </ListItem>
-                  ))
-                )}
-              </List>
-            </Menu>
           </Box>
         </Toolbar>
       </AppBar>
+
+      {/* Notifications Menu */}
+      <Menu
+        anchorEl={notificationAnchor}
+        open={Boolean(notificationAnchor)}
+        onClose={handleNotificationMenuClose}
+        PaperProps={{
+          sx: {
+            width: 350,
+            maxHeight: 400,
+            mt: 1,
+          }
+        }}
+      >
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="h6">Notifications</Typography>
+        </Box>
+        {notifications.length === 0 ? (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography color="text.secondary">No notifications</Typography>
+          </Box>
+        ) : (
+          notifications.map((notification) => (
+            <MenuItem
+              key={notification.id}
+              onClick={() => markNotificationAsRead(notification.id)}
+              sx={{
+                bgcolor: notification.is_read ? 'transparent' : 'action.hover',
+                borderLeft: notification.is_read ? 'none' : '3px solid #1976d2',
+              }}
+            >
+              <Box>
+                <Typography variant="subtitle2" fontWeight={notification.is_read ? 400 : 600}>
+                  {notification.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {notification.message}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(notification.created_at).toLocaleDateString()}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))
+        )}
+      </Menu>
 
       {/* Profile Dialog */}
       <Dialog open={profileDialog} onClose={handleProfileDialogClose} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Person />
-            User Profile
+            <Typography variant="h6">Profile Settings</Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
-              fullWidth
               label="Full Name"
               value={profileData.full_name}
               onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
               disabled={!editMode}
+              fullWidth
             />
             <TextField
-              fullWidth
               label="Email"
               value={profileData.email}
               onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
               disabled={!editMode}
+              fullWidth
             />
             <TextField
-              fullWidth
               label="Username"
-              value={user?.username || ''}
+              value={profileData.username}
               disabled
+              fullWidth
               helperText="Username cannot be changed"
             />
-            <TextField
-              fullWidth
-              label="Role"
-              value={user?.role || ''}
-              disabled
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={darkMode}
+                  onChange={toggleDarkMode}
+                />
+              }
+              label="Dark Mode"
             />
           </Box>
         </DialogContent>
@@ -390,24 +308,30 @@ const Navbar = ({ onMenuClick, darkMode, onToggleDarkMode }) => {
             Cancel
           </Button>
           {editMode ? (
-            <>
-              <Button onClick={() => setEditMode(false)}>
-                Cancel Edit
-              </Button>
-              <Button 
-                onClick={handleProfileUpdate} 
-                variant="contained"
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} /> : <Save />}
-              >
-                Save
-              </Button>
-            </>
+            <Button
+              onClick={handleProfileUpdate}
+              variant="contained"
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} /> : <Save />}
+            >
+              Save
+            </Button>
           ) : (
-            <Button onClick={() => setEditMode(true)} startIcon={<Edit />}>
-              Edit Profile
+            <Button
+              onClick={() => setEditMode(true)}
+              variant="outlined"
+              startIcon={<Edit />}
+            >
+              Edit
             </Button>
           )}
+          <Button
+            onClick={handleLogout}
+            color="error"
+            startIcon={<Logout />}
+          >
+            Logout
+          </Button>
         </DialogActions>
       </Dialog>
     </>

@@ -14,8 +14,6 @@ import {
   AccordionDetails,
   Alert,
   Snackbar,
-  List,
-  ListItem,
 } from '@mui/material';
 import {
   Facebook,
@@ -45,7 +43,6 @@ import {
   School,
   Public,
   Nature,
-  Timeline,
   BarChart,
   Star,
   Comment,
@@ -55,24 +52,18 @@ import {
   YouTube,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const Footer = () => {
-  const [email, setEmail] = useState('');
-  const [newsletterSuccess, setNewsletterSuccess] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
+    company: false,
     platform: false,
     resources: false,
-    company: false,
-    support: false
+    support: false,
   });
-
-  const handleNewsletterSubmit = (e) => {
-    e.preventDefault();
-    if (email) {
-      setNewsletterSuccess(true);
-      setEmail('');
-    }
-  };
+  const [email, setEmail] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
+  const navigate = useNavigate();
 
   const handleSectionToggle = (section) => {
     setExpandedSections(prev => ({
@@ -81,12 +72,23 @@ const Footer = () => {
     }));
   };
 
+  const handleNewsletterSubmit = (e) => {
+    e.preventDefault();
+    if (email) {
+      setSnackbar({ open: true, message: 'Thank you for subscribing to our newsletter!' });
+      setEmail('');
+    }
+  };
+
+  const handleNavigation = (path) => {
+    navigate(path);
+  };
 
   const oceanParameters = [
     { name: 'Temperature', icon: <Thermostat />, unit: '°C' },
     { name: 'Salinity', icon: <Water />, unit: 'PSU' },
     { name: 'Pressure', icon: <Speed />, unit: 'dbar' },
-    { name: 'Currents', icon: <Timeline />, unit: 'm/s' },
+    { name: 'Currents', icon: <TrendingUp />, unit: 'm/s' },
     { name: 'Depth', icon: <TrendingUp />, unit: 'm' },
     { name: 'pH Levels', icon: <Nature />, unit: 'pH' }
   ];
@@ -97,34 +99,34 @@ const Footer = () => {
     { name: 'Data Explorer', icon: <DataObject />, path: '/data-explorer' },
     { name: 'AI Insights', icon: <Psychology />, path: '/ai-insights' },
     { name: 'Upload Data', icon: <CloudUpload />, path: '/upload' },
-    { name: 'Profile', icon: <Person />, path: '/profile' }
+    { name: 'Profile', icon: <Person />, path: '/profile' },
+  ];
+
+  const platformFeatures = [
+    { name: 'Real-time Analytics', icon: <TrendingUp />, description: 'Live ocean data monitoring' },
+    { name: 'AI-Powered Insights', icon: <Psychology />, description: 'Machine learning analysis' },
+    { name: 'Interactive Maps', icon: <Public />, description: 'Global ocean visualization' },
+    { name: 'Data Export', icon: <DataObject />, description: 'Multiple format support' },
+    { name: 'Custom Dashboards', icon: <Dashboard />, description: 'Personalized views' },
+    { name: 'Collaborative Tools', icon: <Work />, description: 'Team sharing features' }
   ];
 
   const resources = [
     { name: 'Documentation', icon: <Description />, path: '/docs' },
-    { name: 'API Reference', icon: <Code />, path: '/api' },
+    { name: 'API Reference', icon: <Code />, path: '/api-docs' },
     { name: 'Tutorials', icon: <School />, path: '/tutorials' },
-    { name: 'Case Studies', icon: <BarChart />, path: '/cases' },
+    { name: 'Blog', icon: <Comment />, path: '/blog' },
+    { name: 'Case Studies', icon: <BarChart />, path: '/case-studies' },
     { name: 'Research Papers', icon: <Description />, path: '/research' },
-    { name: 'Blog', icon: <Comment />, path: '/blog' }
   ];
 
-  const companyInfo = [
-    { name: 'About Us', icon: <Info />, path: '/about' },
-    { name: 'Our Team', icon: <Person />, path: '/team' },
-    { name: 'Careers', icon: <Work />, path: '/careers' },
-    { name: 'Press', icon: <Public />, path: '/press' },
-    { name: 'Partners', icon: <Handshake />, path: '/partners' },
-    { name: 'Investors', icon: <TrendingUp />, path: '/investors' }
-  ];
-
-  const supportOptions = [
+  const supportLinks = [
     { name: 'Help Center', icon: <Support />, path: '/help' },
-    { name: 'Contact Support', icon: <Email />, path: '/contact' },
-    { name: 'Status Page', icon: <Security />, path: '/status' },
-    { name: 'Community', icon: <Public />, path: '/community' },
+    { name: 'Contact Us', icon: <Email />, path: '/contact' },
     { name: 'Bug Reports', icon: <BugReport />, path: '/bugs' },
-    { name: 'Feature Requests', icon: <Star />, path: '/features' }
+    { name: 'Feature Requests', icon: <Star />, path: '/features' },
+    { name: 'Community', icon: <Handshake />, path: '/community' },
+    { name: 'Status Page', icon: <TrendingUp />, path: '/status' },
   ];
 
   return (
@@ -134,456 +136,276 @@ const Footer = () => {
         background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
         color: 'white',
         mt: 'auto',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)'
-        }
+        py: 4,
       }}
     >
-      {/* Main Footer Content */}
-      <Box sx={{ maxWidth: '1400px', mx: 'auto', px: 3, py: 6 }}>
+      <Box sx={{ maxWidth: '1200px', mx: 'auto', px: 2 }}>
         <Grid container spacing={4}>
-          {/* Company Info & Newsletter */}
-          <Grid item xs={12} md={4}>
+          {/* Company Info */}
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                   🌊 NeptuneAI
-                  <Chip 
-                    label="v2.0" 
-                    size="small" 
-                    sx={{ 
-                      ml: 2, 
-                      bgcolor: 'rgba(78, 205, 196, 0.2)', 
-                      color: '#4ecdc4',
-                      fontWeight: 600
-                    }} 
-                  />
                 </Typography>
-                <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
-                  Advanced ocean data analytics platform powered by AI. Explore, analyze, and visualize 
-                  ocean parameters with cutting-edge technology and real-time insights.
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
+                  Advanced ocean data platform powered by AI. Monitor, analyze, and understand our oceans like never before.
                 </Typography>
-                
-                {/* Newsletter Signup */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                    Stay Updated
-                  </Typography>
-                  <form onSubmit={handleNewsletterSubmit}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <TextField
-                        size="small"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        sx={{
-                          flexGrow: 1,
-                          '& .MuiOutlinedInput-root': {
-                            color: 'white',
-                            '& fieldset': { borderColor: 'rgba(255,255,255,0.3)' },
-                            '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
-                            '&.Mui-focused fieldset': { borderColor: 'white' }
-                          }
-                        }}
-                      />
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        sx={{
-                          bgcolor: 'rgba(78, 205, 196, 0.8)',
-                          '&:hover': { bgcolor: 'rgba(78, 205, 196, 1)' },
-                          minWidth: 'auto',
-                          px: 2
-                        }}
-                      >
-                        <Send />
-                      </Button>
-                    </Box>
-                  </form>
-                </Box>
+              </Box>
 
-                {/* Social Links */}
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
-                    <Facebook />
-                  </IconButton>
-                  <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
-                    <Twitter />
-                  </IconButton>
-                  <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
-                    <LinkedIn />
-                  </IconButton>
-                  <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
-                    <GitHub />
-                  </IconButton>
-                  <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
-                    <YouTube />
-                  </IconButton>
-                </Box>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <Facebook />
+                </IconButton>
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <Twitter />
+                </IconButton>
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <LinkedIn />
+                </IconButton>
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <GitHub />
+                </IconButton>
+                <IconButton sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                  <YouTube />
+                </IconButton>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Email sx={{ fontSize: 16 }} />
+                <Typography variant="body2">contact@neptuneai.com</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Phone sx={{ fontSize: 16 }} />
+                <Typography variant="body2">+1 (555) 123-4567</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LocationOn sx={{ fontSize: 16 }} />
+                <Typography variant="body2">San Francisco, CA</Typography>
               </Box>
             </motion.div>
           </Grid>
 
           {/* Platform Features */}
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <Accordion 
-                expanded={expandedSections.platform} 
-                onChange={() => handleSectionToggle('platform')}
-                sx={{ 
-                  background: 'transparent', 
-                  boxShadow: 'none',
-                  '&:before': { display: 'none' },
-                  '&.Mui-expanded': { margin: 0 }
-                }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-                  sx={{ minHeight: 48, px: 0 }}
-                >
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
-                    Platform
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ pt: 0, px: 0 }}>
-                  <List dense>
-                    {quickLinks.map((item, index) => (
-                      <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
-                        <Link 
-                          href={item.path} 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            color: 'rgba(255,255,255,0.8)',
-                            textDecoration: 'none',
-                            '&:hover': { color: 'white' },
-                            transition: 'color 0.2s'
-                          }}
-                        >
-                          <Box sx={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center' }}>
-                            {item.icon}
-                          </Box>
-                          {item.name}
-                        </Link>
-                      </ListItem>
-                    ))}
-                  </List>
-                </AccordionDetails>
-              </Accordion>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                Platform Features
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {platformFeatures.map((feature) => (
+                  <Box key={feature.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ color: '#4ecdc4' }}>{feature.icon}</Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {feature.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                        {feature.description}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
             </motion.div>
           </Grid>
 
-          {/* Resources */}
-          <Grid item xs={12} md={2}>
+          {/* Quick Links */}
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <Accordion 
-                expanded={expandedSections.resources} 
-                onChange={() => handleSectionToggle('resources')}
-                sx={{ 
-                  background: 'transparent', 
-                  boxShadow: 'none',
-                  '&:before': { display: 'none' },
-                  '&.Mui-expanded': { margin: 0 }
-                }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-                  sx={{ minHeight: 48, px: 0 }}
-                >
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
-                    Resources
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ pt: 0, px: 0 }}>
-                  <List dense>
-                    {resources.map((item, index) => (
-                      <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
-                        <Link 
-                          href={item.path} 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            color: 'rgba(255,255,255,0.8)',
-                            textDecoration: 'none',
-                            '&:hover': { color: 'white' },
-                            transition: 'color 0.2s'
-                          }}
-                        >
-                          <Box sx={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center' }}>
-                            {item.icon}
-                          </Box>
-                          {item.name}
-                        </Link>
-                      </ListItem>
-                    ))}
-                  </List>
-                </AccordionDetails>
-              </Accordion>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                Quick Links
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {quickLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    component="button"
+                    onClick={() => handleNavigation(link.path)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: 'rgba(255,255,255,0.8)',
+                      textDecoration: 'none',
+                      '&:hover': {
+                        color: 'white',
+                        textDecoration: 'none',
+                      },
+                      textAlign: 'left',
+                      p: 0,
+                    }}
+                  >
+                    <Box sx={{ color: '#4ecdc4' }}>{link.icon}</Box>
+                    {link.name}
+                  </Link>
+                ))}
+              </Box>
             </motion.div>
           </Grid>
 
-          {/* Company */}
-          <Grid item xs={12} md={2}>
+          {/* Resources & Support */}
+          <Grid item xs={12} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              <Accordion 
-                expanded={expandedSections.company} 
-                onChange={() => handleSectionToggle('company')}
-                sx={{ 
-                  background: 'transparent', 
-                  boxShadow: 'none',
-                  '&:before': { display: 'none' },
-                  '&.Mui-expanded': { margin: 0 }
-                }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-                  sx={{ minHeight: 48, px: 0 }}
-                >
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
-                    Company
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ pt: 0, px: 0 }}>
-                  <List dense>
-                    {companyInfo.map((item, index) => (
-                      <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
-                        <Link 
-                          href={item.path} 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            color: 'rgba(255,255,255,0.8)',
-                            textDecoration: 'none',
-                            '&:hover': { color: 'white' },
-                            transition: 'color 0.2s'
-                          }}
-                        >
-                          <Box sx={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center' }}>
-                            {item.icon}
-                          </Box>
-                          {item.name}
-                        </Link>
-                      </ListItem>
-                    ))}
-                  </List>
-                </AccordionDetails>
-              </Accordion>
-            </motion.div>
-          </Grid>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                Resources & Support
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
+                {resources.slice(0, 3).map((resource) => (
+                  <Link
+                    key={resource.name}
+                    component="button"
+                    onClick={() => handleNavigation(resource.path)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: 'rgba(255,255,255,0.8)',
+                      textDecoration: 'none',
+                      '&:hover': {
+                        color: 'white',
+                        textDecoration: 'none',
+                      },
+                      textAlign: 'left',
+                      p: 0,
+                    }}
+                  >
+                    <Box sx={{ color: '#4ecdc4' }}>{resource.icon}</Box>
+                    {resource.name}
+                  </Link>
+                ))}
+              </Box>
 
-          {/* Support & Contact */}
-          <Grid item xs={12} md={2}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
-              <Accordion 
-                expanded={expandedSections.support} 
-                onChange={() => handleSectionToggle('support')}
-                sx={{ 
-                  background: 'transparent', 
-                  boxShadow: 'none',
-                  '&:before': { display: 'none' },
-                  '&.Mui-expanded': { margin: 0 }
-                }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-                  sx={{ minHeight: 48, px: 0 }}
-                >
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
-                    Support
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ pt: 0, px: 0 }}>
-                  <List dense>
-                    {supportOptions.map((item, index) => (
-                      <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
-                        <Link 
-                          href={item.path} 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            color: 'rgba(255,255,255,0.8)',
-                            textDecoration: 'none',
-                            '&:hover': { color: 'white' },
-                            transition: 'color 0.2s'
-                          }}
-                        >
-                          <Box sx={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center' }}>
-                            {item.icon}
-                          </Box>
-                          {item.name}
-                        </Link>
-                      </ListItem>
-                    ))}
-                  </List>
-                </AccordionDetails>
-              </Accordion>
-
-              {/* Contact Info */}
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                  Contact Info
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Email sx={{ fontSize: 16, color: 'rgba(255,255,255,0.7)' }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      contact@neptuneai.com
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Phone sx={{ fontSize: 16, color: 'rgba(255,255,255,0.7)' }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      +1 (555) 123-4567
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocationOn sx={{ fontSize: 16, color: 'rgba(255,255,255,0.7)' }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Ocean Research Center, CA
-                    </Typography>
-                  </Box>
-                </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {supportLinks.slice(0, 3).map((support) => (
+                  <Link
+                    key={support.name}
+                    component="button"
+                    onClick={() => handleNavigation(support.path)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: 'rgba(255,255,255,0.8)',
+                      textDecoration: 'none',
+                      '&:hover': {
+                        color: 'white',
+                        textDecoration: 'none',
+                      },
+                      textAlign: 'left',
+                      p: 0,
+                    }}
+                  >
+                    <Box sx={{ color: '#4ecdc4' }}>{support.icon}</Box>
+                    {support.name}
+                  </Link>
+                ))}
               </Box>
             </motion.div>
           </Grid>
         </Grid>
 
-        {/* Ocean Parameters Showcase */}
-        <Box sx={{ mt: 6, mb: 4 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, textAlign: 'center' }}>
-              Ocean Parameters We Track
-            </Typography>
-            <Grid container spacing={2}>
-              {oceanParameters.map((param, index) => (
-                <Grid item xs={6} sm={4} md={2} key={param.name}>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    <Box sx={{ 
-                      p: 2, 
-                      textAlign: 'center', 
-                      bgcolor: 'rgba(255,255,255,0.05)', 
-                      borderRadius: 2,
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      '&:hover': {
-                        bgcolor: 'rgba(255,255,255,0.1)',
-                        transform: 'translateY(-2px)',
-                        transition: 'all 0.2s'
-                      }
-                    }}>
-                      <Box sx={{ color: '#4ecdc4', mb: 1 }}>
-                        {param.icon}
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        {param.name}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                        {param.unit}
-                      </Typography>
-                    </Box>
-                  </motion.div>
-                </Grid>
-              ))}
-            </Grid>
-          </motion.div>
-        </Box>
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 3 }} />
 
-        <Divider sx={{ my: 4, bgcolor: 'rgba(255,255,255,0.1)' }} />
+        {/* Newsletter Subscription */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+              Stay Updated with Ocean Science
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 2 }}>
+              Subscribe to our newsletter for the latest ocean data insights and platform updates.
+            </Typography>
+            <Box
+              component="form"
+              onSubmit={handleNewsletterSubmit}
+              sx={{ display: 'flex', gap: 1, maxWidth: 400, mx: 'auto' }}
+            >
+              <TextField
+                size="small"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                sx={{
+                  flexGrow: 1,
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.3)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+                    '&.Mui-focused fieldset': { borderColor: 'white' },
+                  },
+                  '& .MuiInputBase-input::placeholder': { color: 'rgba(255,255,255,0.7)' },
+                }}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<Send />}
+                sx={{
+                  bgcolor: '#4ecdc4',
+                  '&:hover': { bgcolor: '#45b7d1' },
+                }}
+              >
+                Subscribe
+              </Button>
+            </Box>
+          </Box>
+        </motion.div>
+
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 3 }} />
 
         {/* Bottom Section */}
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 2
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-              © 2024 NeptuneAI. All rights reserved.
+              © 2024 NeptuneAI. All rights reserved. | Protecting our oceans through data science.
             </Typography>
-            <Chip 
-              label="Made with ❤️ for Ocean Research" 
-              size="small" 
-              sx={{ 
-                bgcolor: 'rgba(78, 205, 196, 0.2)', 
-                color: '#4ecdc4',
-                fontWeight: 500
-              }} 
-            />
+            <Box sx={{ display: 'flex', gap: 3 }}>
+              <Link href="/privacy" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', '&:hover': { color: 'white' } }}>
+                Privacy Policy
+              </Link>
+              <Link href="/terms" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', '&:hover': { color: 'white' } }}>
+                Terms of Service
+              </Link>
+              <Link href="/cookies" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', '&:hover': { color: 'white' } }}>
+                Cookie Policy
+              </Link>
+            </Box>
           </Box>
-          
-          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-            <Link href="/privacy" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: '0.875rem' }}>
-              Privacy Policy
-            </Link>
-            <Link href="/terms" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: '0.875rem' }}>
-              Terms of Service
-            </Link>
-            <Link href="/cookies" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: '0.875rem' }}>
-              Cookie Policy
-            </Link>
-            <Link href="/security" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: '0.875rem' }}>
-              Security
-            </Link>
-          </Box>
-        </Box>
+        </motion.div>
       </Box>
 
-      {/* Newsletter Success Snackbar */}
       <Snackbar
-        open={newsletterSuccess}
+        open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setNewsletterSuccess(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setNewsletterSuccess(false)} 
-          severity="success" 
-          sx={{ width: '100%' }}
-        >
-          Successfully subscribed to newsletter!
-        </Alert>
-      </Snackbar>
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
     </Box>
   );
 };
