@@ -69,7 +69,16 @@ const Dashboard = () => {
       
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setStats(statsData);
+        // Ensure all required fields exist with default values
+        setStats({
+          totalRecords: statsData.totalRecords || 0,
+          activeStations: statsData.activeStations || 0,
+          avgTemperature: statsData.avgTemperature || 0,
+          avgSalinity: statsData.avgSalinity || 0,
+          maxDepth: statsData.maxDepth || 0,
+          dataPoints: statsData.dataPoints || 0,
+          lastUpdate: statsData.lastUpdate || new Date().toISOString()
+        });
       } else {
         // Fallback data if API fails
         setStats({
@@ -135,35 +144,42 @@ const Dashboard = () => {
     // Implement export functionality
   };
 
-  const StatCard = ({ title, value, unit, icon, trend, change, color = '#1976d2' }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)` }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box sx={{ color, p: 1, borderRadius: 2, bgcolor: `${color}20` }}>
-              {icon}
+  const StatCard = ({ title, value, unit, icon, trend, change, color = '#1976d2' }) => {
+    // Handle undefined values safely
+    const safeValue = value !== undefined ? value : 0;
+    const safeChange = change !== undefined ? change : 0;
+    const safeTrend = trend || 'up';
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)` }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ color, p: 1, borderRadius: 2, bgcolor: `${color}20` }}>
+                {icon}
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {safeTrend === 'up' ? <TrendingUp color="success" /> : <TrendingDown color="error" />}
+                <Typography variant="body2" color={safeTrend === 'up' ? 'success.main' : 'error.main'}>
+                  {safeChange > 0 ? '+' : ''}{safeChange.toLocaleString()}{unit}
+                </Typography>
+              </Box>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {trend === 'up' ? <TrendingUp color="success" /> : <TrendingDown color="error" />}
-              <Typography variant="body2" color={trend === 'up' ? 'success.main' : 'error.main'}>
-                {change > 0 ? '+' : ''}{change}{unit}
-              </Typography>
-            </Box>
-          </Box>
-          <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-            {value}{unit}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {title}
-          </Typography>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
+            <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
+              {safeValue.toLocaleString()}{unit}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {title}
+            </Typography>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  };
 
   const OceanMapChart = () => (
     <Card sx={{ height: 400 }}>

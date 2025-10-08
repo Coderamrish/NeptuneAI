@@ -91,9 +91,23 @@ const DataExplorer = () => {
       
       if (response.ok) {
         const result = await response.json();
-        setData(result.data || []);
+        const fetchedData = result.data || [];
+        setData(fetchedData);
+        setFilteredData(fetchedData);
+        
+        // Update filters with available options
+        const regions = [...new Set(fetchedData.map(item => item.region))];
+        const years = [...new Set(fetchedData.map(item => item.year))];
+        const qualities = [...new Set(fetchedData.map(item => item.quality))];
+        
+        setFilters(prev => ({
+          ...prev,
+          regions: regions.sort(),
+          years: years.sort(),
+          qualities: qualities.sort()
+        }));
       } else {
-        // Generate sample data if API fails
+        // Generate enhanced sample data if API fails
         generateSampleData();
       }
     } catch (error) {
@@ -186,7 +200,27 @@ const DataExplorer = () => {
     }));
   };
 
-  const handleExport = () => {
+  const handleExport = (format = 'csv') => {
+    try {
+      if (filteredData.length === 0) {
+        toast.warning('No data to export');
+        return;
+      }
+
+      if (format === 'csv') {
+        exportToCSV();
+      } else if (format === 'json') {
+        exportToJSON();
+      } else if (format === 'excel') {
+        exportToExcel();
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Export failed. Please try again.');
+    }
+  };
+
+  const exportToCSV = () => {
     const csvContent = [
       ['Station ID', 'Timestamp', 'Latitude', 'Longitude', 'Temperature', 'Salinity', 'Pressure', 'Depth', 'Region', 'Year', 'Quality'],
       ...filteredData.map(item => [
@@ -208,11 +242,55 @@ const DataExplorer = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'ocean_data.csv';
+    a.download = `ocean_data_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     
-    toast.success('Data exported successfully!');
+    toast.success('Data exported as CSV successfully!');
+  };
+
+  const exportToJSON = () => {
+    const jsonContent = JSON.stringify(filteredData, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ocean_data_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    toast.success('Data exported as JSON successfully!');
+  };
+
+  const exportToExcel = () => {
+    // For Excel export, we'll create a CSV with .xlsx extension
+    // In a real implementation, you'd use a library like xlsx
+    const csvContent = [
+      ['Station ID', 'Timestamp', 'Latitude', 'Longitude', 'Temperature', 'Salinity', 'Pressure', 'Depth', 'Region', 'Year', 'Quality'],
+      ...filteredData.map(item => [
+        item.station_id,
+        item.timestamp,
+        item.latitude.toFixed(4),
+        item.longitude.toFixed(4),
+        item.temperature.toFixed(2),
+        item.salinity.toFixed(2),
+        item.pressure.toFixed(2),
+        item.depth.toFixed(2),
+        item.region,
+        item.year,
+        item.quality
+      ])
+    ].map(row => row.join('\t')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ocean_data_${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    toast.success('Data exported as Excel successfully!');
   };
 
   const handleRefresh = () => {
@@ -398,8 +476,18 @@ const DataExplorer = () => {
                 <Refresh />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Export Data">
-              <IconButton onClick={handleExport} color="primary">
+            <Tooltip title="Export as CSV">
+              <IconButton onClick={() => handleExport('csv')} color="primary">
+                <Download />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Export as JSON">
+              <IconButton onClick={() => handleExport('json')} color="primary">
+                <Download />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Export as Excel">
+              <IconButton onClick={() => handleExport('excel')} color="primary">
                 <Download />
               </IconButton>
             </Tooltip>

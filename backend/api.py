@@ -239,7 +239,53 @@ async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_curr
 
 # AI Response Generation
 def generate_ai_response(query: str):
-    """Generate AI response based on user query about ocean data"""
+    """Generate AI response based on user query about ocean data using Groq AI"""
+    try:
+        # Use Groq AI for intelligent responses
+        if groq_client:
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are NeptuneAI, an expert ocean data analyst assistant. You help users understand ocean data including temperature, salinity, pressure, depth, and other oceanographic parameters. 
+
+You can:
+- Analyze ocean data trends and patterns
+- Explain oceanographic phenomena
+- Generate insights about marine ecosystems
+- Create visualizations and charts
+- Answer questions about ocean science
+
+Always provide accurate, scientific information and suggest relevant data visualizations when appropriate. Be conversational but professional."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"User query about ocean data: {query}"
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=1000
+            )
+            
+            ai_content = response.choices[0].message.content
+            
+            # Generate relevant plots based on query
+            plots = generate_relevant_plots(query)
+            
+            return {
+                "content": ai_content,
+                "plots": plots
+            }
+        else:
+            # Fallback to rule-based responses if Groq is not available
+            return generate_fallback_response(query)
+    except Exception as e:
+        print(f"Groq AI error: {e}")
+        return generate_fallback_response(query)
+
+def generate_fallback_response(query: str):
+    """Fallback response generation when Groq AI is not available"""
     query_lower = query.lower()
     
     if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
@@ -484,6 +530,72 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
             "timestamp": datetime.now().isoformat()
         }
 
+def generate_relevant_plots(query: str):
+    """Generate relevant plots based on the user query"""
+    query_lower = query.lower()
+    plots = []
+    
+    if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
+        plots.append({
+            "data": [{
+                "x": ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
+                "y": [25, 20, 15, 10, 5, 2],
+                "type": "scatter",
+                "mode": "lines+markers",
+                "name": "Temperature",
+                "line": {"color": "#ff6b6b", "width": 3},
+                "marker": {"size": 8}
+            }],
+            "layout": {
+                "title": "Ocean Temperature vs Depth Profile",
+                "xaxis": {"title": "Depth"},
+                "yaxis": {"title": "Temperature (°C)"},
+                "height": 300
+            }
+        })
+    
+    elif any(word in query_lower for word in ['salinity', 'salt', 'saltwater']):
+        plots.append({
+            "data": [{
+                "x": ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
+                "y": [35.5, 35.2, 34.8, 34.5, 34.2, 34.0],
+                "type": "scatter",
+                "mode": "lines+markers",
+                "name": "Salinity",
+                "line": {"color": "#4fc3f7", "width": 3},
+                "marker": {"size": 8}
+            }],
+            "layout": {
+                "title": "Ocean Salinity vs Depth Profile",
+                "xaxis": {"title": "Depth"},
+                "yaxis": {"title": "Salinity (PSU)"},
+                "height": 300
+            }
+        })
+    
+    elif any(word in query_lower for word in ['map', 'location', 'geographic', 'region']):
+        plots.append({
+            "data": [{
+                "type": "scattermapbox",
+                "lat": [40.7128, 34.0522, 51.5074, -33.8688, 35.6762],
+                "lon": [-74.0060, -118.2437, -0.1278, 151.2093, 139.6503],
+                "mode": "markers",
+                "marker": {"size": 10, "color": "red"},
+                "text": ["New York", "Los Angeles", "London", "Sydney", "Tokyo"]
+            }],
+            "layout": {
+                "mapbox": {
+                    "style": "open-street-map",
+                    "center": {"lat": 0, "lon": 0},
+                    "zoom": 1
+                },
+                "height": 400,
+                "margin": {"t": 0, "b": 0, "l": 0, "r": 0}
+            }
+        })
+    
+    return plots
+
 @app.post("/api/chat/session")
 async def create_chat_session(session: ChatSession, user: dict = Depends(get_current_user)):
     import uuid
@@ -510,6 +622,30 @@ async def get_chat_sessions(user: dict = Depends(get_current_user)):
         
         sessions = [dict(row) for row in cursor.fetchall()]
         return {"sessions": sessions}
+
+@app.post("/api/chat/sessions")
+async def create_chat_session_simple(user: dict = Depends(get_current_user)):
+    try:
+        import uuid
+        session_id = str(uuid.uuid4())
+        
+        with get_user_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO chat_sessions (user_id, session_id, title, created_at, last_activity)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user['user_id'], session_id, 'New Chat', datetime.now().isoformat(), datetime.now().isoformat()))
+            
+            conn.commit()
+            
+            return {
+                "session_id": session_id,
+                "title": "New Chat",
+                "created_at": datetime.now().isoformat(),
+                "last_activity": datetime.now().isoformat()
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/chat/messages/{session_id}")
 async def get_chat_messages(session_id: str, user: dict = Depends(get_current_user)):
@@ -688,17 +824,20 @@ async def get_ocean_parameters(user: dict = Depends(get_current_user)):
         from sqlalchemy import text
         
         # Get column information
-        columns_query = text("""
+        columns_query = """
             SELECT column_name, data_type 
             FROM information_schema.columns 
             WHERE table_name = 'oceanbench_data'
             ORDER BY ordinal_position
-        """)
+        """
         
         try:
             columns_df = run_query(engine, columns_query)
             parameters = columns_df.to_dict('records')
-        except:
+        except Exception as e:
+            print(f"❌ Query failed: {e}")
+            print(f"Query: {columns_query}")
+            print(f"Params: None")
             # Fallback for SQLite
             parameters = [
                 {"column_name": "temperature", "data_type": "numeric"},

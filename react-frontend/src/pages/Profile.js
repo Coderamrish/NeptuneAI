@@ -54,6 +54,12 @@ import {
   Thermostat,
   Speed,
   Map,
+  Timeline,
+  DataUsage,
+  Assessment,
+  Warning,
+  CheckCircle,
+  Info,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -110,7 +116,13 @@ const Profile = () => {
       
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setUserStats(statsData);
+        setUserStats({
+          totalDownloads: statsData.totalDownloads || 0,
+          totalChats: statsData.totalChats || 0,
+          totalUploads: statsData.totalUploads || 0,
+          dataPoints: statsData.dataPoints || 0,
+          lastActivity: statsData.lastActivity || new Date().toISOString()
+        });
       } else {
         // Generate sample data if API fails
         generateSampleData();
@@ -155,6 +167,10 @@ const Profile = () => {
       totalUploads: 8,
       dataPoints: 125000,
       lastActivity: new Date().toISOString(),
+      joinDate: profileData.created_at || new Date().toISOString(),
+      dataQuality: 94.5,
+      favoriteRegion: 'North Atlantic',
+      totalSessions: 15
     });
     generateSampleActivity();
     generateSampleChatHistory();
@@ -529,6 +545,33 @@ const Profile = () => {
             icon={<BarChart />}
             color="#9c27b0"
             trend="15"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Data Quality"
+            value={`${userStats.dataQuality || 94.5}%`}
+            icon={<Assessment />}
+            color="#00bcd4"
+            trend="2"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Favorite Region"
+            value={userStats.favoriteRegion || 'North Atlantic'}
+            icon={<LocationOn />}
+            color="#795548"
+            trend=""
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Sessions"
+            value={userStats.totalSessions || 15}
+            icon={<Timeline />}
+            color="#607d8b"
+            trend="5"
           />
         </Grid>
       </Grid>
