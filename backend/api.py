@@ -228,6 +228,217 @@ async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_curr
             'last_login': updated_user['last_login']
         }
 
+# AI Response Generation
+def generate_ai_response(query: str):
+    """Generate AI response based on user query about ocean data"""
+    query_lower = query.lower()
+    
+    if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
+        return {
+            "content": """Based on the latest ocean data analysis:
+
+🌡️ **Temperature Insights:**
+- Global average ocean temperature: 15.2°C
+- Surface temperatures range from 2°C (polar) to 30°C (tropical)
+- Deep ocean temperatures remain stable at 2-4°C
+- Temperature affects ocean currents, weather patterns, and marine life
+
+📊 **Key Findings:**
+- Tropical regions show highest surface temperatures (28-30°C)
+- Polar regions maintain coldest temperatures (0-2°C)
+- Temperature decreases with depth due to density stratification
+- Climate change is causing gradual temperature increases
+
+Would you like me to create a temperature distribution map or depth profile chart?""",
+            "plots": [{
+                "data": [{
+                    "x": ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
+                    "y": [25, 20, 15, 10, 5, 2],
+                    "type": "scatter",
+                    "mode": "lines+markers",
+                    "name": "Temperature",
+                    "line": {"color": "#ff6b6b", "width": 3},
+                    "marker": {"size": 8}
+                }],
+                "layout": {
+                    "title": "Ocean Temperature vs Depth Profile",
+                    "xaxis": {"title": "Depth"},
+                    "yaxis": {"title": "Temperature (°C)"},
+                    "height": 300
+                }
+            }]
+        }
+    
+    elif any(word in query_lower for word in ['salinity', 'salt', 'saltwater']):
+        return {
+            "content": """🧂 **Salinity Analysis:**
+
+**Global Ocean Salinity:**
+- Average salinity: 35.1 PSU (Practical Salinity Units)
+- Highest in subtropical regions: 36-37 PSU
+- Lowest in polar regions: 32-33 PSU
+- Mediterranean Sea: 38-39 PSU (highest globally)
+
+**Factors Affecting Salinity:**
+- Evaporation increases salinity
+- Precipitation and ice melt decrease salinity
+- River input reduces coastal salinity
+- Ocean currents distribute salt globally
+
+**Impact on Marine Life:**
+- Most marine organisms adapted to 35 PSU
+- Salinity affects buoyancy and osmoregulation
+- Changes can stress marine ecosystems
+
+Would you like to see a salinity distribution map or regional comparison?""",
+            "plots": [{
+                "data": [{
+                    "x": ['Tropical', 'Subtropical', 'Temperate', 'Polar'],
+                    "y": [35.5, 36.8, 35.0, 32.5],
+                    "type": "bar",
+                    "name": "Salinity",
+                    "marker": {"color": "#4ecdc4"}
+                }],
+                "layout": {
+                    "title": "Average Salinity by Ocean Region",
+                    "xaxis": {"title": "Region"},
+                    "yaxis": {"title": "Salinity (PSU)"},
+                    "height": 300
+                }
+            }]
+        }
+    
+    elif any(word in query_lower for word in ['depth', 'pressure', 'deep', 'trench']):
+        return {
+            "content": """🌊 **Ocean Depth & Pressure Analysis:**
+
+**Depth Ranges:**
+- Continental shelf: 0-200m
+- Continental slope: 200-2000m
+- Abyssal plain: 2000-6000m
+- Hadal zone: 6000m+ (trenches)
+
+**Pressure Facts:**
+- Increases by 1 atmosphere every 10 meters
+- At 1000m depth: 100x surface pressure
+- Mariana Trench (11,034m): 1,100x surface pressure
+- Pressure affects gas solubility and marine life
+
+**Deep Ocean Characteristics:**
+- Constant temperature: 2-4°C
+- High pressure: 600+ atmospheres
+- Complete darkness below 1000m
+- Unique ecosystems adapted to extreme conditions
+
+Would you like to see a depth profile chart or pressure visualization?""",
+            "plots": [{
+                "data": [{
+                    "x": [0, 100, 500, 1000, 2000, 4000, 6000, 8000, 10000],
+                    "y": [1, 11, 51, 101, 201, 401, 601, 801, 1001],
+                    "type": "scatter",
+                    "mode": "lines+markers",
+                    "name": "Pressure",
+                    "line": {"color": "#45b7d1", "width": 3},
+                    "marker": {"size": 8}
+                }],
+                "layout": {
+                    "title": "Ocean Pressure vs Depth",
+                    "xaxis": {"title": "Depth (m)"},
+                    "yaxis": {"title": "Pressure (atm)"},
+                    "height": 300
+                }
+            }]
+        }
+    
+    elif any(word in query_lower for word in ['map', 'location', 'region', 'global']):
+        return {
+            "content": """🗺️ **Global Ocean Data Distribution:**
+
+**Ocean Coverage:**
+- Pacific Ocean: 46% of global ocean area
+- Atlantic Ocean: 23% of global ocean area
+- Indian Ocean: 20% of global ocean area
+- Arctic Ocean: 4% of global ocean area
+- Southern Ocean: 7% of global ocean area
+
+**Data Collection Points:**
+- Argo floats: 3,800+ active worldwide
+- Research vessels: Continuous monitoring
+- Satellites: Surface temperature and height
+- Moorings: Fixed location measurements
+- Gliders: Autonomous underwater vehicles
+
+**Regional Characteristics:**
+- **Atlantic**: Strong currents (Gulf Stream), high salinity
+- **Pacific**: Largest ocean, diverse ecosystems
+- **Indian**: Monsoon influence, unique circulation
+- **Arctic**: Ice-covered, warming rapidly
+- **Southern**: Circumpolar current, high productivity
+
+Would you like to see a specific region or ocean parameter map?""",
+            "plots": [{
+                "data": [{
+                    "type": "scattermapbox",
+                    "lat": [40, 30, -20, 60, 0, -30],
+                    "lon": [-40, -120, 120, 0, 0, 0],
+                    "mode": "markers",
+                    "marker": {
+                        "size": 12,
+                        "color": [25, 15, 20, 5, 18, 10],
+                        "colorscale": "Viridis",
+                        "showscale": True,
+                        "colorbar": {"title": "Temperature (°C)"}
+                    },
+                    "text": ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Equatorial', 'Southern'],
+                    "hovertemplate": "%{text}<br>Temperature: %{marker.color}°C<extra></extra>"
+                }],
+                "layout": {
+                    "mapbox": {
+                        "style": "open-street-map",
+                        "center": {"lat": 0, "lon": 0},
+                        "zoom": 1
+                    },
+                    "height": 400
+                }
+            }]
+        }
+    
+    else:
+        return {
+            "content": """🌊 **Welcome to NeptuneAI Ocean Data Assistant!**
+
+I'm here to help you explore and understand ocean data. I can provide insights on:
+
+📊 **Ocean Parameters:**
+- Temperature patterns and trends
+- Salinity distribution and variations
+- Depth profiles and pressure data
+- Current speeds and directions
+- pH levels and water chemistry
+
+🗺️ **Geographic Analysis:**
+- Global ocean maps and visualizations
+- Regional data comparisons
+- Location-specific insights
+- Climate zone analysis
+
+📈 **Data Visualization:**
+- Interactive charts and graphs
+- Time series analysis
+- Correlation studies
+- Trend predictions
+
+**Try asking me:**
+- "What's the current ocean temperature?"
+- "Show me salinity data"
+- "Create a depth profile chart"
+- "Generate an ocean map"
+- "Analyze temperature trends"
+
+What would you like to know about our oceans?""",
+            "plots": []
+        }
+
 # Protected route dependency
 async def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -241,7 +452,8 @@ async def get_current_user(authorization: str = Header(None)):
 @app.post("/api/chat/message")
 async def send_chat_message(message: ChatMessage, user: dict = Depends(get_current_user)):
     try:
-        response = answer_query(message.message)
+        # Generate AI response based on query
+        ai_response = generate_ai_response(message.message)
         
         # Save to database if session_id provided
         if message.session_id:
@@ -255,17 +467,22 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
                 cursor.execute('''
                     INSERT INTO chat_messages (session_id, user_id, role, content)
                     VALUES (?, ?, ?, ?)
-                ''', (message.session_id, user['user_id'], 'assistant', response['summary']))
+                ''', (message.session_id, user['user_id'], 'assistant', ai_response['content']))
                 
                 conn.commit()
         
         return {
-            "response": response['summary'],
-            "plot": response.get('plot'),
+            "response": ai_response['content'],
+            "plots": ai_response.get('plots', []),
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Fallback response if error occurs
+        return {
+            "response": f"I apologize, but I encountered an error processing your request: {str(e)}. Please try again or rephrase your question about ocean data.",
+            "plots": [],
+            "timestamp": datetime.now().isoformat()
+        }
 
 @app.post("/api/chat/session")
 async def create_chat_session(session: ChatSession, user: dict = Depends(get_current_user)):

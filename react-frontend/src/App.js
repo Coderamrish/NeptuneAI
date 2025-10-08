@@ -91,8 +91,12 @@ const darkTheme = createTheme({
       main: '#f48fb1',
     },
     background: {
-      default: '#121212',
-      paper: '#1e1e1e',
+      default: '#0a0a0a',
+      paper: '#1a1a1a',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: '#b0b0b0',
     },
     ocean: {
       main: '#00bcd4',
@@ -104,12 +108,33 @@ const darkTheme = createTheme({
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontWeight: 600,
+      color: '#ffffff',
     },
     h2: {
       fontWeight: 600,
+      color: '#ffffff',
     },
     h3: {
       fontWeight: 500,
+      color: '#ffffff',
+    },
+    h4: {
+      fontWeight: 500,
+      color: '#ffffff',
+    },
+    h5: {
+      fontWeight: 500,
+      color: '#ffffff',
+    },
+    h6: {
+      fontWeight: 500,
+      color: '#ffffff',
+    },
+    body1: {
+      color: '#ffffff',
+    },
+    body2: {
+      color: '#b0b0b0',
     },
   },
   components: {
@@ -126,7 +151,60 @@ const darkTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+          backgroundColor: '#1a1a1a',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#1a1a1a',
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiInputBase-root': {
+            color: '#ffffff',
+          },
+          '& .MuiInputLabel-root': {
+            color: '#b0b0b0',
+          },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#404040',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#606060',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#90caf9',
+          },
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+          '&:hover': {
+            backgroundColor: '#404040',
+          },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
         },
       },
     },
@@ -211,7 +289,7 @@ const AppContent = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ThemeContext.Provider value={{ darkMode, toggleDarkMode }}>
-        <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'background.default' }}>
           <Navbar onMenuClick={handleSidebarToggle} />
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           
@@ -222,8 +300,8 @@ const AppContent = () => {
               paddingTop: '64px',
               paddingLeft: sidebarOpen ? '280px' : '0px',
               transition: 'padding-left 0.3s ease',
-              minHeight: '100vh',
               backgroundColor: 'background.default',
+              minHeight: 'calc(100vh - 64px)',
             }}
           >
             <AnimatePresence mode="wait">
