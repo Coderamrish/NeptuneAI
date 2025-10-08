@@ -66,17 +66,29 @@ const AIInsights = () => {
   const fetchChatSessions = async () => {
     try {
       const token = localStorage.getItem('neptuneai_token');
+      console.log('Fetching chat sessions...');
+      
       const response = await fetch('/api/chat/sessions', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      console.log('Chat sessions response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Chat sessions data:', data);
+        
         setSessions(data.sessions || []);
         if (data.sessions && data.sessions.length > 0) {
           setCurrentSession(data.sessions[0]);
           fetchMessages(data.sessions[0].session_id);
+        } else {
+          // Create a default session if none exist
+          createNewSession();
         }
       } else {
+        const errorData = await response.text();
+        console.error('Failed to fetch sessions:', response.status, errorData);
         // Create a default session if none exist
         createNewSession();
       }
@@ -100,11 +112,23 @@ const AIInsights = () => {
       
       if (response.ok) {
         const data = await response.json();
-        const newSession = data.session;
+        console.log('New session data:', data);
+        
+        const newSession = {
+          session_id: data.session_id,
+          title: data.title || 'New Chat',
+          created_at: data.created_at || new Date().toISOString(),
+          last_activity: data.last_activity || new Date().toISOString()
+        };
+        
         setSessions(prev => [newSession, ...prev]);
         setCurrentSession(newSession);
         setMessages([]);
         toast.success('New chat session created!');
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to create session:', response.status, errorData);
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
       }
     } catch (error) {
       console.error('Failed to create new session:', error);
@@ -138,10 +162,11 @@ const AIInsights = () => {
   const sendMessage = async () => {
     if (!query.trim() || loading) return;
 
+    const userQuery = query.trim();
     const userMessage = {
       id: Date.now(),
       role: 'user',
-      content: query,
+      content: userQuery,
       timestamp: new Date().toISOString()
     };
 
@@ -151,6 +176,9 @@ const AIInsights = () => {
 
     try {
       const token = localStorage.getItem('neptuneai_token');
+      console.log('Sending message to backend:', userQuery);
+      console.log('Current session:', currentSession);
+      
       const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: {
@@ -158,24 +186,32 @@ const AIInsights = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          session_id: currentSession?.session_id,
-          message: query
+          session_id: currentSession?.session_id || null,
+          message: userQuery
         })
       });
 
+      console.log('Backend response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Backend response data:', data);
+        
         const aiMessage = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: data.response,
+          content: data.response || data.content || 'I apologize, but I could not generate a response.',
           timestamp: new Date().toISOString(),
           plots: data.plots || []
         };
         setMessages(prev => [...prev, aiMessage]);
+        toast.success('AI response received!');
       } else {
+        const errorData = await response.text();
+        console.error('Backend error:', response.status, errorData);
+        
         // Generate AI response locally if API fails
-        const aiResponse = generateAIResponse(query);
+        const aiResponse = generateAIResponse(userQuery);
         const aiMessage = {
           id: Date.now() + 1,
           role: 'assistant',
@@ -184,11 +220,12 @@ const AIInsights = () => {
           plots: aiResponse.plots || []
         };
         setMessages(prev => [...prev, aiMessage]);
+        toast.warning('Using offline AI response');
       }
     } catch (error) {
       console.error('Failed to send message:', error);
       // Generate AI response locally if API fails
-      const aiResponse = generateAIResponse(query);
+      const aiResponse = generateAIResponse(userQuery);
       const aiMessage = {
         id: Date.now() + 1,
         role: 'assistant',
@@ -197,6 +234,7 @@ const AIInsights = () => {
         plots: aiResponse.plots || []
       };
       setMessages(prev => [...prev, aiMessage]);
+      toast.error('Using offline AI response due to connection error');
     } finally {
       setLoading(false);
     }
@@ -377,6 +415,17 @@ const AIInsights = () => {
             <Tooltip title="New Chat">
               <IconButton onClick={createNewSession} sx={{ color: 'primary' }}>
                 <Add />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Test AI">
+              <IconButton 
+                onClick={() => {
+                  setQuery('What is the ocean temperature?');
+                  setTimeout(() => sendMessage(), 100);
+                }} 
+                sx={{ color: 'secondary' }}
+              >
+                <Psychology />
               </IconButton>
             </Tooltip>
             <Tooltip title="Chat History">
