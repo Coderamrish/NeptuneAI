@@ -1,8 +1,3 @@
-"""
-Model Context Protocol (MCP) Integration for ARGO Ocean Data
-Implements MCP for structured LLM communication
-"""
-
 import json
 import asyncio
 from typing import Dict, List, Optional, Any, Union
@@ -11,7 +6,6 @@ from datetime import datetime
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -444,15 +438,14 @@ class MCPClient:
     def get_available_tools(self) -> List[Dict[str, Any]]:
         """Get list of available tools"""
         return self.handler.tool_registry.list_tools()
-
+    
 def main():
     """Example usage of MCP integration"""
     # Initialize MCP handler
     handler = MCPHandler()
-    
+   
     # Create client
-    client = MCPClient(handler)
-    
+    client = MCPClient(handler)    
     # Example: Send a database query request
     async def example_usage():
         response = await client.send_request(
@@ -462,19 +455,16 @@ def main():
                 'filters': {'region': 'Indian Ocean'},
                 'limit': 50
             }
-        )
-        
+        )     
         print(f"Request successful: {response.success}")
         if response.success:
             print(f"Result: {response.result}")
         else:
-            print(f"Error: {response.error}")
-    
+            print(f"Error: {response.error}") 
     # Run example
-    asyncio.run(example_usage())
-    
-    print("🌊 MCP Integration initialized")
-    print("🔧 Available tools:", len(handler.tool_registry.list_tools()))
+    asyncio.run(example_usage())   
+    print(" MCP Integration initialized")
+    print(" Available tools:", len(handler.tool_registry.list_tools()))
 
 if __name__ == "__main__":
     main()

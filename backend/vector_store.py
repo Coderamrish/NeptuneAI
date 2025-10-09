@@ -183,42 +183,33 @@ class ARGOVectorStore:
         Returns:
             List of document IDs
         """
-        doc_ids = []
-        
+        doc_ids = []       
         for idx, row in df.iterrows():
             # Create content for embedding
             content_parts = []
-            
-            # Basic location info
+                       # Basic location info
             if 'latitude' in row and 'longitude' in row:
-                content_parts.append(f"Location: {row['latitude']:.2f}°N, {row['longitude']:.2f}°E")
-            
+                content_parts.append(f"Location: {row['latitude']:.2f}°N, {row['longitude']:.2f}°E")            
             # Date info
             if 'date' in row and pd.notna(row['date']):
-                content_parts.append(f"Date: {row['date']}")
-            
+                content_parts.append(f"Date: {row['date']}")           
             # Platform info
             if 'platform_number' in row and pd.notna(row['platform_number']):
-                content_parts.append(f"Platform: {row['platform_number']}")
-            
+                content_parts.append(f"Platform: {row['platform_number']}")           
             # Oceanographic data
             ocean_vars = ['temperature', 'salinity', 'pressure']
             for var in ocean_vars:
                 if var in row and pd.notna(row[var]):
-                    content_parts.append(f"{var.title()}: {row[var]:.2f}")
-            
+                    content_parts.append(f"{var.title()}: {row[var]:.2f}")           
             # Quality info
             qc_vars = [col for col in row.index if col.endswith('_qc')]
             qc_info = []
             for qc_var in qc_vars:
                 if pd.notna(row[qc_var]):
-                    qc_info.append(f"{qc_var}: {row[qc_var]}")
-            
+                    qc_info.append(f"{qc_var}: {row[qc_var]}")            
             if qc_info:
-                content_parts.append(f"Quality: {', '.join(qc_info)}")
-            
-            content = " | ".join(content_parts)
-            
+                content_parts.append(f"Quality: {', '.join(qc_info)}")           
+            content = " | ".join(content_parts)            
             # Create metadata
             metadata = {
                 'profile_index': idx,
@@ -288,34 +279,27 @@ class ARGOVectorStore:
         try:
             # Generate query embedding
             query_embedding = self.encoder.encode([query])[0]
-            query_embedding = query_embedding / np.linalg.norm(query_embedding)
-            
+            query_embedding = query_embedding / np.linalg.norm(query_embedding)          
             # Search FAISS index
-            scores, indices = self.index.search(np.array([query_embedding]), k)
-            
+            scores, indices = self.index.search(np.array([query_embedding]), k)           
             results = []
             for score, idx in zip(scores[0], indices[0]):
                 if idx < len(self.metadata):
                     doc = self.metadata[idx].copy()
-                    doc['similarity_score'] = float(score)
-                    
+                    doc['similarity_score'] = float(score)                   
                     # Apply filters
                     if self._matches_filters(doc, doc_types, filters):
-                        results.append(doc)
-            
+                        results.append(doc)           
             logger.info(f"Found {len(results)} results for query: {query[:50]}...")
-            return results
-            
+            return results           
         except Exception as e:
             logger.error(f"Search failed: {e}")
-            return []
-    
+            return []    
     def _matches_filters(self, doc: Dict, doc_types: List[str], filters: Dict) -> bool:
         """Check if document matches the given filters"""
         # Check document type filter
         if doc_types and doc.get('doc_type') not in doc_types:
-            return False
-        
+            return False        
         # Check metadata filters
         if filters:
             for key, value in filters.items():
@@ -327,10 +311,8 @@ class ARGOVectorStore:
                         if doc['metadata'][key] != value:
                             return False
                 else:
-                    return False
-        
-        return True
-    
+                    return False        
+        return True    
     def get_document(self, doc_id: str) -> Optional[Dict]:
         """Get a specific document by ID"""
         if doc_id in self.id_to_metadata:
@@ -344,25 +326,19 @@ class ARGOVectorStore:
             return False
         
         try:
-            idx = self.id_to_metadata[doc_id]
-            
+            idx = self.id_to_metadata[doc_id]           
             # Remove from FAISS index
-            self.index.remove_ids(np.array([idx]))
-            
+            self.index.remove_ids(np.array([idx]))            
             # Remove from metadata
             del self.metadata[idx]
-            del self.id_to_metadata[doc_id]
-            
+            del self.id_to_metadata[doc_id]            
             # Rebuild ID mapping
-            self.id_to_metadata = {doc['id']: i for i, doc in enumerate(self.metadata)}
-            
+            self.id_to_metadata = {doc['id']: i for i, doc in enumerate(self.metadata)}            
             logger.info(f"Deleted document {doc_id}")
-            return True
-            
+            return True           
         except Exception as e:
             logger.error(f"Failed to delete document {doc_id}: {e}")
-            return False
-    
+            return False   
     def get_stats(self) -> Dict:
         """Get vector store statistics"""
         return {
@@ -372,36 +348,30 @@ class ARGOVectorStore:
             'model_name': self.model_name,
             'doc_types': list(set(doc.get('doc_type', 'unknown') for doc in self.metadata)),
             'last_updated': datetime.now().isoformat()
-        }
-    
+        }   
     def clear(self):
         """Clear all data from the vector store"""
         self.index = faiss.IndexFlatIP(self.dimension)
         self.metadata = []
         self.id_to_metadata = {}
-        logger.info("Cleared vector store")
-    
+        logger.info("Cleared vector store")   
     def export_metadata(self, output_file: str = None) -> str:
         """Export metadata to JSON file"""
         if output_file is None:
-            output_file = self.index_path / f"metadata_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
+            output_file = self.index_path / f"metadata_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"       
         try:
             with open(output_file, 'w') as f:
                 json.dump(self.metadata, f, indent=2)
             
             logger.info(f"Exported metadata to {output_file}")
-            return str(output_file)
-            
+            return str(output_file)          
         except Exception as e:
             logger.error(f"Failed to export metadata: {e}")
             return None
-
 def main():
     """Example usage of the vector store"""
     # Initialize vector store
-    vector_store = ARGOVectorStore()
-    
+    vector_store = ARGOVectorStore()  
     # Example: Add some sample data
     sample_data = {
         'latitude': [10.5, 20.3, 30.1],
@@ -409,25 +379,20 @@ def main():
         'temperature': [25.5, 22.1, 18.7],
         'salinity': [35.2, 34.8, 35.1],
         'date': ['2023-01-15', '2023-02-20', '2023-03-10']
-    }
-    
+    }  
     df = pd.DataFrame(sample_data)
-    doc_ids = vector_store.add_profile_data(df)
-    
+    doc_ids = vector_store.add_profile_data(df)  
     # Example: Search
     results = vector_store.search("temperature in Indian Ocean", k=5)
-    print(f"Found {len(results)} results")
-    
+    print(f"Found {len(results)} results")  
     # Get statistics
     stats = vector_store.get_stats()
-    print(f"Vector store stats: {stats}")
-    
+    print(f"Vector store stats: {stats}") 
     # Save index
-    vector_store._save_index()
-    
-    print("🌊 ARGO Vector Store initialized")
-    print("📁 Index path:", vector_store.index_path)
-    print("🔧 Ready for semantic search")
+    vector_store._save_index() 
+    print(" ARGO Vector Store initialized")
+    print(" Index path:", vector_store.index_path)
+    print(" Ready for semantic search")
 
 if __name__ == "__main__":
     main()

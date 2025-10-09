@@ -9,7 +9,11 @@ import sqlite3
 from contextlib import contextmanager
 from fastapi import Header
 import uvicorn
-
+from groq import Groq
+import os
+import logging
+load_dotenv = True
+from dotenv import load_dotenv
 from rag_pipeline import answer_query
 from query_engine import (
     get_db_engine,
@@ -19,9 +23,22 @@ from query_engine import (
     get_geographic_coverage,
     get_data_for_plotting
 )
-
 app = FastAPI(title="NeptuneAI API", version="1.0.0")
-
+# Initialize Groq client globally
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+try:
+    load_dotenv()
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if groq_api_key:
+        groq_client = Groq(api_key=groq_api_key)
+        print("✅ Groq client initialized")
+    else:
+        groq_client = None
+        print("⚠️ GROQ_API_KEY not found")
+except Exception as e:
+    print(f"⚠️ Groq initialization failed: {e}")
+    groq_client = None
 # CORS configuration for React
 app.add_middleware(
     CORSMiddleware,
@@ -236,96 +253,179 @@ async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_curr
             'created_at': updated_user['created_at'],
             'last_login': updated_user['last_login']
         }
-
 # AI Response Generation with RAG Pipeline
 def generate_ai_response(query: str):
-    """Generate AI response using RAG pipeline and database integration"""
+    """
+    Enhanced AI response generation with better error handling and logging
+    """
+    logger.info(f"Generating AI response for query: {query[:100]}...")
+    
     try:
-        # Import RAG pipeline
-        from rag_pipeline import RAGPipeline
+        # Try enhanced RAG pipeline first
+        from rag_pipeline import answer_query as rag_answer_query
         
-        # Initialize RAG pipeline
-        rag = RAGPipeline()
+        logger.info("Using RAG pipeline...")
+        rag_response = rag_answer_query(query)
         
-        # Get context from database using RAG
-        context_data = rag.get_context_for_query(query)
+        logger.info(f"RAG response type: {type(rag_response)}")
         
-        # Use Groq AI with database context
+        # Handle different response formats from RAG pipeline
+        if isinstance(rag_response, dict):
+            # Check for enhanced pipeline response
+            if rag_response.get('enhanced'):
+                summary_text = rag_response.get('text_response') or rag_response.get('summary', 'No response generated')
+                logger.info("Using enhanced RAG response")
+            else:
+                # Standard RAG response
+                summary_text = rag_response.get('summary') or rag_response.get('content', 'No response generated')
+                logger.info("Using standard RAG response")
+            
+            # If summary is still generic, try to get more details
+            if summary_text in ['No response generated', 'Hello! I am NeptuneAI. 🌊 How can I help you explore global ocean data today?']:
+                logger.warning("Generic response detected, trying fallback...")
+                return generate_fallback_response_with_groq(query)
+                
+        else:
+            summary_text = str(rag_response)
+        
+        # Get database context for additional insights
+        try:
+            engine = get_db_engine()
+            
+            # Try to extract region from query
+            region = None
+            regions = get_unique_regions(engine)
+            
+            for r in regions:
+                if r and r.lower() in query.lower():
+                    region = r
+                    break
+            
+            # Get database stats for context
+            from query_engine import run_query
+            
+            # Use parameterized query to prevent SQL injection
+            if region:
+                stats_query = "SELECT COUNT(*) as count FROM oceanbench_data WHERE region = %s"
+                stats_df = run_query(engine, stats_query, params=(region,))
+            else:
+                stats_query = "SELECT COUNT(*) as count FROM oceanbench_data"
+                stats_df = run_query(engine, stats_query)
+            
+            total_records = int(stats_df.iloc[0]['count']) if not stats_df.empty else 0
+            logger.info(f"Found {total_records} records for region: {region or 'all'}")
+            
+        except Exception as db_error:
+            logger.warning(f"Database context error: {db_error}")
+            total_records = 0
+            region = None
+        
+        # Generate relevant plots based on query
+        plots = generate_relevant_plots(query, {"total_records": total_records, "region": region})
+        
+        return {
+            "content": summary_text,
+            "plots": plots,
+            "context_used": f"RAG Pipeline with {total_records} database records" + (f" (Region: {region})" if region else ""),
+            "data_points": total_records
+        }
+        
+    except ImportError as import_error:
+        logger.error(f"RAG Pipeline import error: {import_error}")
+        return generate_fallback_response_with_groq(query)
+        
+    except Exception as e:
+        logger.error(f"RAG Pipeline error: {e}", exc_info=True)
+        return generate_fallback_response_with_groq(query)
+
+def generate_fallback_response_with_groq(query: str):
+    """
+    Enhanced fallback with personalized greeting and Groq AI
+    """
+    try:
         if groq_client:
-            system_prompt = f"""You are NeptuneAI, an expert ocean data analyst assistant. You help users understand ocean data including temperature, salinity, pressure, depth, and other oceanographic parameters.
+            logger.info("Using Groq fallback...")
+            
+            system_prompt = """You are NeptuneAI, an expert ocean data analyst assistant. 
 
-Database Context:
-{context_data.get('summary', 'No specific data found')}
+IMPORTANT: Always start your response with a friendly acknowledgment of the user's question.
 
-Available Data:
-- Total Records: {context_data.get('total_records', 0)}
-- Regions: {', '.join(context_data.get('regions', []))}
-- Date Range: {context_data.get('date_range', 'N/A')}
+Examples:
+- "Thank you for asking about ocean temperature! Let me help you with that..."
+- "Great question about salinity! Here's what I can tell you..."
+- "I'd be happy to explain ocean pressure at depth..."
 
-You can:
-- Analyze ocean data trends and patterns using the provided context
-- Explain oceanographic phenomena
-- Generate insights about marine ecosystems
-- Create visualizations and charts
-- Answer questions about ocean science
+Then provide accurate, scientific information in a conversational but professional tone.
+Keep responses focused and under 300 words unless detailed explanation is requested.
+Use relevant emojis naturally (🌊 🔬 📊 🌡️ 💧) to make responses engaging.
 
-Always provide accurate, scientific information based on the available data and suggest relevant data visualizations when appropriate. Be conversational but professional."""
+Structure your responses:
+1. Friendly acknowledgment
+2. Direct answer to the question
+3. Supporting details and context
+4. Interesting related facts
+5. Optional follow-up suggestion"""
 
             response = groq_client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.3-70b-versatile",
                 messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": f"User query about ocean data: {query}"
-                    }
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query}
                 ],
                 temperature=0.7,
-                max_tokens=1500
+                max_tokens=800
             )
             
             ai_content = response.choices[0].message.content
-            
-            # Generate relevant plots based on query and context
-            plots = generate_relevant_plots(query, context_data)
+            logger.info(f"Groq response generated: {len(ai_content)} chars")
             
             return {
                 "content": ai_content,
-                "plots": plots,
-                "context_used": context_data.get('summary', ''),
-                "data_points": context_data.get('total_records', 0)
+                "plots": [],
+                "context_used": "Direct Groq response (RAG pipeline unavailable)",
+                "data_points": 0
             }
-        else:
-            # Fallback to rule-based responses if Groq is not available
-            return generate_fallback_response(query)
     except Exception as e:
-        print(f"RAG Pipeline error: {e}")
-        return generate_fallback_response(query)
+        logger.error(f"Groq fallback error: {e}")
+    
+    # Final fallback to rule-based with greeting
+    logger.info("Using rule-based fallback...")
+    return generate_fallback_response(query)
 
 def generate_fallback_response(query: str):
-    """Fallback response generation when Groq AI is not available"""
+    """
+    Enhanced fallback response with friendly greeting
+    """
     query_lower = query.lower()
     
-    if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
+    # Add personalized greeting based on query type
+    greeting_prefix = "Thank you for your question! "
+    
+    if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold', 'heat']):
         return {
-            "content": """Based on the latest ocean data analysis:
+            "content": f"""{greeting_prefix}Let me help you understand ocean temperatures. 🌡️
 
-🌡️ **Temperature Insights:**
-- Global average ocean temperature: 15.2°C
-- Surface temperatures range from 2°C (polar) to 30°C (tropical)
-- Deep ocean temperatures remain stable at 2-4°C
-- Temperature affects ocean currents, weather patterns, and marine life
+**Global Ocean Temperature Insights:**
 
-📊 **Key Findings:**
-- Tropical regions show highest surface temperatures (28-30°C)
-- Polar regions maintain coldest temperatures (0-2°C)
-- Temperature decreases with depth due to density stratification
-- Climate change is causing gradual temperature increases
+🌊 **Surface Layer (0-200m):**
+- Tropical regions: 25-30°C (warm currents, high solar radiation)
+- Temperate zones: 10-20°C (seasonal variations)
+- Polar regions: -2 to 5°C (ice-covered areas)
 
-Would you like me to create a temperature distribution map or depth profile chart?""",
+🌡️ **Deep Ocean (200m+):**
+- Consistent temperatures: 2-4°C globally
+- Temperature decreases rapidly in thermocline layer (200-1000m)
+- Below 1000m: remarkably stable temperatures
+
+📊 **Key Factors:**
+- Solar radiation (primary heat source)
+- Ocean currents distribute heat globally
+- Latitude strongly affects temperature
+- Climate change causing gradual warming trend
+
+💡 **Interesting Fact:** The ocean absorbs 93% of Earth's excess heat from greenhouse gases!
+
+Would you like me to show you temperature distribution maps or depth profiles for a specific region?""",
             "plots": [{
                 "data": [{
                     "x": ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
@@ -334,221 +434,280 @@ Would you like me to create a temperature distribution map or depth profile char
                     "mode": "lines+markers",
                     "name": "Temperature",
                     "line": {"color": "#ff6b6b", "width": 3},
-                    "marker": {"size": 8}
+                    "marker": {"size": 10, "color": "#ff6b6b"}
                 }],
                 "layout": {
                     "title": "Ocean Temperature vs Depth Profile",
                     "xaxis": {"title": "Depth"},
                     "yaxis": {"title": "Temperature (°C)"},
-                    "height": 300
+                    "height": 350,
+                    "template": "plotly_white"
                 }
-            }]
+            }],
+            "context_used": "Knowledge-based response",
+            "data_points": 0
         }
     
-    elif any(word in query_lower for word in ['salinity', 'salt', 'saltwater']):
+    elif any(word in query_lower for word in ['salinity', 'salt', 'saltwater', 'psu']):
         return {
-            "content": """🧂 **Salinity Analysis:**
+            "content": f"""{greeting_prefix}Great question about ocean salinity! 🧂
 
-**Global Ocean Salinity:**
-- Average salinity: 35.1 PSU (Practical Salinity Units)
-- Highest in subtropical regions: 36-37 PSU
-- Lowest in polar regions: 32-33 PSU
-- Mediterranean Sea: 38-39 PSU (highest globally)
+Ocean Salinity Overview:
 
-**Factors Affecting Salinity:**
-- Evaporation increases salinity
-- Precipitation and ice melt decrease salinity
-- River input reduces coastal salinity
-- Ocean currents distribute salt globally
+💧 Global Average:
+- Standard salinity: 35 PSU (Practical Salinity Units)
+- This equals about 35 grams of salt per liter of water
 
-**Impact on Marine Life:**
-- Most marine organisms adapted to 35 PSU
-- Salinity affects buoyancy and osmoregulation
-- Changes can stress marine ecosystems
+🌍 Regional Variations:
+- Highest: Subtropical regions (36-37 PSU) - high evaporation
+- Lowest: Polar regions (32-33 PSU) - ice melt and freshwater input
+- Mediterranean Sea: 38-39 PSU (warmest, highest evaporation)
+- Baltic Sea: 7-8 PSU (heavy river input, low evaporation)
 
-Would you like to see a salinity distribution map or regional comparison?""",
+📊 What Affects Salinity:
+- ☀️ Evaporation (increases salinity)
+- 🌧️ Precipitation (decreases salinity)
+- ❄️ Ice formation/melting (varies by season)
+- 🏞️ River discharge (dilutes coastal waters)
+- 🌊 Ocean currents (distribute salt globally)
+
+🐠 Marine Life Impact:
+Most marine organisms are adapted to ~35 PSU. Rapid changes can stress ecosystems and affect osmoregulation.
+
+Want to see salinity distribution maps or compare different ocean regions?""",
             "plots": [{
                 "data": [{
-                    "x": ['Tropical', 'Subtropical', 'Temperate', 'Polar'],
-                    "y": [35.5, 36.8, 35.0, 32.5],
+                    "x": ['Tropical', 'Subtropical', 'Temperate', 'Polar', 'Mediterranean'],
+                    "y": [35.5, 36.8, 35.0, 32.5, 38.5],
                     "type": "bar",
                     "name": "Salinity",
-                    "marker": {"color": "#4ecdc4"}
+                    "marker": {"color": ["#4ecdc4", "#45b7d1", "#5f9ea0", "#87ceeb", "#1e90ff"]}
                 }],
                 "layout": {
                     "title": "Average Salinity by Ocean Region",
                     "xaxis": {"title": "Region"},
                     "yaxis": {"title": "Salinity (PSU)"},
-                    "height": 300
+                    "height": 350,
+                    "template": "plotly_white"
                 }
-            }]
+            }],
+            "context_used": "Knowledge-based response",
+            "data_points": 0
         }
     
-    elif any(word in query_lower for word in ['depth', 'pressure', 'deep', 'trench']):
+    elif any(word in query_lower for word in ['depth', 'pressure', 'deep', 'trench', 'bathymetry']):
         return {
-            "content": """🌊 **Ocean Depth & Pressure Analysis:**
+            "content": f"""{greeting_prefix}Let me explain ocean depth and pressure! 🌊
 
-**Depth Ranges:**
-- Continental shelf: 0-200m
-- Continental slope: 200-2000m
-- Abyssal plain: 2000-6000m
-- Hadal zone: 6000m+ (trenches)
+Ocean Depth Zones:
 
-**Pressure Facts:**
-- Increases by 1 atmosphere every 10 meters
-- At 1000m depth: 100x surface pressure
-- Mariana Trench (11,034m): 1,100x surface pressure
-- Pressure affects gas solubility and marine life
+📏 Depth Classification:
+- Epipelagic (Sunlight Zone): 0-200m - photosynthesis occurs
+- Mesopelagic (Twilight Zone): 200-1000m - dim light
+- Bathypelagic (Midnight Zone): 1000-4000m - complete darkness
+- Abyssopelagic (Abyss): 4000-6000m - extreme pressure
+- Hadopelagic (Trenches): 6000m+ - deepest zones
 
-**Deep Ocean Characteristics:**
-- Constant temperature: 2-4°C
-- High pressure: 600+ atmospheres
-- Complete darkness below 1000m
-- Unique ecosystems adapted to extreme conditions
+💪 Pressure Facts:
+- Increases by 1 atmosphere (14.7 psi) every 10 meters
+- At 1000m depth: ~100 atmospheres (1,470 psi)
+- At 4000m depth: ~400 atmospheres (5,880 psi)
+- **Mariana Trench** (10,994m): ~1,100 atmospheres!
 
-Would you like to see a depth profile chart or pressure visualization?""",
+🌡️ Deep Ocean Characteristics:
+- Temperature: Constant 2-4°C below 1000m
+- No light penetration below 1000m
+- Unique life adapted to extreme pressure
+- High mineral concentrations
+
+🔬 Scientific Significance:
+Deep ocean exploration helps us understand extreme life, geological processes, and climate patterns.
+
+Interested in specific ocean trenches or pressure calculations?""",
             "plots": [{
                 "data": [{
-                    "x": [0, 100, 500, 1000, 2000, 4000, 6000, 8000, 10000],
-                    "y": [1, 11, 51, 101, 201, 401, 601, 801, 1001],
+                    "x": [0, 500, 1000, 2000, 4000, 6000, 8000, 10000],
+                    "y": [1, 51, 101, 201, 401, 601, 801, 1001],
                     "type": "scatter",
                     "mode": "lines+markers",
                     "name": "Pressure",
                     "line": {"color": "#45b7d1", "width": 3},
-                    "marker": {"size": 8}
+                    "marker": {"size": 10, "color": "#2874a6"}
                 }],
                 "layout": {
                     "title": "Ocean Pressure vs Depth",
                     "xaxis": {"title": "Depth (m)"},
-                    "yaxis": {"title": "Pressure (atm)"},
-                    "height": 300
+                    "yaxis": {"title": "Pressure (atmospheres)"},
+                    "height": 350,
+                    "template": "plotly_white"
                 }
-            }]
+            }],
+            "context_used": "Knowledge-based response",
+            "data_points": 0
         }
     
-    elif any(word in query_lower for word in ['map', 'location', 'region', 'global']):
+    elif any(word in query_lower for word in ['code', 'python', 'programming', 'script']):
         return {
-            "content": """🗺️ **Global Ocean Data Distribution:**
+            "content": f"""{greeting_prefix}I'm specialized in ocean data analysis, not general programming. However, I can help you with:
 
-**Ocean Coverage:**
-- Pacific Ocean: 46% of global ocean area
-- Atlantic Ocean: 23% of global ocean area
-- Indian Ocean: 20% of global ocean area
-- Arctic Ocean: 4% of global ocean area
-- Southern Ocean: 7% of global ocean area
+🔬 Ocean Data Analysis:
+- Query and visualize ocean temperature data
+- Analyze salinity patterns
+- Create depth profiles
+- Generate geographic maps
+- Compare regional ocean characteristics
 
-**Data Collection Points:**
-- Argo floats: 3,800+ active worldwide
-- Research vessels: Continuous monitoring
-- Satellites: Surface temperature and height
-- Moorings: Fixed location measurements
-- Gliders: Autonomous underwater vehicles
+📊 Data Science Tasks:
+- Statistical analysis of ocean data
+- Trend identification in oceanographic parameters
+- Correlation studies between variables
+- Time series analysis
 
-**Regional Characteristics:**
-- **Atlantic**: Strong currents (Gulf Stream), high salinity
-- **Pacific**: Largest ocean, diverse ecosystems
-- **Indian**: Monsoon influence, unique circulation
-- **Arctic**: Ice-covered, warming rapidly
-- **Southern**: Circumpolar current, high productivity
+💡 Try asking me:
+- "Show me temperature data for the Pacific Ocean"
+- "Create a salinity vs depth chart"
+- "What's the average pressure at 2000m depth?"
+- "Compare temperatures between different ocean regions"
 
-Would you like to see a specific region or ocean parameter map?""",
-            "plots": [{
-                "data": [{
-                    "type": "scattermapbox",
-                    "lat": [40, 30, -20, 60, 0, -30],
-                    "lon": [-40, -120, 120, 0, 0, 0],
-                    "mode": "markers",
-                    "marker": {
-                        "size": 12,
-                        "color": [25, 15, 20, 5, 18, 10],
-                        "colorscale": "Viridis",
-                        "showscale": True,
-                        "colorbar": {"title": "Temperature (°C)"}
-                    },
-                    "text": ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Equatorial', 'Southern'],
-                    "hovertemplate": "%{text}<br>Temperature: %{marker.color}°C<extra></extra>"
-                }],
-                "layout": {
-                    "mapbox": {
-                        "style": "open-street-map",
-                        "center": {"lat": 0, "lon": 0},
-                        "zoom": 1
-                    },
-                    "height": 400
-                }
-            }]
+What ocean data would you like to explore?""",
+            "plots": [],
+            "context_used": "Specialized response",
+            "data_points": 0
         }
     
     else:
         return {
-            "content": """🌊 **Welcome to NeptuneAI Ocean Data Assistant!**
+            "content": f"""🌊 **Welcome! I'm NeptuneAI, your ocean data expert!**
 
-I'm here to help you explore and understand ocean data. I can provide insights on:
+I'd be happy to help you explore ocean data! Here's what I can assist you with:
 
-📊 **Ocean Parameters:**
-- Temperature patterns and trends
-- Salinity distribution and variations
-- Depth profiles and pressure data
-- Current speeds and directions
-- pH levels and water chemistry
+📊 Ocean Parameters I Can Analyze:
+- 🌡️ Temperature distribution and trends
+- 🧂 Salinity levels and variations
+- 💪 Pressure and depth profiles
+- 🌊 Ocean currents and circulation
+- 📈 Climate trends and sea level changes
 
-🗺️ **Geographic Analysis:**
-- Global ocean maps and visualizations
-- Regional data comparisons
-- Location-specific insights
+🗺️ **Geographic Coverage:**
+- Global ocean data analysis
+- Regional comparisons (Atlantic, Pacific, Indian, Arctic, Southern)
+- Specific location insights
 - Climate zone analysis
 
-📈 **Data Visualization:**
-- Interactive charts and graphs
+📈 **Visualizations I Can Create:**
+- Interactive depth profile charts
+- Geographic distribution maps
+- Temperature and salinity trends
 - Time series analysis
-- Correlation studies
-- Trend predictions
+- Comparative regional studies
 
-**Try asking me:**
-- "What's the current ocean temperature?"
-- "Show me salinity data"
-- "Create a depth profile chart"
-- "Generate an ocean map"
-- "Analyze temperature trends"
+💡 **Popular Questions:**
+- "What's the ocean temperature at different depths?"
+- "Show me salinity data for the Indian Ocean"
+- "Create a pressure vs depth chart"
+- "Compare temperature between ocean regions"
+- "What's the average ocean depth?"
 
-What would you like to know about our oceans?""",
-            "plots": []
+**What would you like to know about our oceans?** 🌊
+
+Try asking me a specific question about temperature, salinity, depth, or any ocean region!""",
+            "plots": [],
+            "context_used": "Welcome message",
+            "data_points": 0
         }
-
 # Chat endpoints
 @app.post("/api/chat/message")
 async def send_chat_message(message: ChatMessage, user: dict = Depends(get_current_user)):
+    """
+    Send a chat message and get AI response with proper error handling
+    """
     try:
+        logger.info(f"Processing message from user {user['user_id']}: {message.message[:50]}...")
+        
         # Generate AI response based on query
         ai_response = generate_ai_response(message.message)
         
+        # Log the response for debugging
+        logger.info(f"AI Response type: {type(ai_response)}")
+        logger.info(f"AI Response keys: {ai_response.keys() if isinstance(ai_response, dict) else 'Not a dict'}")
+        
+        # Extract content properly - handle multiple response formats
+        response_content = None
+        
+        if isinstance(ai_response, dict):
+            # Try different keys that might contain the response
+            response_content = (
+                ai_response.get('content') or 
+                ai_response.get('summary') or 
+                ai_response.get('text_response') or
+                ai_response.get('response') or
+                'I apologize, but I could not generate a proper response.'
+            )
+        elif isinstance(ai_response, str):
+            response_content = ai_response
+        else:
+            response_content = str(ai_response)
+        
+        logger.info(f"Final response content length: {len(response_content)}")
+        
         # Save to database if session_id provided
         if message.session_id:
-            with get_user_db() as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT INTO chat_messages (session_id, user_id, role, content)
-                    VALUES (?, ?, ?, ?)
-                ''', (message.session_id, user['user_id'], 'user', message.message))
-                
-                cursor.execute('''
-                    INSERT INTO chat_messages (session_id, user_id, role, content)
-                    VALUES (?, ?, ?, ?)
-                ''', (message.session_id, user['user_id'], 'assistant', ai_response['content']))
-                
-                conn.commit()
+            try:
+                with get_user_db() as conn:
+                    cursor = conn.cursor()
+                    
+                    # Save user message
+                    cursor.execute('''
+                        INSERT INTO chat_messages (session_id, user_id, role, content, timestamp)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (message.session_id, user['user_id'], 'user', message.message, datetime.now().isoformat()))
+                    
+                    # Save assistant message
+                    cursor.execute('''
+                        INSERT INTO chat_messages (session_id, user_id, role, content, timestamp)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (message.session_id, user['user_id'], 'assistant', response_content, datetime.now().isoformat()))
+                    
+                    # Update session last_activity
+                    cursor.execute('''
+                        UPDATE chat_sessions 
+                        SET last_activity = ?
+                        WHERE session_id = ? AND user_id = ?
+                    ''', (datetime.now().isoformat(), message.session_id, user['user_id']))
+                    
+                    conn.commit()
+                    logger.info("Messages saved to database successfully")
+                    
+            except Exception as db_error:
+                logger.error(f"Database save error: {db_error}")
+                # Don't fail the request if database save fails
+        
+        # Return the response
+        return {
+            "response": response_content,
+            "plots": ai_response.get('plots', []) if isinstance(ai_response, dict) else [],
+            "timestamp": datetime.now().isoformat(),
+            "session_id": message.session_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing chat message: {e}", exc_info=True)
+        
+        # Return a helpful error response
+        error_response = (
+            f"I apologize, but I encountered an error: {str(e)}. "
+            "Please try rephrasing your question about ocean data, or ask me about:\n\n"
+            "🌊 Ocean temperature and salinity\n"
+            "📊 Depth profiles and pressure data\n"
+            "🗺️ Geographic ocean data\n"
+            "📈 Ocean trends and analysis"
+        )
         
         return {
-            "response": ai_response['content'],
-            "plots": ai_response.get('plots', []),
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        # Fallback response if error occurs
-        return {
-            "response": f"I apologize, but I encountered an error processing your request: {str(e)}. Please try again or rephrase your question about ocean data.",
+            "response": error_response,
             "plots": [],
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "error": True
         }
 
 def generate_relevant_plots(query: str, context_data: dict = None):

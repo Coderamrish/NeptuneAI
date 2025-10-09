@@ -270,7 +270,6 @@ def create_profiler_dashboard(df: pd.DataFrame, region_name: str = None):
                    name="Monthly", marker_color='lightgreen'),
             row=1, col=2
         )
-
     
     if 'latitude' in df.columns and 'longitude' in df.columns:
         fig.add_trace(
@@ -279,7 +278,6 @@ def create_profiler_dashboard(df: pd.DataFrame, region_name: str = None):
                       marker=dict(size=4, opacity=0.6, color='orange')),
             row=2, col=1
         )
-
 
     if 'institution' in df.columns:
         institution_counts = df['institution'].value_counts().head(6)
@@ -306,7 +304,7 @@ def create_profiler_dashboard(df: pd.DataFrame, region_name: str = None):
 if __name__ == '__main__':
     print("🌊 Plotly Oceanographic Profiler Visualization Module")
     print("=" * 50)
-    print("📊 Available plotting functions:")
+    print(" Available plotting functions:")
     print("• create_profiler_distribution_plot()")
     print("• create_monthly_distribution_plot()")
     print("• create_geographic_scatter_plot()")
@@ -326,5 +324,5 @@ if __name__ == '__main__':
     }
     sample_df = pd.DataFrame(sample_data)
     
-    print(f"\n✅ Module loaded successfully with sample data ({len(sample_df)} records)")
-    print("🔧 To test: call any plotting function with the sample_df")
+    print(f"\n Module loaded successfully with sample data ({len(sample_df)} records)")
+    print(" To test: call any plotting function with the sample_df")

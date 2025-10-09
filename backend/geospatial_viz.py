@@ -1,8 +1,3 @@
-"""
-Enhanced Geospatial Visualizations for ARGO Ocean Data
-Implements interactive maps, trajectory plotting, and advanced oceanographic visualizations
-"""
-
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -537,7 +532,7 @@ def main():
     dashboard = visualizer.create_comprehensive_dashboard(df, region='Indian Ocean')
     
     print("🌊 ARGO Geospatial Visualizer initialized")
-    print("🗺️ Available visualizations:")
+    print(" Available visualizations:")
     print("  • Interactive world maps")
     print("  • Trajectory mapping")
     print("  • Depth profile plots")

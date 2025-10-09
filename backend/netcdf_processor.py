@@ -1,8 +1,3 @@
-"""
-NetCDF Processor for ARGO Ocean Data
-Handles ingestion and conversion of NetCDF files to structured formats
-"""
-
 import os
 import sys
 import xarray as xr
@@ -360,25 +355,22 @@ class ARGONetCDFProcessor:
         }
         
         return summary
-
 def main():
     """Example usage of the NetCDF processor"""
-    processor = ARGONetCDFProcessor()
-    
-    # Example: Process a single file
-    # result = processor.process_netcdf_file("path/to/argo_file.nc")
+    processor = ARGONetCDFProcessor() 
+   #  Example: Process a single file
+   #  result = processor.process_netcdf_file("path/to/argo_file.nc")
     # if result:
-    #     processor.convert_to_parquet(result)
-    #     processor.convert_to_csv(result)
+     #    processor.convert_to_parquet(result)
+      #   processor.convert_to_csv(result)
     
-    # Example: Process a directory
-    # results = processor.process_directory("path/to/netcdf/files/")
-    # summary = processor.create_summary_report(results)
-    # print(f"Processed {summary['total_files_processed']} files")
-    
-    print("🌊 ARGO NetCDF Processor initialized")
-    print("📁 Output directory:", processor.output_dir)
-    print("🔧 Ready to process NetCDF files")
+     #Example: Process a directory
+   # results = processor.process_directory("path/to/netcdf/files/")
+     #summary = processor.create_summary_report(results)
+     #print(f"Processed {summary['total_files_processed']} files")
+    print(" ARGO NetCDF Processor initialized")
+    print(" Output directory:", processor.output_dir)
+    print(" Ready to process NetCDF files")
 
 if __name__ == "__main__":
     main()

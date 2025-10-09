@@ -1,4 +1,3 @@
-# query_engine.py - Improved Version
 import pandas as pd
 from sqlalchemy import create_engine, text, pool
 import os
@@ -51,7 +50,7 @@ def get_db_engine():
             f'postgresql+psycopg2://{db_user}:{db_pass}'
             f'@{db_host}:{db_port}/{db_name}'
         )
-        
+
         _engine_instance = create_engine(
             connection_string,
             poolclass=pool.QueuePool,
@@ -59,18 +58,18 @@ def get_db_engine():
             max_overflow=10,
             pool_pre_ping=True,
             pool_recycle=3600,
-            echo=False  # Set to True for SQL debugging
+            echo=False  # Set to True for SQL debugging 
         )
         
         # Test connection
         with _engine_instance.connect() as connection:
             connection.execute(text("SELECT 1"))
-            print("✅ Successfully connected to PostgreSQL!")
+            print(" Successfully connected to PostgreSQL!")
         
         return _engine_instance
         
     except Exception as e:
-        print(f"❌ Failed to connect to PostgreSQL: {e}")
+        print(f" Failed to connect to PostgreSQL: {e}")
         raise
 
 
@@ -91,7 +90,7 @@ def run_query(engine, query: str, params: dict = None) -> pd.DataFrame:
             df = pd.read_sql(text(query), connection, params=params or {})
             return df
     except Exception as e:
-        print(f"❌ Query failed: {e}")
+        print(f" Query failed: {e}")
         print(f"Query: {query}")
         print(f"Params: {params}")
         return pd.DataFrame()
@@ -134,7 +133,7 @@ def query_by_month(engine, month_name: str, limit: int = 100) -> pd.DataFrame:
         DataFrame with filtered results
     """
     if month_name not in VALID_MONTHS:
-        print(f"⚠️ Invalid month: {month_name}. Must be one of: {', '.join(VALID_MONTHS)}")
+        print(f" Invalid month: {month_name}. Must be one of: {', '.join(VALID_MONTHS)}")
         return pd.DataFrame()
     
     query = f'SELECT * FROM {TABLE_NAME} WHERE "Month" = :month LIMIT :limit;'
@@ -154,7 +153,7 @@ def query_by_region(engine, region_name: str, limit: int = 100) -> pd.DataFrame:
         DataFrame with filtered results
     """
     if not region_name or not isinstance(region_name, str):
-        print(f"⚠️ Invalid region name: {region_name}")
+        print(f" Invalid region name: {region_name}")
         return pd.DataFrame()
     
     query = f'SELECT * FROM {TABLE_NAME} WHERE "Region" = :region LIMIT :limit;'
@@ -164,7 +163,7 @@ def query_by_region(engine, region_name: str, limit: int = 100) -> pd.DataFrame:
 def query_by_institution(engine, institution_name: str, limit: int = 100) -> pd.DataFrame:
     """Query data by institution name."""
     if not institution_name or not isinstance(institution_name, str):
-        print(f"⚠️ Invalid institution name: {institution_name}")
+        print(f" Invalid institution name: {institution_name}")
         return pd.DataFrame()
     
     query = f'SELECT * FROM {TABLE_NAME} WHERE "institution" = :institution LIMIT :limit;'
@@ -184,23 +183,22 @@ def query_custom(engine, filters: Dict[str, str], limit: int = 100) -> pd.DataFr
         DataFrame with filtered results
     """
     if not filters:
-        print("⚠️ No filters provided")
+        print(" No filters provided")
         return pd.DataFrame()
     
     # Validate filter keys (column names)
     allowed_columns = ["Month", "Region", "institution", "profiler", "ocean"]
     invalid_cols = [k for k in filters.keys() if k not in allowed_columns]
     if invalid_cols:
-        print(f"⚠️ Invalid filter columns: {invalid_cols}")
+        print(f" Invalid filter columns: {invalid_cols}")
         return pd.DataFrame()
     
     # Build query safely
     conditions = [f'"{k}" = :{k}' for k in filters.keys()]
     query = f'SELECT * FROM {TABLE_NAME} WHERE {" AND ".join(conditions)} LIMIT :limit;'
-    
+
     params = {**filters, "limit": limit}
     return run_query(engine, query, params=params)
-
 
 def get_data_for_plotting(
     engine,
@@ -223,16 +221,14 @@ def get_data_for_plotting(
     query = f'''SELECT "Month", "Region", "latitude", "longitude", 
                 "institution", "profiler", "date", "ocean" 
                 FROM {TABLE_NAME}'''
-    
     conditions = []
     params = {"limit": limit}
-    
     if region:
         conditions.append('"Region" = :region')
         params['region'] = region
     if month:
         if month not in VALID_MONTHS:
-            print(f"⚠️ Invalid month: {month}")
+            print(f" Invalid month: {month}")
             return pd.DataFrame()
         conditions.append('"Month" = :month')
         params['month'] = month
@@ -240,8 +236,7 @@ def get_data_for_plotting(
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
         
-    query += " LIMIT :limit;"
-    
+    query += " LIMIT :limit;"   
     return run_query(engine, query, params=params)
 
 
@@ -265,13 +260,9 @@ def get_profiler_stats(engine, region: Optional[str] = None, limit: int = 20) ->
     params = {"limit": limit}
     if region:
         query += ' WHERE "Region" = :region'
-        params['region'] = region
-        
-    query += ' GROUP BY "profiler" ORDER BY count DESC LIMIT :limit;'
-    
+        params['region'] = region     
+    query += ' GROUP BY "profiler" ORDER BY count DESC LIMIT :limit;' 
     return run_query(engine, query, params=params)
-
-
 def get_monthly_distribution(engine, region: Optional[str] = None) -> pd.DataFrame:
     """
     Get monthly distribution of measurements.
@@ -285,18 +276,13 @@ def get_monthly_distribution(engine, region: Optional[str] = None) -> pd.DataFra
     """
     query = f'''SELECT "Month", COUNT(*) as measurement_count,
                 COUNT(DISTINCT "profiler") as unique_profilers
-                FROM {TABLE_NAME}'''
-    
+                FROM {TABLE_NAME}''' 
     params = {}
     if region:
         query += ' WHERE "Region" = :region'
-        params['region'] = region
-        
-    query += ' GROUP BY "Month" ORDER BY measurement_count DESC;'
-    
+        params['region'] = region     
+    query += ' GROUP BY "Month" ORDER BY measurement_count DESC;'  
     return run_query(engine, query, params=params)
-
-
 def get_geographic_coverage(engine, region: Optional[str] = None) -> pd.DataFrame:
     """
     Get geographic coverage statistics.
@@ -319,11 +305,8 @@ def get_geographic_coverage(engine, region: Optional[str] = None) -> pd.DataFram
         query += ' WHERE "Region" = :region'
         params['region'] = region
     
-    query += ';'
-    
+    query += ';'   
     return run_query(engine, query, params=params)
-
-
 def get_table_info(engine) -> Dict:
     """
     Get metadata about the oceanbench_data table.
@@ -336,8 +319,7 @@ def get_table_info(engine) -> Dict:
         "total_records": f'SELECT COUNT(*) as count FROM {TABLE_NAME};',
         "columns": f"SELECT column_name FROM information_schema.columns WHERE table_name = '{TABLE_NAME}';",
         "date_range": f'SELECT MIN("date") as min_date, MAX("date") as max_date FROM {TABLE_NAME};'
-    }
-    
+    }  
     info = {}
     for key, query in queries.items():
         df = run_query(engine, query)
@@ -345,60 +327,50 @@ def get_table_info(engine) -> Dict:
             if key == "columns":
                 info[key] = df['column_name'].tolist()
             else:
-                info[key] = df.to_dict('records')[0]
-    
+                info[key] = df.to_dict('records')[0]   
     return info
-
-
 if __name__ == "__main__":
     try:
         db_engine = get_db_engine()
-
-        print("\n📊 Database Information:")
+        print("\n Database Information:")
         table_info = get_table_info(db_engine)
         for key, value in table_info.items():
             print(f"{key}: {value}")
-
-        print("\n📌 Available regions:")
+        print("\n Available regions:")
         regions = get_unique_regions(db_engine)
-        print(f"Found {len(regions)} regions: {regions[:5]}...")
-        
-        print("\n📌 Available Months:")
+        print(f"Found {len(regions)} regions: {regions[:5]}...")        
+        print("\n Available Months:")
         months = get_unique_months(db_engine)
         print(f"Found {len(months)} months: {months}")
-
-        print("\n📌 Example: Data for month 'January':")
+        print("\n Example: Data for month 'January':")
         jan_data = query_by_month(db_engine, "January")
         print(f"Found {len(jan_data)} records")
         if not jan_data.empty:
             print(jan_data.head(3))
-
-        print("\n📌 Example: Data for region 'Indian Ocean':")
+        print("\n Example: Data for region 'Indian Ocean':")
         indian_ocean_data = query_by_region(db_engine, "Indian Ocean")
         print(f"Found {len(indian_ocean_data)} records")
         if not indian_ocean_data.empty:
             print(indian_ocean_data.head(3))
 
-        print("\n📌 Example: Custom query: Month='January', Region='Indian Ocean'")
+        print("\n Example: Custom query: Month='January', Region='Indian Ocean'")
         custom_data = query_custom(db_engine, {"Month": "January", "Region": "Indian Ocean"})
         print(f"Found {len(custom_data)} records")
         if not custom_data.empty:
             print(custom_data.head(3))
 
-        print("\n📌 Example: Profiler statistics for Indian Ocean:")
+        print("\n Example: Profiler statistics for Indian Ocean:")
         profiler_stats = get_profiler_stats(db_engine, region="Indian Ocean")
         if not profiler_stats.empty:
             print(profiler_stats.head())
         
-        print("\n📌 Example: Monthly distribution for Indian Ocean:")
+        print("\n Example: Monthly distribution for Indian Ocean:")
         monthly_dist = get_monthly_distribution(db_engine, region="Indian Ocean")
         if not monthly_dist.empty:
-            print(monthly_dist.head())
-        
-        print("\n📌 Example: Geographic coverage for Indian Ocean:")
+            print(monthly_dist.head())      
+        print("\n Example: Geographic coverage for Indian Ocean:")
         geo_coverage = get_geographic_coverage(db_engine, region="Indian Ocean")
         if not geo_coverage.empty:
-            print(geo_coverage)
-            
+            print(geo_coverage)          
     except Exception as e:
-        print(f"\n❌ Error running examples: {e}")
+        print(f"\n Error running examples: {e}")

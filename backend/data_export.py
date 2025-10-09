@@ -427,8 +427,8 @@ def main():
     """Example usage of the data exporter."""
     print("🌊 ARGO Data Exporter initialized")
     exporter = ARGODataExporter(output_dir="argo_exports")
-    print(f"📁 Output directory set to: {exporter.output_dir.resolve()}")
-    print("🔧 Supported formats: CSV, ASCII, JSON, NetCDF, Parquet, HTML")
+    print(f" Output directory set to: {exporter.output_dir.resolve()}")
+    print(" Supported formats: CSV, ASCII, JSON, NetCDF, Parquet, HTML")
     
     # Create sample data
     print("\nGenerating sample data...")
@@ -468,7 +468,7 @@ def main():
     print("\n--- Displaying export statistics ---")
     stats = exporter.get_export_stats()
     print(json.dumps(stats, indent=2))
-    print("\n✅ All examples executed.")
+    print("\n All examples executed.")
 
 
 if __name__ == "__main__":

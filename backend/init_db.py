@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Database initialization script for NeptuneAI
-"""
-
 import sqlite3
 import os
 
@@ -35,7 +30,7 @@ def init_database():
                 last_login TIMESTAMP
             )
         ''')
-        print("✅ Created users table")
+        print(" Created users table")
         
         # Create chat_sessions table
         cursor.execute('''
@@ -49,7 +44,7 @@ def init_database():
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
-        print("✅ Created chat_sessions table")
+        print(" Created chat_sessions table")
         
         # Create chat_messages table
         cursor.execute('''
@@ -64,7 +59,7 @@ def init_database():
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
-        print("✅ Created chat_messages table")
+        print(" Created chat_messages table")
         
         # Create notifications table
         cursor.execute('''
@@ -79,7 +74,7 @@ def init_database():
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
-        print("✅ Created notifications table")
+        print(" Created notifications table")
         
         # Insert sample notifications
         cursor.execute('''
@@ -89,13 +84,13 @@ def init_database():
                 ('System Update', 'New features have been added to the platform', 'success', CURRENT_TIMESTAMP),
                 ('Data Sync', 'Ocean data has been updated', 'info', CURRENT_TIMESTAMP)
         ''')
-        print("✅ Inserted sample notifications")
+        print("Inserted sample notifications")
         
         conn.commit()
-        print(f"\n🎉 Database initialized successfully: {db_path}")
+        print(f"\n Database initialized successfully: {db_path}")
         
     except Exception as e:
-        print(f"❌ Error initializing database: {e}")
+        print(f" Error initializing database: {e}")
         conn.rollback()
     finally:
         conn.close()

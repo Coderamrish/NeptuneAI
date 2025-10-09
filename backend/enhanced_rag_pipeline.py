@@ -1,8 +1,3 @@
-"""
-Enhanced RAG Pipeline for ARGO Ocean Data
-Integrates NetCDF processing, vector store, MCP, and advanced visualizations
-"""
-
 import os
 import json
 import pandas as pd
@@ -147,11 +142,10 @@ class EnhancedRAGPipeline:
                 'data': db_data.to_dict(orient='records') if db_data is not None else None,
                 'visualization': visualization,
                 'intent': intent,
-                'vector_context': vector_results[:5],  # Include top 5 contexts for review
+                'vector_context': vector_results[:5],  
                 'timestamp': datetime.now().isoformat()
             }
             
-            # Store the interaction in conversation history
             self.conversation_history.append({
                 'user_input': user_input,
                 'response': result,
@@ -184,12 +178,12 @@ class EnhancedRAGPipeline:
             'time_range': None
         }
         
-        # Check for keywords indicating a database query
+       
         db_keywords = ['show', 'find', 'get', 'list', 'count', 'average', 'mean', 'max', 'min']
         if any(keyword in user_lower for keyword in db_keywords):
             intent['needs_database'] = True
         
-        # Check for keywords indicating a visualization request
+       
         viz_keywords = ['plot', 'chart', 'graph', 'map', 'visualize', 'show me', 'display']
         if any(keyword in user_lower for keyword in viz_keywords):
             intent['needs_visualization'] = True
@@ -208,7 +202,6 @@ class EnhancedRAGPipeline:
         try:
             engine = get_db_engine()
             
-            # Prioritize region found in intent, otherwise default to a general query
             region_to_query = intent.get('region', "Indian Ocean")
             logger.info(f"Querying database for region: {region_to_query}")
             return query_by_region(engine, region_to_query, limit=1000)
@@ -223,8 +216,7 @@ class EnhancedRAGPipeline:
                               vector_context: List[Dict],
                               db_data: Optional[pd.DataFrame]) -> Dict[str, Any]:
         """Generate a response using the available context (simplified for now)."""
-        # Note: This is a placeholder for a true MCP/LLM call.
-        # It synthesizes a response based on templates.
+        
         try:
             response_text = self._generate_simple_response(user_input, intent, db_data)
             
@@ -243,8 +235,7 @@ class EnhancedRAGPipeline:
                                   intent: Dict[str, Any],
                                   db_data: Optional[pd.DataFrame]) -> str:
         """Generate a simple, template-based response."""
-        response_parts = []
-        
+        response_parts = [] 
         # Acknowledge the data finding
         if db_data is not None and not db_data.empty:
             response_parts.append(f"I found {len(db_data)} relevant oceanographic records")
@@ -338,7 +329,7 @@ def main():
     """Example usage of the EnhancedRAGPipeline."""
     print("🌊 Initializing Enhanced RAG Pipeline...")
     pipeline = EnhancedRAGPipeline()
-    print("🔧 Components loaded: NetCDF, Vector Store, Geospatial Viz, Data Export.")
+    print(" Components loaded: NetCDF, Vector Store, Geospatial Viz, Data Export.")
     
     # Example 1: Process a query
     print("\n--- Processing an example query ---")
@@ -359,7 +350,7 @@ def main():
     print("\n--- Fetching system statistics ---")
     stats = pipeline.get_system_stats()
     print(json.dumps(stats, indent=2))
-    print("\n✅ Pipeline demonstration complete.")
+    print("\n Pipeline demonstration complete.")
 
 if __name__ == "__main__":
     main()

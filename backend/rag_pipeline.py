@@ -1,10 +1,14 @@
 import os
 import json
+import logging
 import requests
 from groq import Groq
 from dotenv import load_dotenv
 import pandas as pd
 from datetime import datetime, timedelta
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from query_engine import (
     get_db_engine,
@@ -12,17 +16,15 @@ from query_engine import (
     query_by_region,
     get_geographic_coverage,
 )
-
 # Import enhanced components
 try:
     from enhanced_rag_pipeline import EnhancedRAGPipeline
     ENHANCED_AVAILABLE = True
+    logger.info("Enhanced RAG pipeline available")
 except ImportError as e:
-    print(f"Enhanced RAG pipeline not available: {e}")
+    logger.warning(f"Enhanced RAG pipeline not available: {e}")
     ENHANCED_AVAILABLE = False
-
 load_dotenv()
-
 # Initialize Groq client
 try:
     api_key = os.getenv("GROQ_API_KEY")
@@ -30,12 +32,11 @@ try:
         raise ValueError("GROQ_API_KEY not found in environment variables.")
     client = Groq(api_key=api_key)
     GROQ_AVAILABLE = True
-    print("✅ Groq AI initialized")
+    logger.info(" Groq AI initialized")
 except Exception as e:
-    print(f"⚠️ Groq not available: {e}")
+    logger.warning(f" Groq not available: {e}")
     client = None
     GROQ_AVAILABLE = False
-
 # Conversation history
 conversation_history = []
 MAX_HISTORY = 15
@@ -226,10 +227,8 @@ def get_ocean_data(region: str, query_type: str):
                 region = known_region
                 break
         else:
-            return None
-    
-    data = OCEAN_KNOWLEDGE[region].copy()
-    
+            return None    
+    data = OCEAN_KNOWLEDGE[region].copy()   
     # Add current conditions (simulated - in production, use real APIs)
     current_date = datetime.now()
     data["current_conditions"] = {
@@ -237,8 +236,7 @@ def get_ocean_data(region: str, query_type: str):
         "surface_temp_estimate": data["average_temperature"].split()[0] if "average_temperature" in data else "N/A",
         "weather_status": "Normal monitoring conditions",
         "recent_alerts": "No active warnings (last 7 days)"
-    }
-    
+    }    
     # Add disaster risk assessment
     if "disasters" in data:
         current_month = current_date.month
@@ -251,16 +249,13 @@ def get_ocean_data(region: str, query_type: str):
             if current_month in [11, 12, 1, 2, 3, 4]:
                 data["current_conditions"]["cyclone_risk"] = "Elevated - Southern summer cyclone season"
             else:
-                data["current_conditions"]["cyclone_risk"] = "Low to moderate"
-    
+                data["current_conditions"]["cyclone_risk"] = "Low to moderate"   
     return data
-
 def get_deployment_data(engine, region: str):
     """Get profiler deployment data from database."""
     try:
         df = query_by_region(engine, region, limit=50)
-        coverage = get_geographic_coverage(engine, region=region)
-        
+        coverage = get_geographic_coverage(engine, region=region)       
         if df is not None and not df.empty:
             return {
                 "has_data": True,
@@ -271,16 +266,13 @@ def get_deployment_data(engine, region: str):
             }
         return {"has_data": False}
     except Exception as e:
-        print(f"⚠️ Database query failed: {e}")
+        print(f" Database query failed: {e}")
         return {"has_data": False}
-
 def generate_intelligent_response(user_input: str, ocean_data: dict, deployment_data: dict, 
                                   sentiment: dict, context: list):
-    """Generate natural, empathetic, and informative responses using Groq."""
-    
+    """Generate natural, empathetic, and informative responses using Groq."""   
     if not GROQ_AVAILABLE:
-        return generate_fallback_response(ocean_data, deployment_data)
-    
+        return generate_fallback_response(ocean_data, deployment_data)    
     try:
         # Build context from conversation history
         history_context = ""
@@ -288,33 +280,26 @@ def generate_intelligent_response(user_input: str, ocean_data: dict, deployment_
             history_context = "Recent conversation:\n"
             for msg in context[-3:]:
                 history_context += f"User: {msg['user'][:100]}\n"
-                history_context += f"Assistant: {msg['assistant'][:100]}...\n"
-        
+                history_context += f"Assistant: {msg['assistant'][:100]}...\n"       
         # Build comprehensive data context
         data_context = f"""
 OCEAN DATA AVAILABLE:
 {json.dumps(ocean_data, indent=2)}
-
 PROFILER DEPLOYMENT DATA:
 {json.dumps(deployment_data, indent=2)}
-
 USER PROFILE:
 Name: {user_profile.get('name', 'Not provided')}
 Technical Level: {sentiment['technical_level']}
 Emotional State: {sentiment['emotion']}
-
 {history_context}
-"""
-        
+"""        
         system_prompt = f"""You are NeptuneAI, an advanced oceanographic AI assistant with comprehensive knowledge of ocean data.
-
 PERSONALITY:
 - Warm, friendly, and empathetic
 - Enthusiastic about ocean science
 - Patient and educational
 - Uses appropriate emojis naturally (🌊 🔬 📊 🌡️ 🌀 ⚠️)
 - Conversational, not robotic
-
 CAPABILITIES:
 You have access to REAL oceanographic data including:
 - Ocean depths, temperatures, salinity levels
@@ -325,7 +310,6 @@ You have access to REAL oceanographic data including:
 - Profiler deployment information
 - Current ocean conditions
 - Retrieval-augmented responses from real float data
-
 RESPONSE GUIDELINES:
 1. Address user by name if known ({user_profile.get('name', '')})
 2. Match user's emotional tone:
@@ -333,58 +317,46 @@ RESPONSE GUIDELINES:
    - If frustrated: Be empathetic and solution-focused
    - If formal: Be professional yet friendly
    - If casual: Be conversational and relaxed
-
 3. Technical level adaptation:
    - Beginner: Use simple terms, provide analogies
    - Intermediate: Balance technical and accessible language
    - Advanced: Use precise scientific terminology
-
 4. Structure responses:
    - Start with direct answer to the question
    - Provide relevant details
    - Add interesting related facts
    - Suggest follow-up topics if appropriate
    - Keep under 250 words unless detailed explanation requested
-
 5. Safety and ethics:
    - Always mention disaster risks honestly but without causing panic
    - Provide actionable information when discussing dangers
    - Emphasize the importance of ocean conservation
-
 Current user sentiment: {sentiment['emotion']}
 Urgency level: {sentiment['urgency']}
 Technical level: {sentiment['technical_level']}
 """
-
         user_prompt = f"""User query: "{user_input}"
-
 Available data:
 {data_context}
-
 Generate a natural, helpful response that directly answers their question using the available data."""
-
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.6,
+            temperature=0.7,
             max_tokens=800
-        )
-        
-        return response.choices[0].message.content
-        
+        )    
+        return response.choices[0].message.content      
     except Exception as e:
-        print(f"⚠️ Response generation failed: {e}")
+        print(f" Response generation failed: {e}")
         return generate_fallback_response(ocean_data, deployment_data)
-
 def generate_fallback_response(ocean_data: dict, deployment_data: dict):
     """Fallback response when LLM is unavailable."""
-    response = "Based on available data:\n\n"
-    
+    response = "Based on available data:\n\n"    
     if ocean_data:
-        response += f"📊 Ocean Characteristics:\n"
+        response += f" Ocean Characteristics:\n"
         if "average_depth" in ocean_data:
             response += f"• Average Depth: {ocean_data['average_depth']}\n"
         if "average_temperature" in ocean_data:
@@ -392,45 +364,38 @@ def generate_fallback_response(ocean_data: dict, deployment_data: dict):
         if "average_salinity" in ocean_data:
             response += f"• Salinity: {ocean_data['average_salinity']}\n"
         if "sea_level_trend" in ocean_data:
-            response += f"• Sea Level Trend: {ocean_data['sea_level_trend']}\n"
-    
+            response += f"• Sea Level Trend: {ocean_data['sea_level_trend']}\n"    
     if deployment_data and deployment_data.get("has_data"):
         response += f"\n🔬 Monitoring Data:\n"
         response += f"• Active Deployments: {deployment_data['deployment_count']}\n"
-        response += f"• Research Institutions: {len(deployment_data['institutions'])}\n"
-    
+        response += f"• Research Institutions: {len(deployment_data['institutions'])}\n" 
     return response
-
 def answer_query(user_input: str):
     """Main query processing with comprehensive ocean data."""
-    
+    logger.info(f"Processing user query: {user_input}")
     # Use enhanced pipeline if available
     if ENHANCED_AVAILABLE:
         try:
             # Initialize enhanced pipeline (singleton pattern)
             if not hasattr(answer_query, 'enhanced_pipeline'):
                 answer_query.enhanced_pipeline = EnhancedRAGPipeline()
-            
+            logger.info(" Enhanced RAG pipeline initialized")
             # Process query with enhanced pipeline
             result = answer_query.enhanced_pipeline.process_query(user_input)
-            
+            logger.info(" Enhanced RAG pipeline processed query")
             # Convert to expected format
             return {
                 "summary": result.get('text_response', 'No response generated'),
                 "plot": result.get('visualization'),
                 "data": result.get('data'),
                 "enhanced": True
-            }
-            
+            }            
         except Exception as e:
             print(f"Enhanced pipeline error: {e}, falling back to basic pipeline")
-    
-    # Fallback to original implementation
     try:
         # Analyze sentiment
         engine = get_db_engine()
-        sentiment = analyze_sentiment_advanced(user_input, user_profile.get("name"))
-        
+        sentiment = analyze_sentiment_advanced(user_input, user_profile.get("name"))        
         # Handle greetings
         if sentiment["is_greeting"]:
             greeting = f"Hello{', ' + user_profile['name'] if user_profile['name'] else ''}! 👋 "
@@ -440,27 +405,23 @@ def answer_query(user_input: str):
             greeting += "🌀 Disaster risks (cyclones, tsunamis)\n"
             greeting += "🔬 Profiler deployment information\n"
             greeting += "🐋 Marine ecosystems and biodiversity\n\n"
-            greeting += "What would you like to explore today?"
-            
+            greeting += "What would you like to explore today?"            
             conversation_history.append({
                 "user": user_input,
                 "assistant": greeting,
                 "sentiment": sentiment['emotion']
             })
-            return {"summary": greeting, "plot": None}
-        
+            return {"summary": greeting, "plot": None}        
         # Handle thanks
         if sentiment["is_thanking"]:
             thanks_response = f"You're very welcome{', ' + user_profile['name'] if user_profile['name'] else ''}! 😊 "
-            thanks_response += "I'm always here to help you explore ocean science. Feel free to ask anything else!"
-            
+            thanks_response += "I'm always here to help you explore ocean science. Feel free to ask anything else!"            
             conversation_history.append({
                 "user": user_input,
                 "assistant": thanks_response,
                 "sentiment": sentiment['emotion']
             })
-            return {"summary": thanks_response, "plot": None}
-        
+            return {"summary": thanks_response, "plot": None}      
         # Handle follow-ups
         if sentiment["is_followup"] and conversation_history:
             # Get region from last conversation
@@ -469,78 +430,63 @@ def answer_query(user_input: str):
             for known_region in OCEAN_KNOWLEDGE.keys():
                 if known_region in last_msg:
                     region = known_region
-                    break
-            
+                    break           
             if region:
-                user_input = f"{user_input} about {region}"
-        
+                user_input = f"{user_input} about {region}"       
         # Extract region from query
         region = None
         for known_region in OCEAN_KNOWLEDGE.keys():
             if known_region.lower() in user_input.lower():
                 region = known_region
-                break
-        
+                break  
         # Default to Indian Ocean if no region specified
         if not region:
-            region = "Indian Ocean"
-        
+         region = "Indian Ocean"   
         # Get comprehensive data
         ocean_data = get_ocean_data(region, "comprehensive")
-        deployment_data = get_deployment_data(engine, region)
-        
+        deployment_data = get_deployment_data(engine, region)        
         # Generate intelligent response
         response_text = generate_intelligent_response(
             user_input, ocean_data, deployment_data, sentiment, conversation_history
-        )
-        
+        )       
         # Store in history
         conversation_history.append({
             "user": user_input,
             "assistant": response_text,
             "sentiment": sentiment['emotion'],
             "region": region
-        })
-        
+        })        
         # Manage history size
         if len(conversation_history) > MAX_HISTORY:
-            conversation_history.pop(0)
-        
-        return {"summary": response_text, "plot": None}
-        
+            conversation_history.pop(0)       
+        return {"summary": response_text, "plot": None}     
     except Exception as e:
         error_msg = f"I encountered an issue: {str(e)}. Let me try to help you differently. "
         error_msg += "Could you rephrase your question or ask about a specific ocean region?"
         print(f"❌ Error: {e}")
         return {"summary": error_msg, "plot": None}
-
 if __name__ == "__main__":
     print("🌊 NeptuneAI - Comprehensive Ocean Intelligence System")
     print("=" * 60)
-    
     engine = get_db_engine()
-    
-    print("\n✅ System initialized successfully!")
-    print("\n💡 I can answer questions about:")
+    print("\n System initialized successfully!")
+    print("\n I can answer questions about:")
     print("  • Ocean depths, temperatures, and salinity")
     print("  • Sea level changes and climate trends")
     print("  • Disaster risks (cyclones, tsunamis, earthquakes)")
     print("  • Marine ecosystems and biodiversity")
     print("  • Profiler deployments and research activities")
     print("  • Current ocean conditions")
-    print("\n🌍 Supported regions: Indian Ocean, Bay of Bengal, Arabian Sea, Pacific, Atlantic")
+    print("\n Supported regions: Indian Ocean, Bay of Bengal, Arabian Sea, Pacific, Atlantic")
     print("\nType 'exit' to quit.\n")
-    
     while True:
         user_q = input("You: ")
         if user_q.lower() in ['exit', 'quit', 'bye', 'goodbye']:
             farewell = f"Goodbye{', ' + user_profile['name'] if user_profile['name'] else ''}! "
             farewell += "Stay curious about our oceans! 🌊👋"
-            print(f"\n🤖: {farewell}\n")
-            break
-        
+            print(f"\n: {farewell}\n")
+            break       
         if user_q.strip() == "":
-            continue
-        
+            continue        
         response_data = answer_query(user_q)
-        print(f"\n🤖: {response_data['summary']}\n")
+        print(f"\n: {response_data['summary']}\n")
