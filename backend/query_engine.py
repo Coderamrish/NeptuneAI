@@ -73,24 +73,30 @@ def get_db_engine():
         raise
 
 
-def run_query(engine, query: str, params: dict = None) -> pd.DataFrame:
+def run_query(engine, query, params: dict = None) -> pd.DataFrame:
     """
     Execute SQL query safely and return result as a DataFrame.
     
     Args:
         engine: SQLAlchemy engine
-        query: SQL query string with named parameters
+        query: SQL query string OR text() object
         params: Dictionary of parameter values
         
     Returns:
         DataFrame with query results, empty DataFrame on error
     """
     try:
+        # Convert text() object to string if needed
+        from sqlalchemy import text as sql_text
+        
+        if isinstance(query, str):
+            query = sql_text(query)
+        
         with engine.connect() as connection:
-            df = pd.read_sql(text(query), connection, params=params or {})
+            df = pd.read_sql(query, connection, params=params or {})
             return df
     except Exception as e:
-        print(f" Query failed: {e}")
+        print(f"❌ Query failed: {e}")
         print(f"Query: {query}")
         print(f"Params: {params}")
         return pd.DataFrame()
