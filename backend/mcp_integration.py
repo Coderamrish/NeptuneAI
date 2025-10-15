@@ -1,10 +1,41 @@
+"""
+Enhanced MCP Integration with Real Ocean Data
+Connects MCP to actual database, vector store, and visualization engines
+"""
+
 import json
 import asyncio
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 import logging
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field
 from enum import Enum
+import pandas as pd
+
+# Import your existing modules
+from query_engine import (
+    get_db_engine,
+    query_by_region,
+    query_by_month,
+    query_custom,
+    get_profiler_stats,
+    get_monthly_distribution,
+    get_geographic_coverage,
+    get_data_for_plotting,
+    get_unique_regions,
+    get_unique_months
+)
+
+from vector_store import ARGOVectorStore
+
+from plots import (
+    create_profiler_distribution_plot,
+    create_monthly_distribution_plot,
+    create_geographic_scatter_plot,
+    create_profiler_dashboard
+)
+
+from geospatial_viz import ARGOGeospatialVisualizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +54,8 @@ class ToolType(Enum):
     SEARCH_VECTOR_STORE = "search_vector_store"
     EXPORT_DATA = "export_data"
     ANALYZE_PATTERNS = "analyze_patterns"
+    GET_STATISTICS = "get_statistics"
+    CREATE_GEOSPATIAL_MAP = "create_geospatial_map"
 
 @dataclass
 class MCPMessage:
@@ -33,56 +66,61 @@ class MCPMessage:
     content: Dict[str, Any]
     
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'MCPMessage':
-        return cls(
-            id=data['id'],
-            type=MessageType(data['type']),
-            timestamp=data['timestamp'],
-            content=data['content']
-        )
+        return {
+            'id': self.id,
+            'type': self.type.value,
+            'timestamp': self.timestamp,
+            'content': self.content
+        }
 
 @dataclass
-class MCPRequest(MCPMessage):
+class MCPRequest:
     """MCP Request Message"""
+    id: str
+    timestamp: str
     tool: ToolType
     parameters: Dict[str, Any]
+    type: MessageType = field(default=MessageType.REQUEST, init=False)
+    content: Dict[str, Any] = field(init=False)
     
     def __post_init__(self):
-        self.type = MessageType.REQUEST
         self.content = {
             'tool': self.tool.value,
             'parameters': self.parameters
         }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'type': self.type.value,
+            'timestamp': self.timestamp,
+            'content': self.content
+        }
 
 @dataclass
-class MCPResponse(MCPMessage):
+class MCPResponse:
     """MCP Response Message"""
+    id: str
+    timestamp: str
     success: bool
     result: Any
     error: Optional[str] = None
+    type: MessageType = field(default=MessageType.RESPONSE, init=False)
+    content: Dict[str, Any] = field(init=False)
     
     def __post_init__(self):
-        self.type = MessageType.RESPONSE
         self.content = {
             'success': self.success,
             'result': self.result,
             'error': self.error
         }
-
-@dataclass
-class MCPNotification(MCPMessage):
-    """MCP Notification Message"""
-    event: str
-    data: Dict[str, Any]
     
-    def __post_init__(self):
-        self.type = MessageType.NOTIFICATION
-        self.content = {
-            'event': self.event,
-            'data': self.data
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'type': self.type.value,
+            'timestamp': self.timestamp,
+            'content': self.content
         }
 
 class MCPToolRegistry:
@@ -109,7 +147,8 @@ class MCPToolRegistry:
                 'description': 'Generate oceanographic visualizations',
                 'parameters': {
                     'chart_type': {'type': 'string', 'required': True},
-                    'data': {'type': 'object', 'required': True},
+                    'data': {'type': 'object', 'required': False},
+                    'region': {'type': 'string', 'required': False},
                     'options': {'type': 'object', 'required': False}
                 }
             },
@@ -126,7 +165,7 @@ class MCPToolRegistry:
                 'name': 'export_data',
                 'description': 'Export data in various formats',
                 'parameters': {
-                    'data': {'type': 'object', 'required': True},
+                    'query_params': {'type': 'object', 'required': True},
                     'format': {'type': 'string', 'required': True},
                     'filename': {'type': 'string', 'required': False}
                 }
@@ -135,9 +174,26 @@ class MCPToolRegistry:
                 'name': 'analyze_patterns',
                 'description': 'Analyze oceanographic patterns and trends',
                 'parameters': {
-                    'data': {'type': 'object', 'required': True},
+                    'region': {'type': 'string', 'required': False},
                     'analysis_type': {'type': 'string', 'required': True},
                     'parameters': {'type': 'object', 'required': False}
+                }
+            },
+            ToolType.GET_STATISTICS: {
+                'name': 'get_statistics',
+                'description': 'Get statistical summaries of ocean data',
+                'parameters': {
+                    'region': {'type': 'string', 'required': False},
+                    'stat_type': {'type': 'string', 'required': True}
+                }
+            },
+            ToolType.CREATE_GEOSPATIAL_MAP: {
+                'name': 'create_geospatial_map',
+                'description': 'Create advanced geospatial maps',
+                'parameters': {
+                    'map_type': {'type': 'string', 'required': True},
+                    'region': {'type': 'string', 'required': False},
+                    'options': {'type': 'object', 'required': False}
                 }
             }
         }
@@ -156,28 +212,48 @@ class MCPToolRegistry:
             for tool_type, schema in self.tools.items()
         ]
 
-class MCPHandler:
-    """Main MCP Handler for ARGO Ocean Data"""
+class EnhancedMCPHandler:
+    """Enhanced MCP Handler with Real Data Integration"""
     
     def __init__(self, 
-                 query_engine=None,
-                 vector_store=None,
-                 visualization_engine=None):
+                 vector_store_path: str = "vector_index",
+                 enable_vector_store: bool = True):
         """
-        Initialize MCP Handler
+        Initialize Enhanced MCP Handler
         
         Args:
-            query_engine: Database query engine
-            vector_store: Vector store instance
-            visualization_engine: Visualization engine
+            vector_store_path: Path to vector store index
+            enable_vector_store: Whether to enable vector store
         """
-        self.query_engine = query_engine
-        self.vector_store = vector_store
-        self.visualization_engine = visualization_engine
+        # Initialize database engine
+        try:
+            self.db_engine = get_db_engine()
+            logger.info("✅ Database engine initialized")
+        except Exception as e:
+            logger.error(f"❌ Database initialization failed: {e}")
+            self.db_engine = None
+        
+        # Initialize vector store
+        self.vector_store = None
+        if enable_vector_store:
+            try:
+                self.vector_store = ARGOVectorStore(index_path=vector_store_path)
+                logger.info("✅ Vector store initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Vector store initialization failed: {e}")
+        
+        # Initialize visualization engines
+        try:
+            self.geospatial_viz = ARGOGeospatialVisualizer()
+            logger.info("✅ Geospatial visualizer initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Geospatial visualizer failed: {e}")
+            self.geospatial_viz = None
+        
         self.tool_registry = MCPToolRegistry()
         self.message_history = []
         
-        logger.info("MCP Handler initialized")
+        logger.info("🌊 Enhanced MCP Handler initialized with real data connections")
     
     def generate_message_id(self) -> str:
         """Generate unique message ID"""
@@ -185,7 +261,7 @@ class MCPHandler:
     
     async def handle_request(self, request: MCPRequest) -> MCPResponse:
         """
-        Handle MCP request
+        Handle MCP request with real data
         
         Args:
             request: MCP request message
@@ -210,6 +286,10 @@ class MCPHandler:
                 result = await self._handle_data_export(request.parameters)
             elif request.tool == ToolType.ANALYZE_PATTERNS:
                 result = await self._handle_pattern_analysis(request.parameters)
+            elif request.tool == ToolType.GET_STATISTICS:
+                result = await self._handle_statistics(request.parameters)
+            elif request.tool == ToolType.CREATE_GEOSPATIAL_MAP:
+                result = await self._handle_geospatial_map(request.parameters)
             else:
                 raise ValueError(f"Unknown tool type: {request.tool}")
             
@@ -224,7 +304,7 @@ class MCPHandler:
             return response
             
         except Exception as e:
-            logger.error(f"Error handling MCP request: {e}")
+            logger.error(f"Error handling MCP request: {e}", exc_info=True)
             
             error_response = MCPResponse(
                 id=self.generate_message_id(),
@@ -238,179 +318,321 @@ class MCPHandler:
             return error_response
     
     async def _handle_database_query(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle database query requests"""
-        if not self.query_engine:
-            raise ValueError("Query engine not available")
+        """Handle database query requests with real data"""
+        if not self.db_engine:
+            return {
+                'error': 'Database engine not available',
+                'result_count': 0,
+                'data': []
+            }
         
         query_type = parameters.get('query_type')
         filters = parameters.get('filters', {})
         limit = parameters.get('limit', 100)
         
-        # Execute query based on type
-        if query_type == 'by_region':
-            region = filters.get('region', 'Indian Ocean')
-            result = self.query_engine.query_by_region(
-                self.query_engine.get_db_engine(), 
-                region, 
-                limit
-            )
-        elif query_type == 'by_month':
-            month = filters.get('month', 'January')
-            result = self.query_engine.query_by_month(
-                self.query_engine.get_db_engine(), 
-                month, 
-                limit
-            )
-        elif query_type == 'custom':
-            result = self.query_engine.query_custom(
-                self.query_engine.get_db_engine(), 
-                filters, 
-                limit
-            )
-        else:
-            raise ValueError(f"Unknown query type: {query_type}")
-        
-        return {
-            'query_type': query_type,
-            'filters': filters,
-            'result_count': len(result) if hasattr(result, '__len__') else 0,
-            'data': result.to_dict('records') if hasattr(result, 'to_dict') else result
-        }
+        try:
+            # Execute query based on type
+            if query_type == 'by_region':
+                region = filters.get('region', 'Indian Ocean')
+                result_df = query_by_region(self.db_engine, region, limit)
+                
+            elif query_type == 'by_month':
+                month = filters.get('month', 'January')
+                result_df = query_by_month(self.db_engine, month, limit)
+                
+            elif query_type == 'custom':
+                result_df = query_custom(self.db_engine, filters, limit)
+                
+            elif query_type == 'for_plotting':
+                region = filters.get('region')
+                month = filters.get('month')
+                result_df = get_data_for_plotting(
+                    self.db_engine, 
+                    region=region, 
+                    month=month, 
+                    limit=limit
+                )
+            else:
+                raise ValueError(f"Unknown query type: {query_type}")
+            
+            # Convert DataFrame to dict
+            data = result_df.to_dict('records') if not result_df.empty else []
+            
+            return {
+                'query_type': query_type,
+                'filters': filters,
+                'result_count': len(data),
+                'data': data,
+                'columns': list(result_df.columns) if not result_df.empty else [],
+                'message': f'Successfully retrieved {len(data)} records'
+            }
+            
+        except Exception as e:
+            logger.error(f"Database query error: {e}")
+            return {
+                'error': str(e),
+                'result_count': 0,
+                'data': []
+            }
     
     async def _handle_visualization(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle visualization requests"""
-        if not self.visualization_engine:
-            raise ValueError("Visualization engine not available")
-        
+        """Handle visualization requests with real data"""
         chart_type = parameters.get('chart_type')
-        data = parameters.get('data')
+        region = parameters.get('region')
         options = parameters.get('options', {})
         
-        # Generate visualization based on type
-        if chart_type == 'profiler_distribution':
-            fig = self.visualization_engine.create_profiler_distribution_plot(
-                data, 
-                options.get('region_name')
-            )
-        elif chart_type == 'geographic_scatter':
-            fig = self.visualization_engine.create_geographic_scatter_plot(
-                data, 
-                options.get('region_name')
-            )
-        elif chart_type == 'monthly_distribution':
-            fig = self.visualization_engine.create_monthly_distribution_plot(
-                data, 
-                options.get('region_name')
-            )
-        else:
-            raise ValueError(f"Unknown chart type: {chart_type}")
-        
-        return {
-            'chart_type': chart_type,
-            'figure': fig.to_dict() if fig else None,
-            'options': options
-        }
+        try:
+            # Get data for visualization
+            if not self.db_engine:
+                return {'error': 'Database not available', 'figure': None}
+            
+            # Fetch appropriate data
+            df = get_data_for_plotting(self.db_engine, region=region, limit=1000)
+            
+            if df.empty:
+                return {
+                    'error': 'No data available for visualization',
+                    'figure': None
+                }
+            
+            # Generate visualization based on type
+            fig = None
+            if chart_type == 'profiler_distribution':
+                fig = create_profiler_distribution_plot(df, region)
+                
+            elif chart_type == 'monthly_distribution':
+                fig = create_monthly_distribution_plot(df, region)
+                
+            elif chart_type == 'geographic_scatter':
+                fig = create_geographic_scatter_plot(df, region)
+                
+            elif chart_type == 'dashboard':
+                fig = create_profiler_dashboard(df, region)
+                
+            else:
+                raise ValueError(f"Unknown chart type: {chart_type}")
+            
+            # Convert figure to JSON
+            fig_json = json.loads(fig.to_json()) if fig else None
+            
+            return {
+                'chart_type': chart_type,
+                'region': region,
+                'figure': fig_json,
+                'data_points': len(df),
+                'message': 'Visualization created successfully'
+            }
+            
+        except Exception as e:
+            logger.error(f"Visualization error: {e}")
+            return {
+                'error': str(e),
+                'figure': None
+            }
     
     async def _handle_vector_search(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Handle vector store search requests"""
         if not self.vector_store:
-            raise ValueError("Vector store not available")
+            return {
+                'error': 'Vector store not available',
+                'results': []
+            }
         
         query = parameters.get('query')
         k = parameters.get('k', 10)
         filters = parameters.get('filters', {})
         
-        results = self.vector_store.search(query, k, filters=filters)
-        
-        return {
-            'query': query,
-            'result_count': len(results),
-            'results': results
-        }
+        try:
+            results = self.vector_store.search(query, k, filters=filters)
+            
+            return {
+                'query': query,
+                'result_count': len(results),
+                'results': results,
+                'message': f'Found {len(results)} matching documents'
+            }
+            
+        except Exception as e:
+            logger.error(f"Vector search error: {e}")
+            return {
+                'error': str(e),
+                'results': []
+            }
     
     async def _handle_data_export(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Handle data export requests"""
-        data = parameters.get('data')
-        format_type = parameters.get('format')
-        filename = parameters.get('filename')
+        if not self.db_engine:
+            return {'error': 'Database not available'}
         
-        # Convert data to requested format
-        if format_type == 'csv':
-            if hasattr(data, 'to_csv'):
-                output_path = f"{filename or 'export'}.csv"
-                data.to_csv(output_path, index=False)
-                return {'format': format_type, 'file_path': output_path}
+        query_params = parameters.get('query_params', {})
+        format_type = parameters.get('format', 'csv')
+        filename = parameters.get('filename', f'export_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+        
+        try:
+            # Get data based on query parameters
+            region = query_params.get('region')
+            month = query_params.get('month')
+            limit = query_params.get('limit', 10000)
+            
+            df = get_data_for_plotting(self.db_engine, region=region, month=month, limit=limit)
+            
+            if df.empty:
+                return {'error': 'No data to export'}
+            
+            # Export to specified format
+            output_path = f"{filename}.{format_type}"
+            
+            if format_type == 'csv':
+                df.to_csv(output_path, index=False)
+            elif format_type == 'json':
+                df.to_json(output_path, orient='records', indent=2)
+            elif format_type == 'excel':
+                df.to_excel(output_path, index=False)
             else:
-                raise ValueError("Data must be a DataFrame for CSV export")
-        
-        elif format_type == 'json':
-            output_path = f"{filename or 'export'}.json"
-            with open(output_path, 'w') as f:
-                json.dump(data, f, indent=2)
-            return {'format': format_type, 'file_path': output_path}
-        
-        else:
-            raise ValueError(f"Unsupported export format: {format_type}")
+                raise ValueError(f"Unsupported format: {format_type}")
+            
+            return {
+                'format': format_type,
+                'file_path': output_path,
+                'records_exported': len(df),
+                'message': f'Successfully exported {len(df)} records to {output_path}'
+            }
+            
+        except Exception as e:
+            logger.error(f"Export error: {e}")
+            return {'error': str(e)}
     
     async def _handle_pattern_analysis(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Handle pattern analysis requests"""
-        data = parameters.get('data')
+        if not self.db_engine:
+            return {'error': 'Database not available'}
+        
+        region = parameters.get('region')
         analysis_type = parameters.get('analysis_type')
-        analysis_params = parameters.get('parameters', {})
         
-        # Perform analysis based on type
-        if analysis_type == 'temperature_trends':
-            # Analyze temperature trends
-            if 'temperature' in data.columns:
-                temp_data = data['temperature'].dropna()
-                trend = temp_data.diff().mean() if len(temp_data) > 1 else 0
-                return {
-                    'analysis_type': analysis_type,
-                    'trend': float(trend),
-                    'mean_temperature': float(temp_data.mean()),
-                    'temperature_range': [float(temp_data.min()), float(temp_data.max())]
-                }
+        try:
+            results = {}
+            
+            if analysis_type == 'profiler_stats':
+                stats_df = get_profiler_stats(self.db_engine, region)
+                results['profiler_statistics'] = stats_df.to_dict('records')
+                
+            elif analysis_type == 'monthly_trends':
+                monthly_df = get_monthly_distribution(self.db_engine, region)
+                results['monthly_trends'] = monthly_df.to_dict('records')
+                
+            elif analysis_type == 'geographic_coverage':
+                coverage_df = get_geographic_coverage(self.db_engine, region)
+                results['geographic_coverage'] = coverage_df.to_dict('records')
+                
+            elif analysis_type == 'comprehensive':
+                # Get all statistics
+                results['profiler_statistics'] = get_profiler_stats(self.db_engine, region).to_dict('records')
+                results['monthly_trends'] = get_monthly_distribution(self.db_engine, region).to_dict('records')
+                results['geographic_coverage'] = get_geographic_coverage(self.db_engine, region).to_dict('records')
+            
             else:
-                raise ValueError("Temperature data not found")
-        
-        elif analysis_type == 'geographic_distribution':
-            # Analyze geographic distribution
-            if 'latitude' in data.columns and 'longitude' in data.columns:
-                lat_range = [float(data['latitude'].min()), float(data['latitude'].max())]
-                lon_range = [float(data['longitude'].min()), float(data['longitude'].max())]
-                return {
-                    'analysis_type': analysis_type,
-                    'latitude_range': lat_range,
-                    'longitude_range': lon_range,
-                    'center_latitude': float(data['latitude'].mean()),
-                    'center_longitude': float(data['longitude'].mean())
-                }
-            else:
-                raise ValueError("Geographic data not found")
-        
-        else:
-            raise ValueError(f"Unknown analysis type: {analysis_type}")
+                raise ValueError(f"Unknown analysis type: {analysis_type}")
+            
+            return {
+                'analysis_type': analysis_type,
+                'region': region,
+                'results': results,
+                'message': 'Analysis completed successfully'
+            }
+            
+        except Exception as e:
+            logger.error(f"Pattern analysis error: {e}")
+            return {'error': str(e)}
     
-    def create_request(self, 
-                       tool: ToolType, 
-                       parameters: Dict[str, Any]) -> MCPRequest:
+    async def _handle_statistics(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle statistics requests"""
+        if not self.db_engine:
+            return {'error': 'Database not available'}
+        
+        region = parameters.get('region')
+        stat_type = parameters.get('stat_type')
+        
+        try:
+            if stat_type == 'regions':
+                regions = get_unique_regions(self.db_engine)
+                return {
+                    'stat_type': 'regions',
+                    'count': len(regions),
+                    'data': regions
+                }
+                
+            elif stat_type == 'months':
+                months = get_unique_months(self.db_engine)
+                return {
+                    'stat_type': 'months',
+                    'count': len(months),
+                    'data': months
+                }
+                
+            elif stat_type == 'profiler_summary':
+                stats = get_profiler_stats(self.db_engine, region)
+                return {
+                    'stat_type': 'profiler_summary',
+                    'region': region,
+                    'data': stats.to_dict('records')
+                }
+            
+            else:
+                raise ValueError(f"Unknown stat type: {stat_type}")
+                
+        except Exception as e:
+            logger.error(f"Statistics error: {e}")
+            return {'error': str(e)}
+    
+    async def _handle_geospatial_map(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle geospatial map creation"""
+        if not self.db_engine or not self.geospatial_viz:
+            return {'error': 'Geospatial visualization not available'}
+        
+        map_type = parameters.get('map_type')
+        region = parameters.get('region')
+        options = parameters.get('options', {})
+        
+        try:
+            # Get data
+            df = get_data_for_plotting(self.db_engine, region=region, limit=1000)
+            
+            if df.empty:
+                return {'error': 'No data available for map'}
+            
+            # Create map based on type
+            fig = None
+            if map_type == 'world_map':
+                fig = self.geospatial_viz.create_interactive_world_map(df, region=region)
+            elif map_type == 'heatmap':
+                fig = self.geospatial_viz.create_heatmap_plot(df, region=region)
+            elif map_type == 'dashboard':
+                fig = self.geospatial_viz.create_comprehensive_dashboard(df, region=region)
+            else:
+                raise ValueError(f"Unknown map type: {map_type}")
+            
+            fig_json = json.loads(fig.to_json()) if fig else None
+            
+            return {
+                'map_type': map_type,
+                'region': region,
+                'figure': fig_json,
+                'data_points': len(df),
+                'message': 'Geospatial map created successfully'
+            }
+            
+        except Exception as e:
+            logger.error(f"Geospatial map error: {e}")
+            return {'error': str(e)}
+    
+    def create_request(self, tool: ToolType, parameters: Dict[str, Any]) -> MCPRequest:
         """Create an MCP request"""
         return MCPRequest(
             id=self.generate_message_id(),
             timestamp=datetime.now().isoformat(),
             tool=tool,
             parameters=parameters
-        )
-    
-    def create_notification(self, 
-                            event: str, 
-                            data: Dict[str, Any]) -> MCPNotification:
-        """Create an MCP notification"""
-        return MCPNotification(
-            id=self.generate_message_id(),
-            timestamp=datetime.now().isoformat(),
-            event=event,
-            data=data
         )
     
     def get_message_history(self) -> List[Dict[str, Any]]:
@@ -425,12 +647,10 @@ class MCPHandler:
 class MCPClient:
     """MCP Client for external communication"""
     
-    def __init__(self, handler: MCPHandler):
+    def __init__(self, handler: EnhancedMCPHandler):
         self.handler = handler
     
-    async def send_request(self, 
-                           tool: ToolType, 
-                           parameters: Dict[str, Any]) -> MCPResponse:
+    async def send_request(self, tool: ToolType, parameters: Dict[str, Any]) -> MCPResponse:
         """Send a request to the MCP handler"""
         request = self.handler.create_request(tool, parameters)
         return await self.handler.handle_request(request)
@@ -438,33 +658,72 @@ class MCPClient:
     def get_available_tools(self) -> List[Dict[str, Any]]:
         """Get list of available tools"""
         return self.handler.tool_registry.list_tools()
+
+async def main():
+    """Example usage with real data"""
+    # Initialize handler
+    handler = EnhancedMCPHandler()
+    client = MCPClient(handler)
     
-def main():
-    """Example usage of MCP integration"""
-    # Initialize MCP handler
-    handler = MCPHandler()
-   
-    # Create client
-    client = MCPClient(handler)    
-    # Example: Send a database query request
-    async def example_usage():
-        response = await client.send_request(
-            ToolType.QUERY_DATABASE,
-            {
-                'query_type': 'by_region',
-                'filters': {'region': 'Indian Ocean'},
-                'limit': 50
-            }
-        )     
-        print(f"Request successful: {response.success}")
-        if response.success:
-            print(f"Result: {response.result}")
-        else:
-            print(f"Error: {response.error}") 
-    # Run example
-    asyncio.run(example_usage())   
-    print(" MCP Integration initialized")
-    print(" Available tools:", len(handler.tool_registry.list_tools()))
+    print("\n🌊 Testing Enhanced MCP Integration with Real Data\n")
+    
+    # Test 1: Query database
+    print("📊 Test 1: Querying Indian Ocean data...")
+    response = await client.send_request(
+        ToolType.QUERY_DATABASE,
+        {
+            'query_type': 'by_region',
+            'filters': {'region': 'Indian Ocean'},
+            'limit': 10
+        }
+    )
+    print(f"✅ Success: {response.success}")
+    if response.success:
+        result = response.result
+        print(f"   Found {result['result_count']} records")
+        print(f"   Columns: {result.get('columns', [])}")
+    
+    # Test 2: Generate visualization
+    print("\n📈 Test 2: Generating dashboard...")
+    response = await client.send_request(
+        ToolType.GENERATE_VISUALIZATION,
+        {
+            'chart_type': 'dashboard',
+            'region': 'Indian Ocean'
+        }
+    )
+    print(f"✅ Success: {response.success}")
+    if response.success:
+        print(f"   Data points: {response.result.get('data_points', 0)}")
+    
+    # Test 3: Get statistics
+    print("\n📊 Test 3: Getting statistics...")
+    response = await client.send_request(
+        ToolType.GET_STATISTICS,
+        {
+            'stat_type': 'regions'
+        }
+    )
+    print(f"✅ Success: {response.success}")
+    if response.success:
+        print(f"   Regions found: {response.result.get('count', 0)}")
+    
+    # Test 4: Pattern analysis
+    print("\n🔍 Test 4: Analyzing patterns...")
+    response = await client.send_request(
+        ToolType.ANALYZE_PATTERNS,
+        {
+            'region': 'Indian Ocean',
+            'analysis_type': 'comprehensive'
+        }
+    )
+    print(f"✅ Success: {response.success}")
+    
+    print("\n✅ All tests completed!")
+    print(f"📋 Available tools: {len(client.get_available_tools())}")
+    print("\n🛠️ Available Tools:")
+    for tool in client.get_available_tools():
+        print(f"  - {tool['type']}: {tool['schema']['description']}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

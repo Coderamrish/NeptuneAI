@@ -82,7 +82,7 @@ const About = () => {
 
   const team = [
     {
-      name: 'Dr. Sarah Chen',
+      name: 'Amrish Kumar Tiwary',
       role: 'Chief Oceanographer',
       bio: 'Leading expert in marine science with 15+ years of experience in ocean data analysis.',
       avatar: 'SC',
