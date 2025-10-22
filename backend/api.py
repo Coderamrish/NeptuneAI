@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import jwt
 from datetime import datetime, timedelta
 import bcrypt
@@ -16,8 +16,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
 import json
+import asyncio
+from enum import Enum
+
 load_dotenv = True
 from dotenv import load_dotenv
+
+# Import existing modules
 from realtime_ocean_api import RealTimeOceanDataAPI, integrate_realtime_data_with_query
 from rag_pipeline import answer_query
 from query_engine import (
@@ -26,12 +31,37 @@ from query_engine import (
     get_monthly_distribution,
     get_profiler_stats,
     get_geographic_coverage,
-    get_data_for_plotting
+    get_data_for_plotting,
+    query_by_region,
+    query_by_month,
+    query_custom,
+    get_unique_months,
+    run_query
 )
-app = FastAPI(title="NeptuneAI API", version="1.0.0")
-# Initialize Groq client globally
+
+# Import MCP components
+try:
+    from mcp_integration import (
+        EnhancedMCPHandler,
+        MCPClient,
+        MCPRequest,
+        MCPResponse,
+        ToolType,
+        MessageType
+    )
+    MCP_AVAILABLE = True
+    print("✅ MCP Integration imported successfully")
+except ImportError as e:
+    MCP_AVAILABLE = False
+    print(f"⚠️ MCP Integration not available: {e}")
+
+app = FastAPI(title="NeptuneAI API with MCP", version="2.0.0")
+
+# Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize Groq client
 try:
     load_dotenv()
     groq_api_key = os.getenv("GROQ_API_KEY")
@@ -44,6 +74,8 @@ try:
 except Exception as e:
     print(f"⚠️ Groq initialization failed: {e}")
     groq_client = None
+
+# Initialize Real-time Ocean API
 try:
     realtime_ocean_api = RealTimeOceanDataAPI()
     print("✅ Real-time Ocean API initialized")
@@ -51,19 +83,35 @@ except Exception as e:
     print(f"⚠️ Real-time Ocean API initialization failed: {e}")
     realtime_ocean_api = None
 
-# CORS configuration for React
+# Initialize MCP Handler
+mcp_handler = None
+mcp_client = None
+if MCP_AVAILABLE:
+    try:
+        mcp_handler = EnhancedMCPHandler(
+            vector_store_path="vector_index",
+            enable_vector_store=True
+        )
+        mcp_client = MCPClient(mcp_handler)
+        print("✅ MCP Handler initialized")
+    except Exception as e:
+        print(f"⚠️ MCP Handler initialization failed: {e}")
+        mcp_handler = None
+        mcp_client = None
+
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3002", "http://localhost:5173"],  # React dev servers
+    allow_origins=["http://localhost:3000", "http://localhost:3002", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # JWT Configuration
-SECRET_KEY = "b6896c7e48894048a059cbb64604a6e4"  # Use environment variable in production
+SECRET_KEY = "b6896c7e48894048a059cbb64604a6e4"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 2020  # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = 2020
 
 # Database context manager
 @contextmanager
@@ -75,7 +123,10 @@ def get_user_db():
     finally:
         conn.close()
 
-# Pydantic models
+# ============================================================================
+# PYDANTIC MODELS
+# ============================================================================
+
 class UserRegister(BaseModel):
     username: str
     email: str
@@ -105,8 +156,32 @@ class Token(BaseModel):
 class NotificationCreate(BaseModel):
     title: str
     message: str
-    type: str = "info"  # info, warning, error, success
+    type: str = "info"
 
+# MCP-specific models
+class MCPToolRequest(BaseModel):
+    tool: str
+    parameters: Dict[str, Any]
+
+class MCPQueryRequest(BaseModel):
+    query_type: str
+    filters: Optional[Dict[str, Any]] = {}
+    limit: Optional[int] = 100
+
+class MCPVisualizationRequest(BaseModel):
+    chart_type: str
+    region: Optional[str] = None
+    options: Optional[Dict[str, Any]] = {}
+
+class MCPExportRequest(BaseModel):
+    query_params: Dict[str, Any]
+    format: str
+    filename: Optional[str] = None
+
+class MCPAnalysisRequest(BaseModel):
+    region: Optional[str] = None
+    analysis_type: str
+    parameters: Optional[Dict[str, Any]] = {}
 # Helper functions
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -123,7 +198,12 @@ def verify_token(token: str):
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-
+async def get_current_user(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.split(" ")[1]
+    payload = verify_token(token)
+    return payload
 # Auth endpoints
 @app.post("/api/auth/register", response_model=Token)
 async def register(user: UserRegister):
@@ -156,7 +236,7 @@ async def register(user: UserRegister):
         elif "email" in str(e):
             raise HTTPException(status_code=400, detail="Email already exists")
         raise HTTPException(status_code=400, detail="Registration failed")
-
+pass
 @app.post("/api/auth/login", response_model=Token)
 async def login(credentials: UserLogin):
     with get_user_db() as conn:
@@ -186,7 +266,7 @@ async def login(credentials: UserLogin):
         
         token = create_access_token({"sub": user['username'], "user_id": user['id']})
         return {"access_token": token, "token_type": "bearer", "user": user_data}
-
+pass
 # Protected route dependency
 async def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -219,7 +299,7 @@ async def verify_token_endpoint(user: dict = Depends(get_current_user)):
             'created_at': user_data['created_at'],
             'last_login': user_data['last_login']
         }
-
+pass
 # Profile update endpoint
 @app.put("/api/auth/profile")
 async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_current_user)):
@@ -265,6 +345,7 @@ async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_curr
             'created_at': updated_user['created_at'],
             'last_login': updated_user['last_login']
         }
+    pass
 # Add this improved version to your api.py
 def generate_ai_response(query: str):
     """
@@ -398,15 +479,13 @@ def generate_ai_response(query: str):
         logger.error(f"RAG Pipeline error: {e}", exc_info=True)
         return generate_fallback_response_with_groq(query)
     
+
 def generate_plots_from_data(query: str, df: pd.DataFrame, region: str = None):
-    """
-    Generate plots from actual database data using your existing visualization modules
-    """
+    """Generate plots from actual database data"""
     query_lower = query.lower()
     plots = []
     
     try:
-        # Import your visualization modules
         from plots import (
             create_profiler_dashboard,
             create_monthly_distribution_plot,
@@ -414,49 +493,38 @@ def generate_plots_from_data(query: str, df: pd.DataFrame, region: str = None):
             create_profiler_distribution_plot
         )
         
-        # Determine what type of visualization to create
         needs_map = any(word in query_lower for word in ['map', 'location', 'geographic', 'where', 'distribution', 'region'])
         needs_time_series = any(word in query_lower for word in ['monthly', 'time', 'trend', 'seasonal', 'month'])
         needs_profiler = any(word in query_lower for word in ['profiler', 'instrument', 'deployment', 'type'])
         needs_dashboard = any(word in query_lower for word in ['dashboard', 'overview', 'summary', 'all'])
         
-        # Create dashboard (comprehensive view)
         if needs_dashboard or (needs_map and needs_time_series):
             fig = create_profiler_dashboard(df, region_name=region)
             if fig:
-                # ✅ CRITICAL FIX: Convert Plotly figure to JSON-serializable dict
                 plots.append(json.loads(fig.to_json()))
                 logger.info("Created dashboard plot")
         
-        # Create geographic map
         elif needs_map:
             fig = create_geographic_scatter_plot(df, region_name=region)
             if fig:
-                # ✅ CRITICAL FIX: Convert Plotly figure to JSON-serializable dict
                 plots.append(json.loads(fig.to_json()))
                 logger.info("Created geographic map")
         
-        # Create monthly distribution
         elif needs_time_series:
             fig = create_monthly_distribution_plot(df, region_name=region)
             if fig:
-                # ✅ CRITICAL FIX: Convert Plotly figure to JSON-serializable dict
                 plots.append(json.loads(fig.to_json()))
                 logger.info("Created monthly distribution plot")
         
-        # Create profiler distribution
         elif needs_profiler:
             fig = create_profiler_distribution_plot(df, region_name=region)
             if fig:
-                # ✅ CRITICAL FIX: Convert Plotly figure to JSON-serializable dict
                 plots.append(json.loads(fig.to_json()))
                 logger.info("Created profiler distribution plot")
         
-        # Default: create dashboard
         else:
             fig = create_profiler_dashboard(df, region_name=region)
             if fig:
-                # ✅ CRITICAL FIX: Convert Plotly figure to JSON-serializable dict
                 plots.append(json.loads(fig.to_json()))
                 logger.info("Created default dashboard plot")
         
@@ -495,6 +563,269 @@ def generate_relevant_plots(query: str, context_data: dict = None):
         })
     
     return plots
+
+@app.get("/api/mcp/tools")
+async def get_mcp_tools(user: dict = Depends(get_current_user)):
+    """Get list of available MCP tools"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        tools = mcp_client.get_available_tools()
+        return {
+            "tools": tools,
+            "count": len(tools),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/mcp/query")
+async def mcp_database_query(
+    request: MCPQueryRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Execute database query via MCP"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        response = await mcp_client.send_request(
+            ToolType.QUERY_DATABASE,
+            {
+                'query_type': request.query_type,
+                'filters': request.filters,
+                'limit': request.limit
+            }
+        )
+        
+        return {
+            "success": response.success,
+            "result": response.result,
+            "error": response.error,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/mcp/visualize")
+async def mcp_generate_visualization(
+    request: MCPVisualizationRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Generate visualization via MCP"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        response = await mcp_client.send_request(
+            ToolType.GENERATE_VISUALIZATION,
+            {
+                'chart_type': request.chart_type,
+                'region': request.region,
+                'options': request.options
+            }
+        )
+        
+        return {
+            "success": response.success,
+            "result": response.result,
+            "error": response.error,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/mcp/export")
+async def mcp_export_data(
+    request: MCPExportRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Export data via MCP"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        response = await mcp_client.send_request(
+            ToolType.EXPORT_DATA,
+            {
+                'query_params': request.query_params,
+                'format': request.format,
+                'filename': request.filename
+            }
+        )
+        
+        return {
+            "success": response.success,
+            "result": response.result,
+            "error": response.error,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/mcp/analyze")
+async def mcp_analyze_patterns(
+    request: MCPAnalysisRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Analyze patterns via MCP"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        response = await mcp_client.send_request(
+            ToolType.ANALYZE_PATTERNS,
+            {
+                'region': request.region,
+                'analysis_type': request.analysis_type,
+                'parameters': request.parameters
+            }
+        )
+        
+        return {
+            "success": response.success,
+            "result": response.result,
+            "error": response.error,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/mcp/statistics/{stat_type}")
+async def mcp_get_statistics(
+    stat_type: str,
+    region: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get statistics via MCP"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        response = await mcp_client.send_request(
+            ToolType.GET_STATISTICS,
+            {
+                'stat_type': stat_type,
+                'region': region
+            }
+        )
+        
+        return {
+            "success": response.success,
+            "result": response.result,
+            "error": response.error,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/mcp/geospatial-map")
+async def mcp_create_geospatial_map(
+    map_type: str,
+    region: Optional[str] = None,
+    options: Optional[Dict[str, Any]] = {},
+    user: dict = Depends(get_current_user)
+):
+    """Create geospatial map via MCP"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        response = await mcp_client.send_request(
+            ToolType.CREATE_GEOSPATIAL_MAP,
+            {
+                'map_type': map_type,
+                'region': region,
+                'options': options
+            }
+        )
+        
+        return {
+            "success": response.success,
+            "result": response.result,
+            "error": response.error,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/mcp/history")
+async def get_mcp_history(
+    limit: int = 50,
+    user: dict = Depends(get_current_user)
+):
+    """Get MCP message history"""
+    if not mcp_handler:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        history = mcp_handler.get_message_history()
+        return {
+            "history": history[-limit:] if len(history) > limit else history,
+            "total": len(history),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/mcp/history")
+async def clear_mcp_history(user: dict = Depends(get_current_user)):
+    """Clear MCP message history"""
+    if not mcp_handler:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        mcp_handler.clear_history()
+        return {
+            "message": "MCP history cleared",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/mcp/vector-search")
+async def mcp_vector_search(
+    query: str,
+    k: int = 10,
+    filters: Optional[Dict[str, Any]] = {},
+    user: dict = Depends(get_current_user)
+):
+    """Search vector store via MCP"""
+    if not mcp_client:
+        raise HTTPException(status_code=503, detail="MCP not available")
+    
+    try:
+        response = await mcp_client.send_request(
+            ToolType.SEARCH_VECTOR_STORE,
+            {
+                'query': query,
+                'k': k,
+                'filters': filters
+            }
+        )
+        
+        return {
+            "success": response.success,
+            "result": response.result,
+            "error": response.error,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/mcp/status")
+async def get_mcp_status(user: dict = Depends(get_current_user)):
+    """Get MCP system status"""
+    return {
+        "mcp_available": MCP_AVAILABLE,
+        "handler_initialized": mcp_handler is not None,
+        "client_initialized": mcp_client is not None,
+        "database_connected": mcp_handler.db_engine is not None if mcp_handler else False,
+        "vector_store_available": mcp_handler.vector_store is not None if mcp_handler else False,
+        "geospatial_viz_available": mcp_handler.geospatial_viz is not None if mcp_handler else False,
+        "timestamp": datetime.now().isoformat()
+    }
 
 def generate_fallback_response_with_groq(query: str):
     """
@@ -904,7 +1235,7 @@ async def get_realtime_marine_weather(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+pass
 
 @app.get("/api/ocean/realtime/comprehensive")
 async def get_comprehensive_ocean_report(
@@ -928,7 +1259,7 @@ async def get_comprehensive_ocean_report(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+pass
 
 @app.get("/api/ocean/realtime/sea-level")
 async def get_sea_level_data(
@@ -975,6 +1306,7 @@ async def get_argo_floats_nearby(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    pass
 # Chat endpoints
 @app.post("/api/chat/message")
 async def send_chat_message(message: ChatMessage, user: dict = Depends(get_current_user)):
@@ -1161,6 +1493,7 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
             "timestamp": datetime.now().isoformat(),
             "error": True
         }
+    pass
 @app.get("/api/ocean/buoy-stations")
 async def get_buoy_stations(user: dict = Depends(get_current_user)):
     """
@@ -1364,7 +1697,7 @@ async def get_chat_sessions(user: dict = Depends(get_current_user)):
         
         sessions = [dict(row) for row in cursor.fetchall()]
         return {"sessions": sessions}
-
+pass
 @app.post("/api/chat/sessions")
 async def create_chat_session_simple(user: dict = Depends(get_current_user)):
     try:
@@ -1388,7 +1721,7 @@ async def create_chat_session_simple(user: dict = Depends(get_current_user)):
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+pass
 @app.get("/api/chat/messages/{session_id}")
 async def get_chat_messages(session_id: str, user: dict = Depends(get_current_user)):
     with get_user_db() as conn:
@@ -1401,7 +1734,7 @@ async def get_chat_messages(session_id: str, user: dict = Depends(get_current_us
         
         messages = [dict(row) for row in cursor.fetchall()]
         return {"messages": messages}
-
+pass
 # Dashboard endpoints
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats(user: dict = Depends(get_current_user)):
@@ -1424,7 +1757,7 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+pass
 @app.get("/api/dashboard/geographic-data")
 async def get_geographic_data(
     region: Optional[str] = None,
@@ -1690,7 +2023,11 @@ async def get_user_activity(user: dict = Depends(get_current_user)):
 # Health check
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    return {
+        "status": "healthy",
+        "mcp_enabled": MCP_AVAILABLE,
+        "timestamp": datetime.now().isoformat()
+    }
 
 if __name__ == "__main__":
     import uvicorn
