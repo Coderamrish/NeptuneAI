@@ -1,8 +1,3 @@
-"""
-Enhanced MCP Integration with Real Ocean Data
-Connects MCP to actual database, vector store, and visualization engines
-"""
-
 import json
 import asyncio
 from typing import Dict, List, Optional, Any
@@ -11,8 +6,6 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from enum import Enum
 import pandas as pd
-
-# Import your existing modules
 from query_engine import (
     get_db_engine,
     query_by_region,
@@ -665,10 +658,10 @@ async def main():
     handler = EnhancedMCPHandler()
     client = MCPClient(handler)
     
-    print("\n🌊 Testing Enhanced MCP Integration with Real Data\n")
+    print("\n Testing Enhanced MCP Integration with Real Data\n")
     
-    # Test 1: Query database
-    print("📊 Test 1: Querying Indian Ocean data...")
+   
+    print(" Test 1: Querying Indian Ocean data...")
     response = await client.send_request(
         ToolType.QUERY_DATABASE,
         {
@@ -677,14 +670,13 @@ async def main():
             'limit': 10
         }
     )
-    print(f"✅ Success: {response.success}")
+    print(f" Success: {response.success}")
     if response.success:
         result = response.result
         print(f"   Found {result['result_count']} records")
         print(f"   Columns: {result.get('columns', [])}")
     
-    # Test 2: Generate visualization
-    print("\n📈 Test 2: Generating dashboard...")
+    print("\n Test 2: Generating dashboard...")
     response = await client.send_request(
         ToolType.GENERATE_VISUALIZATION,
         {
@@ -692,24 +684,23 @@ async def main():
             'region': 'Indian Ocean'
         }
     )
-    print(f"✅ Success: {response.success}")
+    print(f" Success: {response.success}")
     if response.success:
         print(f"   Data points: {response.result.get('data_points', 0)}")
     
-    # Test 3: Get statistics
-    print("\n📊 Test 3: Getting statistics...")
+    print("\n Test 3: Getting statistics...")
     response = await client.send_request(
         ToolType.GET_STATISTICS,
         {
             'stat_type': 'regions'
         }
     )
-    print(f"✅ Success: {response.success}")
+    print(f" Success: {response.success}")
     if response.success:
         print(f"   Regions found: {response.result.get('count', 0)}")
     
-    # Test 4: Pattern analysis
-    print("\n🔍 Test 4: Analyzing patterns...")
+   
+    print("\n Test 4: Analyzing patterns...")
     response = await client.send_request(
         ToolType.ANALYZE_PATTERNS,
         {
@@ -717,11 +708,11 @@ async def main():
             'analysis_type': 'comprehensive'
         }
     )
-    print(f"✅ Success: {response.success}")
+    print(f" Success: {response.success}")
     
-    print("\n✅ All tests completed!")
-    print(f"📋 Available tools: {len(client.get_available_tools())}")
-    print("\n🛠️ Available Tools:")
+    print("\n All tests completed!")
+    print(f" Available tools: {len(client.get_available_tools())}")
+    print("\n Available Tools:")
     for tool in client.get_available_tools():
         print(f"  - {tool['type']}: {tool['schema']['description']}")
 

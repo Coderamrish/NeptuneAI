@@ -50,10 +50,10 @@ try:
         MessageType
     )
     MCP_AVAILABLE = True
-    print("✅ MCP Integration imported successfully")
+    print(" MCP Integration imported successfully")
 except ImportError as e:
     MCP_AVAILABLE = False
-    print(f"⚠️ MCP Integration not available: {e}")
+    print(f" MCP Integration not available: {e}")
 
 app = FastAPI(title="NeptuneAI API with MCP", version="2.0.0")
 
@@ -67,20 +67,20 @@ try:
     groq_api_key = os.getenv("GROQ_API_KEY")
     if groq_api_key:
         groq_client = Groq(api_key=groq_api_key)
-        print("✅ Groq client initialized")
+        print(" Groq client initialized")
     else:
         groq_client = None
-        print("⚠️ GROQ_API_KEY not found")
+        print(" GROQ_API_KEY not found")
 except Exception as e:
-    print(f"⚠️ Groq initialization failed: {e}")
+    print(f" Groq initialization failed: {e}")
     groq_client = None
 
 # Initialize Real-time Ocean API
 try:
     realtime_ocean_api = RealTimeOceanDataAPI()
-    print("✅ Real-time Ocean API initialized")
+    print(" Real-time Ocean API initialized")
 except Exception as e:
-    print(f"⚠️ Real-time Ocean API initialization failed: {e}")
+    print(f" Real-time Ocean API initialization failed: {e}")
     realtime_ocean_api = None
 
 # Initialize MCP Handler
@@ -93,9 +93,9 @@ if MCP_AVAILABLE:
             enable_vector_store=True
         )
         mcp_client = MCPClient(mcp_handler)
-        print("✅ MCP Handler initialized")
+        print(" MCP Handler initialized")
     except Exception as e:
-        print(f"⚠️ MCP Handler initialization failed: {e}")
+        print(f" MCP Handler initialization failed: {e}")
         mcp_handler = None
         mcp_client = None
 
@@ -122,10 +122,6 @@ def get_user_db():
         yield conn
     finally:
         conn.close()
-
-# ============================================================================
-# PYDANTIC MODELS
-# ============================================================================
 
 class UserRegister(BaseModel):
     username: str
@@ -346,11 +342,9 @@ async def update_profile(profile_data: UserUpdate, user: dict = Depends(get_curr
             'last_login': updated_user['last_login']
         }
     pass
-# Add this improved version to your api.py
+
 def generate_ai_response(query: str):
-    """
-    Enhanced AI response generation with proper text extraction
-    """
+   
     logger.info(f"Generating AI response for query: {query[:100]}...")
     
     try:
@@ -363,18 +357,16 @@ def generate_ai_response(query: str):
         logger.info(f"RAG response type: {type(rag_response)}")
         logger.info(f"RAG response keys: {rag_response.keys() if isinstance(rag_response, dict) else 'Not a dict'}")
         
-        # ✅ CRITICAL FIX: Properly extract text response
+        #  Properly extract text response
         summary_text = None
         existing_plot = None
         
         if isinstance(rag_response, dict):
-            # Check for enhanced pipeline response first
             if rag_response.get('enhanced'):
                 summary_text = rag_response.get('text_response')
                 existing_plot = rag_response.get('plot')
-                logger.info("✅ Using enhanced RAG response")
+                logger.info(" Using enhanced RAG response")
             
-            # Fallback to standard response keys
             if not summary_text:
                 summary_text = (
                     rag_response.get('summary') or 
@@ -383,21 +375,18 @@ def generate_ai_response(query: str):
                     'No response generated'
                 )
                 existing_plot = rag_response.get('plot')
-                logger.info("✅ Using standard RAG response")
-            
-            # Log what we extracted
-            logger.info(f"✅ Extracted text length: {len(summary_text)}")
-            logger.info(f"✅ Text preview: {summary_text[:100]}...")
+                logger.info(" Using standard RAG response")
+          
+            logger.info(f" Extracted text length: {len(summary_text)}")
+            logger.info(f" Text preview: {summary_text[:100]}...")
             
         else:
             summary_text = str(rag_response)
-            logger.warning("⚠️ RAG response was not a dict, converting to string")
+            logger.warning(" RAG response was not a dict, converting to string")
         
-        # Get database context and data for plotting
         try:
             engine = get_db_engine()
-            
-            # Extract region from query
+          
             region = None
             regions = get_unique_regions(engine)
             
@@ -406,17 +395,14 @@ def generate_ai_response(query: str):
                     region = r
                     break
             
-            # Get actual data for plotting - FIXED QUERY
             from query_engine import run_query, query_by_region
             from sqlalchemy import text
             
-            # Get data for plotting
             if region:
                 plot_data = query_by_region(engine, region, limit=1000)
             else:
                 plot_data = get_data_for_plotting(engine, limit=1000)
             
-            # Get count with proper text() wrapper - FIXED
             if region:
                 stats_query = text('SELECT COUNT(*) as count FROM oceanbench_data WHERE "Region" = :region')
                 stats_df = run_query(engine, stats_query, params={'region': region})
@@ -433,10 +419,8 @@ def generate_ai_response(query: str):
             region = None
             plot_data = None
         
-        # Generate plots based on query and actual data
         plots = []
         
-        # If enhanced pipeline already created a plot, convert it to API format
         if existing_plot:
             try:
                 # Convert Plotly figure to JSON
@@ -450,15 +434,14 @@ def generate_ai_response(query: str):
             except Exception as e:
                 logger.error(f"Error converting existing plot: {e}")
         
-        # Generate additional plots if we have data
         if plot_data is not None and not plot_data.empty:
             additional_plots = generate_plots_from_data(query, plot_data, region)
             plots.extend(additional_plots)
         elif not plots:
-            # Fallback to sample plots if no data
+            
             plots = generate_relevant_plots(query, None)
         
-        # ✅ FINAL RETURN: Ensure summary_text is properly set
+        #  Ensure summary_text is properly set
         final_response = {
             "content": summary_text,
             "plots": plots,
@@ -466,8 +449,8 @@ def generate_ai_response(query: str):
             "data_points": total_records
         }
         
-        logger.info(f"✅ Final response content length: {len(final_response['content'])}")
-        logger.info(f"✅ Final response preview: {final_response['content'][:100]}...")
+        logger.info(f" Final response content length: {len(final_response['content'])}")
+        logger.info(f" Final response preview: {final_response['content'][:100]}...")
         
         return final_response
         
@@ -534,14 +517,10 @@ def generate_plots_from_data(query: str, df: pd.DataFrame, region: str = None):
     return plots
 
 def generate_relevant_plots(query: str, context_data: dict = None):
-    """
-    Generate sample/fallback plots when no real data is available
-    (Keep your existing implementation for fallback)
-    """
+   
     query_lower = query.lower()
     plots = []
     
-    # Your existing fallback plot generation code...
     if any(word in query_lower for word in ['temperature', 'temp', 'warm', 'cold']):
         plots.append({
             "data": [{
@@ -896,23 +875,23 @@ def generate_fallback_response(query: str):
 
 **Global Ocean Temperature Insights:**
 
-🌊 **Surface Layer (0-200m):**
+ **Surface Layer (0-200m):**
 - Tropical regions: 25-30°C (warm currents, high solar radiation)
 - Temperate zones: 10-20°C (seasonal variations)
 - Polar regions: -2 to 5°C (ice-covered areas)
 
-🌡️ **Deep Ocean (200m+):**
+ **Deep Ocean (200m+):**
 - Consistent temperatures: 2-4°C globally
 - Temperature decreases rapidly in thermocline layer (200-1000m)
 - Below 1000m: remarkably stable temperatures
 
-📊 **Key Factors:**
+ **Key Factors:**
 - Solar radiation (primary heat source)
 - Ocean currents distribute heat globally
 - Latitude strongly affects temperature
 - Climate change causing gradual warming trend
 
-💡 **Interesting Fact:** The ocean absorbs 93% of Earth's excess heat from greenhouse gases!
+ **Interesting Fact:** The ocean absorbs 93% of Earth's excess heat from greenhouse gases!
 
 Would you like me to show you temperature distribution maps or depth profiles for a specific region?""",
             "plots": [{
@@ -943,24 +922,24 @@ Would you like me to show you temperature distribution maps or depth profiles fo
 
 Ocean Salinity Overview:
 
-💧 Global Average:
+ Global Average:
 - Standard salinity: 35 PSU (Practical Salinity Units)
 - This equals about 35 grams of salt per liter of water
 
-🌍 Regional Variations:
+ Regional Variations:
 - Highest: Subtropical regions (36-37 PSU) - high evaporation
 - Lowest: Polar regions (32-33 PSU) - ice melt and freshwater input
 - Mediterranean Sea: 38-39 PSU (warmest, highest evaporation)
 - Baltic Sea: 7-8 PSU (heavy river input, low evaporation)
 
-📊 What Affects Salinity:
-- ☀️ Evaporation (increases salinity)
-- 🌧️ Precipitation (decreases salinity)
-- ❄️ Ice formation/melting (varies by season)
-- 🏞️ River discharge (dilutes coastal waters)
-- 🌊 Ocean currents (distribute salt globally)
+What Affects Salinity:
+-  Evaporation (increases salinity)
+-  Precipitation (decreases salinity)
+-  Ice formation/melting (varies by season)
+-  River discharge (dilutes coastal waters)
+-  Ocean currents (distribute salt globally)
 
-🐠 Marine Life Impact:
+ Marine Life Impact:
 Most marine organisms are adapted to ~35 PSU. Rapid changes can stress ecosystems and affect osmoregulation.
 
 Want to see salinity distribution maps or compare different ocean regions?""",
@@ -990,26 +969,26 @@ Want to see salinity distribution maps or compare different ocean regions?""",
 
 Ocean Depth Zones:
 
-📏 Depth Classification:
+ Depth Classification:
 - Epipelagic (Sunlight Zone): 0-200m - photosynthesis occurs
 - Mesopelagic (Twilight Zone): 200-1000m - dim light
 - Bathypelagic (Midnight Zone): 1000-4000m - complete darkness
 - Abyssopelagic (Abyss): 4000-6000m - extreme pressure
 - Hadopelagic (Trenches): 6000m+ - deepest zones
 
-💪 Pressure Facts:
+ Pressure Facts:
 - Increases by 1 atmosphere (14.7 psi) every 10 meters
 - At 1000m depth: ~100 atmospheres (1,470 psi)
 - At 4000m depth: ~400 atmospheres (5,880 psi)
 - **Mariana Trench** (10,994m): ~1,100 atmospheres!
 
-🌡️ Deep Ocean Characteristics:
+ Deep Ocean Characteristics:
 - Temperature: Constant 2-4°C below 1000m
 - No light penetration below 1000m
 - Unique life adapted to extreme pressure
 - High mineral concentrations
 
-🔬 Scientific Significance:
+ Scientific Significance:
 Deep ocean exploration helps us understand extreme life, geological processes, and climate patterns.
 
 Interested in specific ocean trenches or pressure calculations?""",
@@ -1039,20 +1018,20 @@ Interested in specific ocean trenches or pressure calculations?""",
         return {
             "content": f"""{greeting_prefix}I'm specialized in ocean data analysis, not general programming. However, I can help you with:
 
-🔬 Ocean Data Analysis:
+ Ocean Data Analysis:
 - Query and visualize ocean temperature data
 - Analyze salinity patterns
 - Create depth profiles
 - Generate geographic maps
 - Compare regional ocean characteristics
 
-📊 Data Science Tasks:
+ Data Science Tasks:
 - Statistical analysis of ocean data
 - Trend identification in oceanographic parameters
 - Correlation studies between variables
 - Time series analysis
 
-💡 Try asking me:
+ Try asking me:
 - "Show me temperature data for the Pacific Ocean"
 - "Create a salinity vs depth chart"
 - "What's the average pressure at 2000m depth?"
@@ -1066,31 +1045,31 @@ What ocean data would you like to explore?""",
     
     else:
         return {
-            "content": f"""🌊 **Welcome! I'm NeptuneAI, your ocean data expert!**
+            "content": f""" **Welcome! I'm NeptuneAI, your ocean data expert!**
 
 I'd be happy to help you explore ocean data! Here's what I can assist you with:
 
-📊 Ocean Parameters I Can Analyze:
-- 🌡️ Temperature distribution and trends
-- 🧂 Salinity levels and variations
-- 💪 Pressure and depth profiles
-- 🌊 Ocean currents and circulation
-- 📈 Climate trends and sea level changes
+ Ocean Parameters I Can Analyze:
+-  Temperature distribution and trends
+-  Salinity levels and variations
+-  Pressure and depth profiles
+-  Ocean currents and circulation
+-  Climate trends and sea level changes
 
-🗺️ **Geographic Coverage:**
+ **Geographic Coverage:**
 - Global ocean data analysis
 - Regional comparisons (Atlantic, Pacific, Indian, Arctic, Southern)
 - Specific location insights
 - Climate zone analysis
 
-📈 **Visualizations I Can Create:**
+ **Visualizations I Can Create:**
 - Interactive depth profile charts
 - Geographic distribution maps
 - Temperature and salinity trends
 - Time series analysis
 - Comparative regional studies
 
-💡 **Popular Questions:**
+ **Popular Questions:**
 - "What's the ocean temperature at different depths?"
 - "Show me salinity data for the Indian Ocean"
 - "Create a pressure vs depth chart"
@@ -1106,15 +1085,9 @@ Try asking me a specific question about temperature, salinity, depth, or any oce
         }
     
 def extract_location_from_query(query: str) -> tuple:
-    """
-    Extract latitude and longitude from user query using multiple methods.
-    
-    Returns:
-        tuple: (lat, lon) or (None, None) if no location found
-    """
+   
     query_lower = query.lower()
     
-    # Method 1: Predefined regions
     region_coords = {
         "indian ocean": (0.0, 80.0),
         "pacific ocean": (0.0, -140.0),
@@ -1134,7 +1107,6 @@ def extract_location_from_query(query: str) -> tuple:
             logger.info(f"Found region: {region} -> {coords}")
             return coords
     
-    # Method 2: Check for common coastal cities/locations
     city_coords = {
         "mumbai": (19.0, 72.8),
         "miami": (25.8, -80.2),
@@ -1151,10 +1123,9 @@ def extract_location_from_query(query: str) -> tuple:
             logger.info(f"Found city: {city} -> {coords}")
             return coords
     
-    # Method 3: Check for generic ocean-related queries (use default location)
     ocean_keywords = ["ocean", "sea", "marine", "water", "coastal", "buoy", "wave"]
     if any(keyword in query_lower for keyword in ocean_keywords):
-        # Default to Indian Ocean for generic queries
+       
         logger.info("Generic ocean query detected, using default location")
         return (15.0, 88.0)  # Bay of Bengal
     
@@ -1163,21 +1134,14 @@ def extract_location_from_query(query: str) -> tuple:
 
 
 def should_fetch_realtime_data(query: str) -> bool:
-    """
-    Determine if the query requires real-time data.
-    
-    Returns:
-        bool: True if real-time data should be fetched
-    """
+   
     query_lower = query.lower()
     
-    # Explicit real-time indicators
     realtime_keywords = [
         "current", "now", "today", "real-time", "real time", "live", 
         "latest", "present", "right now", "at the moment", "currently"
     ]
     
-    # Data type indicators that often need real-time info
     data_keywords = [
         "wave", "surf", "swell", "buoy", "station", "observation",
         "weather", "condition", "forecast", "marine weather"
@@ -1186,7 +1150,6 @@ def should_fetch_realtime_data(query: str) -> bool:
     has_realtime_keyword = any(keyword in query_lower for keyword in realtime_keywords)
     has_data_keyword = any(keyword in query_lower for keyword in data_keywords)
     
-    # Fetch real-time if explicit request OR if asking about current conditions
     return has_realtime_keyword or has_data_keyword
 
 @app.get("/api/ocean/realtime/buoy/{station_id}")
@@ -1217,11 +1180,7 @@ async def get_realtime_marine_weather(
     lon: float,
     user: dict = Depends(get_current_user)
 ):
-    """
-    Get real-time marine weather (waves, currents, temperature)
     
-    Example: /api/ocean/realtime/marine-weather?lat=36.8&lon=-122.4
-    """
     try:
         if not realtime_ocean_api:
             raise HTTPException(status_code=503, detail="Real-time API not available")
@@ -1244,11 +1203,7 @@ async def get_comprehensive_ocean_report(
     include_forecast: bool = True,
     user: dict = Depends(get_current_user)
 ):
-    """
-    Get comprehensive real-time ocean data from multiple sources
-    
-    Example: /api/ocean/realtime/comprehensive?lat=15.0&lon=88.0
-    """
+   
     try:
         if not realtime_ocean_api:
             raise HTTPException(status_code=503, detail="Real-time API not available")
@@ -1267,11 +1222,7 @@ async def get_sea_level_data(
     lon: float,
     user: dict = Depends(get_current_user)
 ):
-    """
-    Get sea level anomaly data
-    
-    Example: /api/ocean/realtime/sea-level?lat=36.8&lon=-122.4
-    """
+   
     try:
         if not realtime_ocean_api:
             raise HTTPException(status_code=503, detail="Real-time API not available")
@@ -1291,11 +1242,7 @@ async def get_argo_floats_nearby(
     radius_km: float = 500,
     user: dict = Depends(get_current_user)
 ):
-    """
-    Get recent ARGO float profiles near a location
-    
-    Example: /api/ocean/realtime/argo-floats?lat=15.0&lon=88.0&radius_km=1000
-    """
+   
     try:
         if not realtime_ocean_api:
             raise HTTPException(status_code=503, detail="Real-time API not available")
@@ -1310,21 +1257,19 @@ async def get_argo_floats_nearby(
 # Chat endpoints
 @app.post("/api/chat/message")
 async def send_chat_message(message: ChatMessage, user: dict = Depends(get_current_user)):
-    """
-    Send a chat message and get AI response with ENHANCED REAL-TIME OCEAN DATA
-    """
+   
     try:
         logger.info(f"Processing message from user {user['user_id']}: {message.message[:50]}...")
         
-        # ✅ STEP 1: Extract location from query
+       
         lat, lon = extract_location_from_query(message.message)
         logger.info(f"Extracted location: lat={lat}, lon={lon}")
         
-        # ✅ STEP 2: Determine if real-time data is needed
+
         wants_realtime = should_fetch_realtime_data(message.message)
         logger.info(f"Wants real-time data: {wants_realtime}")
         
-        # ✅ STEP 3: Fetch real-time data if appropriate
+        #  Fetch real-time data if appropriate
         realtime_data = None
         if wants_realtime and realtime_ocean_api and lat is not None and lon is not None:
             try:
@@ -1357,18 +1302,18 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
                     logger.info("Using default marine weather API")
                 
                 if realtime_data and realtime_data.get("status") == "success":
-                    logger.info("✅ Real-time data fetched successfully")
+                    logger.info(" Real-time data fetched successfully")
                 else:
-                    logger.warning(f"⚠️ Real-time data fetch returned: {realtime_data}")
+                    logger.warning(f" Real-time data fetch returned: {realtime_data}")
                     
             except Exception as e:
-                logger.error(f"❌ Real-time data fetch failed: {e}", exc_info=True)
+                logger.error(f" Real-time data fetch failed: {e}", exc_info=True)
                 realtime_data = None
         
-        # ✅ STEP 4: Generate AI response (your existing code)
+        #  Generate AI response (your existing code)
         ai_response = generate_ai_response(message.message)
         
-        # ✅ STEP 5: Extract response content properly
+        #  Extract response content properly
         response_content = None
         
         if isinstance(ai_response, dict):
@@ -1383,7 +1328,7 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
         else:
             response_content = str(ai_response)
         
-        # ✅ STEP 6: Append real-time data to response
+        #Append real-time data to response
         if realtime_data and realtime_data.get("status") == "success":
             response_content += "\n\n" + "="*50
             response_content += "\n🌊 **REAL-TIME OCEAN DATA** 🌊\n"
@@ -1393,45 +1338,45 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
             if "marine_weather" in str(realtime_data) or "current_conditions" in realtime_data:
                 conditions = realtime_data.get("current_conditions", {})
                 if conditions:
-                    response_content += f"📍 **Location**: ({lat:.2f}°, {lon:.2f}°)\n"
-                    response_content += f"⏰ **Updated**: {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
+                    response_content += f" **Location**: ({lat:.2f}°, {lon:.2f}°)\n"
+                    response_content += f" **Updated**: {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
                     response_content += "**Current Marine Conditions:**\n"
                     if conditions.get("wave_height_m"):
                         response_content += f"🌊 Wave Height: **{conditions['wave_height_m']:.2f} meters**\n"
                     if conditions.get("wave_period_s"):
-                        response_content += f"⏱️ Wave Period: **{conditions['wave_period_s']:.1f} seconds**\n"
+                        response_content += f"⏱ Wave Period: **{conditions['wave_period_s']:.1f} seconds**\n"
                     if conditions.get("wave_direction_deg"):
-                        response_content += f"🧭 Wave Direction: **{conditions['wave_direction_deg']:.0f}°**\n"
+                        response_content += f" Wave Direction: **{conditions['wave_direction_deg']:.0f}°**\n"
                     if conditions.get("current_velocity_ms"):
-                        response_content += f"💨 Current Velocity: **{conditions['current_velocity_ms']:.2f} m/s**\n"
+                        response_content += f" Current Velocity: **{conditions['current_velocity_ms']:.2f} m/s**\n"
                     if conditions.get("current_direction_deg"):
-                        response_content += f"🧭 Current Direction: **{conditions['current_direction_deg']:.0f}°**\n"
+                        response_content += f" Current Direction: **{conditions['current_direction_deg']:.0f}°**\n"
             
             elif "buoy" in str(realtime_data) or "station_id" in realtime_data:
                 buoy_data = realtime_data.get("data", {})
                 station_id = realtime_data.get("station_id", "Unknown")
                 if buoy_data:
-                    response_content += f"📡 **Buoy Station**: {station_id}\n"
-                    response_content += f"📍 **Location**: ({lat:.2f}°, {lon:.2f}°)\n"
-                    response_content += f"⏰ **Timestamp**: {realtime_data.get('timestamp', 'N/A')}\n\n"
+                    response_content += f" **Buoy Station**: {station_id}\n"
+                    response_content += f" **Location**: ({lat:.2f}°, {lon:.2f}°)\n"
+                    response_content += f" **Timestamp**: {realtime_data.get('timestamp', 'N/A')}\n\n"
                     response_content += "**Observations:**\n"
                     if buoy_data.get("water_temperature"):
-                        response_content += f"🌡️ Water Temperature: **{buoy_data['water_temperature']:.1f}°C**\n"
+                        response_content += f" Water Temperature: **{buoy_data['water_temperature']:.1f}°C**\n"
                     if buoy_data.get("wave_height"):
                         response_content += f"🌊 Wave Height: **{buoy_data['wave_height']:.2f} meters**\n"
                     if buoy_data.get("wind_speed"):
-                        response_content += f"💨 Wind Speed: **{buoy_data['wind_speed']:.1f} m/s**\n"
+                        response_content += f" Wind Speed: **{buoy_data['wind_speed']:.1f} m/s**\n"
                     if buoy_data.get("air_pressure"):
-                        response_content += f"🔽 Air Pressure: **{buoy_data['air_pressure']:.1f} hPa**\n"
+                        response_content += f" Air Pressure: **{buoy_data['air_pressure']:.1f} hPa**\n"
             
-            response_content += f"\n\n_📊 Data Source: {realtime_data.get('source', 'Real-time Ocean API')}_"
+            response_content += f"\n\n_ Data Source: {realtime_data.get('source', 'Real-time Ocean API')}_"
         
         elif wants_realtime and (lat is None or lon is None):
-            response_content += "\n\n⚠️ _Note: I couldn't determine a specific location from your query. Please specify a location for real-time data (e.g., 'Bay of Bengal', 'Monterey Bay', or provide coordinates)._"
+            response_content += "\n\n _Note: I couldn't determine a specific location from your query. Please specify a location for real-time data (e.g., 'Bay of Bengal', 'Monterey Bay', or provide coordinates)._"
         
-        logger.info(f"✅ Final response content length: {len(response_content)}")
+        logger.info(f" Final response content length: {len(response_content)}")
         
-        # ✅ STEP 7: Save to database if session_id provided
+        #  Save to database if session_id provided
         if message.session_id:
             try:
                 with get_user_db() as conn:
@@ -1457,12 +1402,12 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
                     ''', (datetime.now().isoformat(), message.session_id, user['user_id']))
                     
                     conn.commit()
-                    logger.info("✅ Messages saved to database")
+                    logger.info(" Messages saved to database")
                     
             except Exception as db_error:
-                logger.error(f"❌ Database save error: {db_error}")
+                logger.error(f"Database save error: {db_error}")
         
-        # ✅ STEP 8: Return the comprehensive response
+        #  Return the comprehensive response
         return {
             "response": response_content,
             "plots": ai_response.get('plots', []) if isinstance(ai_response, dict) else [],
@@ -1474,7 +1419,7 @@ async def send_chat_message(message: ChatMessage, user: dict = Depends(get_curre
         }
         
     except Exception as e:
-        logger.error(f"❌ Error processing chat message: {e}", exc_info=True)
+        logger.error(f" Error processing chat message: {e}", exc_info=True)
         
         error_response = (
             f"I apologize, but I encountered an error: {str(e)}. "
@@ -1539,11 +1484,6 @@ async def get_buoy_stations(user: dict = Depends(get_current_user)):
     }
     
     return {"stations": stations, "total": len(stations)}
-
-
-# ==========================================
-# REGION COORDINATES ENDPOINT
-# ==========================================
 
 @app.get("/api/ocean/region-coordinates")
 async def get_region_coordinates(user: dict = Depends(get_current_user)):
@@ -1888,24 +1828,21 @@ async def export_json(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Ocean parameters endpoint
 @app.get("/api/ocean/parameters")
 async def get_ocean_parameters(user: dict = Depends(get_current_user)):
     try:
         engine = get_db_engine()
-        
         # Get available parameters from the database
         from query_engine import run_query
         from sqlalchemy import text
         
-        # Get column information
+        # Get column info
         columns_query = """
             SELECT column_name, data_type 
             FROM information_schema.columns 
             WHERE table_name = 'oceanbench_data'
             ORDER BY ordinal_position
         """
-        
         try:
             columns_df = run_query(engine, columns_query)
             parameters = columns_df.to_dict('records')
@@ -1930,7 +1867,6 @@ async def get_ocean_parameters(user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Additional missing endpoints
 @app.get("/api/analytics")
 async def get_analytics(user: dict = Depends(get_current_user)):
     """Get analytics data"""

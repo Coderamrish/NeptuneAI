@@ -65,16 +65,7 @@ class EnhancedRAGPipeline:
     def process_netcdf_files(self, 
                              netcdf_directory: str,
                              pattern: str = "*.nc") -> Dict[str, Any]:
-        """
-        Process NetCDF files and add their data to the vector store.
-        
-        Args:
-            netcdf_directory: Directory containing NetCDF files.
-            pattern: File pattern to match (e.g., "*.nc").
-            
-        Returns:
-            A dictionary containing the processing summary.
-        """
+       
         try:
             logger.info(f"Starting NetCDF processing from directory: {netcdf_directory}")
             
@@ -257,7 +248,7 @@ class EnhancedRAGPipeline:
         """
         user_lower = user_input.lower()
         
-        # ✅ STEP 1: Handle Greetings
+        #  Handle Greetings
         greetings = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "greetings"]
         if any(g in user_lower for g in greetings):
             name = None
@@ -283,12 +274,12 @@ class EnhancedRAGPipeline:
             greeting_response += "What would you like to explore today?"
             return greeting_response
         
-        # ✅ STEP 2: Handle Thank You Messages
+        #  Handle Thank You Messages
         thanks = ["thank", "thanks", "appreciate", "grateful"]
         if any(t in user_lower for t in thanks):
             return "You're very welcome! 😊 I'm always here to help you explore ocean science. Feel free to ask anything else!"
         
-        # ✅ STEP 3: Try Groq AI for Intelligent Responses
+        #  Try Groq AI for Intelligent Responses
         try:
             from groq import Groq
             
@@ -378,7 +369,7 @@ Generate a natural, informative response that answers the user's question using 
             logger.error(f"Groq AI generation failed: {e}")
             # Fall through to template-based response
         
-        # ✅ STEP 4: Fallback to Template-Based Response
+        # Fallback to Template-Based Response
         response_parts = []
         
         # Acknowledge the data finding
@@ -509,9 +500,9 @@ Generate a natural, informative response that answers the user's question using 
 
 def main():
     """Example usage of the EnhancedRAGPipeline."""
-    print("🌊 Initializing Enhanced RAG Pipeline...")
+    print(" Initializing Enhanced RAG Pipeline...")
     pipeline = EnhancedRAGPipeline()
-    print("✅ Components loaded: NetCDF, Vector Store, Geospatial Viz, Data Export.")
+    print(" Components loaded: NetCDF, Vector Store, Geospatial Viz, Data Export.")
     
     # Example 1: Process a query
     print("\n--- Processing an example query ---")
@@ -532,7 +523,7 @@ def main():
     print("\n--- Fetching system statistics ---")
     stats = pipeline.get_system_stats()
     print(json.dumps(stats, indent=2))
-    print("\n✅ Pipeline demonstration complete.")
+    print("\n Pipeline demonstration complete.")
 
 if __name__ == "__main__":
     main()
