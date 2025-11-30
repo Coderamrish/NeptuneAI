@@ -30,7 +30,9 @@ import {
   CheckCircle,
   Cancel,
   ErrorOutline,
+  Map as MapIcon,
 } from '@mui/icons-material';
+import MaritimeRouteMapView from './MaritimeRouteMapView';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -105,7 +107,7 @@ const MaritimeRoutePlanning = () => {
       const data = await response.json();
       if (data.success) {
         setRouteData(data.route);
-        setActiveTab(3); // Switch to results tab
+        setActiveTab(4); // Switch to map view tab
       } else {
         setError(data.detail || 'Failed to calculate route');
       }
@@ -142,7 +144,7 @@ const MaritimeRoutePlanning = () => {
       const data = await response.json();
       if (data.success) {
         setCalamities(data.calamities || []);
-        setActiveTab(2); // Switch to calamities tab
+        setActiveTab(2);
       }
     } catch (error) {
       console.error('Calamity detection error:', error);
@@ -201,7 +203,7 @@ const MaritimeRoutePlanning = () => {
               Maritime Route Planning
             </Typography>
             <Typography variant="body1" color="rgba(255,255,255,0.9)">
-              AI-Powered Safe Navigation & Calamity Detection
+              AI-Powered Safe Navigation & Calamity Detection with Interactive Maps
             </Typography>
           </Box>
         </Box>
@@ -220,7 +222,8 @@ const MaritimeRoutePlanning = () => {
           <Tab label="Planner" icon={<NavigationIcon />} />
           <Tab label="Popular Routes" icon={<TrendingUp />} />
           <Tab label="Calamities" icon={<Warning />} />
-          {routeData && <Tab label="Results" icon={<CheckCircle />} />}
+          <Tab label="Results" icon={<CheckCircle />} disabled={!routeData} />
+          <Tab label="Map View" icon={<MapIcon />} disabled={!routeData} />
         </Tabs>
       </Paper>
 
@@ -526,7 +529,7 @@ const MaritimeRoutePlanning = () => {
               </Grid>
             </Grid>
 
-            <Paper elevation={1} sx={{ p: 3, bgcolor: 'info.lighter' }}>
+            <Paper elevation={1} sx={{ p: 3, bgcolor: 'info.lighter', mb: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 <DirectionsBoat sx={{ verticalAlign: 'middle', mr: 1 }} />
                 AI Recommendations
@@ -537,7 +540,7 @@ const MaritimeRoutePlanning = () => {
             </Paper>
 
             {routeData.hazards_detected.length > 0 && (
-              <Box sx={{ mt: 3 }}>
+              <Box>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   Detected Hazards
                 </Typography>
@@ -551,6 +554,28 @@ const MaritimeRoutePlanning = () => {
                 ))}
               </Box>
             )}
+
+            <Box mt={3}>
+              <Button
+                variant="contained"
+                startIcon={<MapIcon />}
+                onClick={() => setActiveTab(4)}
+                fullWidth
+                size="large"
+              >
+                View Interactive Map
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {/* Map View Tab - NEW! */}
+        {activeTab === 4 && routeData && (
+          <Box>
+            <Typography variant="h5" fontWeight="bold" gutterBottom>
+              Interactive Route Map
+            </Typography>
+            <MaritimeRouteMapView />
           </Box>
         )}
       </Paper>
