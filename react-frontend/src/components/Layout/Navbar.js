@@ -41,6 +41,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../App';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Ship } from 'lucide-react';
 
 const Navbar = ({ onMenuClick }) => {
   const [notificationAnchor, setNotificationAnchor] = useState(null);

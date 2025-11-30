@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from maritime_routes import maritime_router, initialize_maritime_services
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import jwt
@@ -54,7 +55,14 @@ try:
 except ImportError as e:
     MCP_AVAILABLE = False
     print(f" MCP Integration not available: {e}")
-
+try:
+    from maritime_routes import maritime_router, initialize_maritime_services
+    MARITIME_AVAILABLE = True
+    print("✅ Maritime routing imported successfully")
+except ImportError as e:
+    MARITIME_AVAILABLE = False
+    print(f"⚠️ Maritime routing not available: {e}")
+    maritime_router = None
 app = FastAPI(title="NeptuneAI API with MCP", version="2.0.0")
 
 # Initialize logging
@@ -98,7 +106,13 @@ if MCP_AVAILABLE:
         print(f" MCP Handler initialization failed: {e}")
         mcp_handler = None
         mcp_client = None
-
+if MARITIME_AVAILABLE:
+    try:
+        initialize_maritime_services()
+        print("✅ Maritime services initialized")
+    except Exception as e:
+        print(f"⚠️ Maritime services initialization failed: {e}")
+        MARITIME_AVAILABLE = False
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -107,6 +121,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Include maritime router - ADD THIS SECTION
+if MARITIME_AVAILABLE and maritime_router:
+    app.include_router(maritime_router)
+    print("✅ Maritime routes registered")
+else:
+    print("⚠️ Maritime routes not registered")
 
 # JWT Configuration
 SECRET_KEY = "b6896c7e48894048a059cbb64604a6e4"

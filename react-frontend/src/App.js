@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { AnimatePresence } from 'framer-motion';
+import 'leaflet/dist/leaflet.css';
 
 // Components
 import Navbar from './components/Layout/Navbar';
@@ -20,6 +21,7 @@ import Datasets from './pages/Datasets';
 import Upload from './pages/Upload';
 import AIInsights from './pages/AIInsights';
 import Profile from './pages/Profile';
+import MaritimeRoutePlanning from './pages/MaritimeRoutePlanning';
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -316,6 +318,7 @@ const AppContent = () => {
                 <Route path="/upload" element={<Upload />} />
                 <Route path="/ai-insights" element={<AIInsights />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/maritime" element={<MaritimeRoutePlanning />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AnimatePresence>

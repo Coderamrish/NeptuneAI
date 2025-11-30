@@ -80,36 +80,36 @@ const About = () => {
     }
   ];
 
-  const team = [
-    {
-      name: 'Amrish Kumar Tiwary',
-      role: 'Chief Oceanographer',
-      bio: 'Leading expert in marine science with 15+ years of experience in ocean data analysis.',
-      avatar: 'SC',
-      color: '#1976d2'
-    },
-    {
-      name: 'Prof. Michael Rodriguez',
-      role: 'AI Research Director',
-      bio: 'Pioneer in machine learning applications for environmental data analysis.',
-      avatar: 'MR',
-      color: '#4caf50'
-    },
-    {
-      name: 'Dr. Emily Watson',
-      role: 'Data Science Lead',
-      bio: 'Specialist in big data analytics and visualization for oceanographic research.',
-      avatar: 'EW',
-      color: '#9c27b0'
-    },
-    {
-      name: 'James Thompson',
-      role: 'Platform Architect',
-      bio: 'Full-stack developer focused on scalable cloud infrastructure and user experience.',
-      avatar: 'JT',
-      color: '#ff9800'
-    }
-  ];
+ const team = [
+  {
+    name: 'Amrish Kumar Tiwary',
+    role: 'Founder & Lead AI Engineer',
+    bio: 'Designed and built the Neptune AI platform, leading the project’s architecture, development, and technical direction.',
+    avatar: 'AT',
+    color: '#1976d2'
+  },
+  {
+    name: 'Vitesh Kumar',
+    role: 'Research Support',
+    bio: 'Assisted with research tasks, dataset exploration, and initial data validation throughout the project.',
+    avatar: 'VK',
+    color: '#4caf50'
+  },
+  {
+    name: 'Amrendra Kumar',
+    role: 'Documentation',
+    bio: 'Contributed to documentation, workflow organization, and coordination project development.',
+    avatar: 'AK',
+    color: '#9c27b0'
+  },
+  {
+    name: 'Rajarshi Basu',
+    role: 'Review & Ideation Support',
+    bio: 'Provided project feedback, usability suggestions, and helped refine early concepts and ideas.',
+    avatar: 'RB',
+    color: '#ff9800'
+  }
+];
 
   const stats = [
     { number: '1M+', label: 'Data Points', icon: <BarChart />, color: '#1976d2' },
@@ -126,6 +126,16 @@ const About = () => {
     'Docker & Kubernetes',
     'AWS & Google Cloud',
     'Machine Learning',
+    'Data Visualization',
+    'RESTful APIs',
+    'LLM Integration',
+    'Langchain',
+    'Transformers',
+    'Real-time Data Processing',
+    'JWT Authentication',
+    'State Management',
+    'MCP Integration',
+    'Geospatial Analysis',
     'Geographic Information Systems',
   ];
 

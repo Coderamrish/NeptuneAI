@@ -50,6 +50,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Ship } from 'lucide-react';
 
 const drawerWidth = 280;
 
@@ -81,6 +82,7 @@ const Sidebar = ({ open, onClose }) => {
     { text: 'Analytics', icon: <Analytics />, path: '/analytics', badge: null },
     { text: 'Data Explorer', icon: <DataObject />, path: '/data-explorer', badge: null },
     { text: 'AI Insights', icon: <Psychology />, path: '/ai-insights', badge: 'New' },
+     { text: 'Maritime Routes', icon: <Ship className="w-5 h-5" />, path: '/maritime', badge: 'New' },
     { text: 'Upload Data', icon: <CloudUpload />, path: '/upload', badge: null },
     { text: 'Profile', icon: <Person />, path: '/profile', badge: null },
     { text: 'About', icon: <Info />, path: '/about', badge: null },

@@ -181,11 +181,11 @@ const Footer = () => {
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <Phone sx={{ fontSize: 16 }} />
-                <Typography variant="body2">+1 (555) 123-4567</Typography>
+                <Typography variant="body2">+91 6206678489</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <LocationOn sx={{ fontSize: 16 }} />
-                <Typography variant="body2">San Francisco, CA</Typography>
+                <Typography variant="body2">Kolkata, West Bengal, India</Typography>
               </Box>
             </motion.div>
           </Grid>
@@ -383,7 +383,7 @@ const Footer = () => {
         >
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-              © 2024 NeptuneAI. All rights reserved. | Protecting our oceans through data science.
+              © 2025 NeptuneAI. All rights reserved. | Protecting our oceans through data science.
             </Typography>
             <Box sx={{ display: 'flex', gap: 3 }}>
               <Link href="/privacy" sx={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', '&:hover': { color: 'white' } }}>
