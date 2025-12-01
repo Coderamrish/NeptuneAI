@@ -522,36 +522,28 @@ def main():
     
     # Example route: Mumbai to Singapore
     origin = (19.0, 72.8)  # Mumbai
-    destination = (1.3, 103.8)  # Singapore
-    
+    destination = (1.3, 103.8)  # Singapore  
     print("\n🚢 MARITIME ROUTE OPTIMIZATION")
-    print("=" * 60)
-    
+    print("=" * 60)  
     # Calculate route
     route = optimizer.calculate_safe_route(
         origin=origin,
         destination=destination,
         ship_type="container"
-    )
-    
+    ) 
     print(f"\n📍 Origin: {origin}")
     print(f"📍 Destination: {destination}")
     print(f"📏 Distance: {route.total_distance_nm:.1f} nautical miles")
     print(f"⏱️  Duration: {route.estimated_duration_hours:.1f} hours")
     print(f"🛡️  Safety: {route.overall_safety.value.upper()}")
-    print(f"⚠️  Hazards Detected: {len(route.hazards_detected)}")
-    
+    print(f"⚠️  Hazards Detected: {len(route.hazards_detected)}") 
     print("\n🎯 RECOMMENDATIONS:")
-    print(route.recommendations)
-    
+    print(route.recommendations)  
     print("\n📊 WAYPOINT ANALYSIS:")
     for i, wp in enumerate(route.waypoints[::5]):  # Every 5th waypoint
         print(f"  Waypoint {i*5}: ({wp.latitude:.2f}, {wp.longitude:.2f})")
         print(f"    Safety Score: {wp.safety_score:.1f}/100")
-        print(f"    Hazards: {', '.join(wp.hazards) if wp.hazards else 'None'}")
-    
+        print(f"    Hazards: {', '.join(wp.hazards) if wp.hazards else 'None'}") 
     print("\n✅ Route optimization complete!")
-
-
 if __name__ == "__main__":
     main()

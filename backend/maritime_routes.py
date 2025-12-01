@@ -187,6 +187,240 @@ async def detect_maritime_calamities(
         logger.error(f"Calamity detection error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+# Add this to your maritime_routes.py file
+
+# Update the popular routes endpoint with real India-centric routes
+
+@maritime_router.get("/route/popular")
+async def get_popular_routes(user: dict = Depends(get_current_user)):
+    """
+    Get pre-defined popular shipping routes with current safety status
+    Enhanced with India-centric routes
+    """
+    try:
+        popular_routes = [
+            # India to Asia
+            {
+                "name": "Mumbai to Singapore",
+                "origin": {"lat": 19.0, "lon": 72.8, "name": "Mumbai (INNSA), India"},
+                "destination": {"lat": 1.3, "lon": 103.8, "name": "Singapore (SGSIN)"},
+                "typical_duration_hours": 240,
+                "distance_nm": 3600,
+                "description": "Major Indian Ocean trade route"
+            },
+            {
+                "name": "Chennai to Shanghai",
+                "origin": {"lat": 13.1, "lon": 80.3, "name": "Chennai (INMAA), India"},
+                "destination": {"lat": 31.2, "lon": 121.5, "name": "Shanghai (CNSHA), China"},
+                "typical_duration_hours": 288,
+                "distance_nm": 4200,
+                "description": "East Coast India to China route"
+            },
+            {
+                "name": "Visakhapatnam to Hong Kong",
+                "origin": {"lat": 17.7, "lon": 83.3, "name": "Visakhapatnam (INVTZ), India"},
+                "destination": {"lat": 22.3, "lon": 114.2, "name": "Hong Kong (HKHKG)"},
+                "typical_duration_hours": 264,
+                "distance_nm": 3900,
+                "description": "Bay of Bengal to South China Sea"
+            },
+            
+            # India to Middle East
+            {
+                "name": "Mumbai to Dubai",
+                "origin": {"lat": 19.0, "lon": 72.8, "name": "Mumbai (INNSA), India"},
+                "destination": {"lat": 25.3, "lon": 55.3, "name": "Dubai (AEDXB), UAE"},
+                "typical_duration_hours": 96,
+                "distance_nm": 1200,
+                "description": "Arabian Sea corridor"
+            },
+            {
+                "name": "Kandla to Jebel Ali",
+                "origin": {"lat": 23.0, "lon": 70.2, "name": "Kandla (INKAN), India"},
+                "destination": {"lat": 25.0, "lon": 55.0, "name": "Jebel Ali (AEJEA), UAE"},
+                "typical_duration_hours": 72,
+                "distance_nm": 900,
+                "description": "West Coast India to UAE"
+            },
+            
+            # India to Europe via Suez
+            {
+                "name": "Mumbai to Rotterdam (via Suez)",
+                "origin": {"lat": 19.0, "lon": 72.8, "name": "Mumbai (INNSA), India"},
+                "destination": {"lat": 51.9, "lon": 4.5, "name": "Rotterdam (NLRTM), Netherlands"},
+                "typical_duration_hours": 480,
+                "distance_nm": 7200,
+                "description": "Major India-Europe trade route"
+            },
+            {
+                "name": "Chennai to Hamburg",
+                "origin": {"lat": 13.1, "lon": 80.3, "name": "Chennai (INMAA), India"},
+                "destination": {"lat": 53.5, "lon": 9.9, "name": "Hamburg (DEHAM), Germany"},
+                "typical_duration_hours": 504,
+                "distance_nm": 7500,
+                "description": "East Coast India to Northern Europe"
+            },
+            
+            # India to Americas
+            {
+                "name": "Mumbai to New York (via Suez)",
+                "origin": {"lat": 19.0, "lon": 72.8, "name": "Mumbai (INNSA), India"},
+                "destination": {"lat": 40.7, "lon": -74.0, "name": "New York (USNYC), USA"},
+                "typical_duration_hours": 600,
+                "distance_nm": 9000,
+                "description": "Trans-Atlantic route from India"
+            },
+            {
+                "name": "Chennai to Los Angeles (via Pacific)",
+                "origin": {"lat": 13.1, "lon": 80.3, "name": "Chennai (INMAA), India"},
+                "destination": {"lat": 33.7, "lon": -118.2, "name": "Los Angeles (USLAX), USA"},
+                "typical_duration_hours": 672,
+                "distance_nm": 10000,
+                "description": "Trans-Pacific route via Singapore"
+            },
+            
+            # Regional India routes
+            {
+                "name": "Kolkata to Colombo",
+                "origin": {"lat": 22.6, "lon": 88.4, "name": "Kolkata (INCCU), India"},
+                "destination": {"lat": 6.9, "lon": 79.8, "name": "Colombo (LKCMB), Sri Lanka"},
+                "typical_duration_hours": 96,
+                "distance_nm": 1400,
+                "description": "Bay of Bengal regional route"
+            },
+            {
+                "name": "Kochi to Port Klang",
+                "origin": {"lat": 9.9, "lon": 76.3, "name": "Kochi (INCOK), India"},
+                "destination": {"lat": 3.0, "lon": 101.4, "name": "Port Klang (MYPKG), Malaysia"},
+                "typical_duration_hours": 168,
+                "distance_nm": 2500,
+                "description": "West Coast India to Southeast Asia"
+            },
+            
+            # India to East Africa
+            {
+                "name": "Mumbai to Mombasa",
+                "origin": {"lat": 19.0, "lon": 72.8, "name": "Mumbai (INNSA), India"},
+                "destination": {"lat": -4.0, "lon": 39.7, "name": "Mombasa, Kenya"},
+                "typical_duration_hours": 192,
+                "distance_nm": 2800,
+                "description": "West Indian Ocean trade route"
+            },
+        ]
+        
+        # Check current safety for each route
+        if calamity_detector:
+            for route in popular_routes:
+                try:
+                    # Check origin
+                    origin_calamities = calamity_detector.detect_calamities(
+                        route["origin"]["lat"],
+                        route["origin"]["lon"],
+                        radius_km=500
+                    )
+                    
+                    # Check destination
+                    dest_calamities = calamity_detector.detect_calamities(
+                        route["destination"]["lat"],
+                        route["destination"]["lon"],
+                        radius_km=500
+                    )
+                    
+                    # Determine overall safety
+                    total_critical = sum(1 for c in origin_calamities + dest_calamities if c["severity"] == "critical")
+                    total_dangerous = sum(1 for c in origin_calamities + dest_calamities if c["severity"] == "dangerous")
+                    
+                    if total_critical > 0:
+                        route["current_safety"] = "critical"
+                    elif total_dangerous > 0:
+                        route["current_safety"] = "dangerous"
+                    elif len(origin_calamities) + len(dest_calamities) > 0:
+                        route["current_safety"] = "moderate"
+                    else:
+                        route["current_safety"] = "safe"
+                    
+                    route["origin_hazards"] = len(origin_calamities)
+                    route["destination_hazards"] = len(dest_calamities)
+                    
+                except Exception as e:
+                    logger.error(f"Error checking route safety: {e}")
+                    route["current_safety"] = "unknown"
+        
+        return {
+            "success": True,
+            "routes": popular_routes,
+            "total": len(popular_routes),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Popular routes error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Add endpoint to get all Indian ports
+@maritime_router.get("/ports/india")
+async def get_indian_ports(user: dict = Depends(get_current_user)):
+    """Get list of major Indian ports"""
+    indian_ports = [
+        {"name": "Mumbai (INNSA)", "lat": 19.0, "lon": 72.8, "state": "Maharashtra", "coast": "West"},
+        {"name": "Chennai (INMAA)", "lat": 13.1, "lon": 80.3, "state": "Tamil Nadu", "coast": "East"},
+        {"name": "Kolkata (INCCU)", "lat": 22.6, "lon": 88.4, "state": "West Bengal", "coast": "East"},
+        {"name": "Visakhapatnam (INVTZ)", "lat": 17.7, "lon": 83.3, "state": "Andhra Pradesh", "coast": "East"},
+        {"name": "Kochi (INCOK)", "lat": 9.9, "lon": 76.3, "state": "Kerala", "coast": "West"},
+        {"name": "Kandla (INKAN)", "lat": 23.0, "lon": 70.2, "state": "Gujarat", "coast": "West"},
+        {"name": "Tuticorin (INTUT)", "lat": 8.8, "lon": 78.2, "state": "Tamil Nadu", "coast": "East"},
+        {"name": "Paradip (INPPT)", "lat": 20.3, "lon": 86.7, "state": "Odisha", "coast": "East"},
+        {"name": "New Mangalore (INNMP)", "lat": 12.9, "lon": 74.8, "state": "Karnataka", "coast": "West"},
+        {"name": "Ennore (INENR)", "lat": 13.2, "lon": 80.3, "state": "Tamil Nadu", "coast": "East"},
+        {"name": "Mormugao (INMRM)", "lat": 15.4, "lon": 73.8, "state": "Goa", "coast": "West"},
+        {"name": "Haldia (INHLD)", "lat": 22.0, "lon": 88.1, "state": "West Bengal", "coast": "East"},
+    ]
+    
+    return {
+        "success": True,
+        "ports": indian_ports,
+        "total": len(indian_ports)
+    }
+
+
+# Add endpoint to get international ports
+@maritime_router.get("/ports/international")
+async def get_international_ports(user: dict = Depends(get_current_user)):
+    """Get list of major international ports"""
+    international_ports = [
+        # Asia-Pacific
+        {"name": "Singapore (SGSIN)", "lat": 1.3, "lon": 103.8, "country": "Singapore", "region": "Southeast Asia"},
+        {"name": "Shanghai (CNSHA)", "lat": 31.2, "lon": 121.5, "country": "China", "region": "East Asia"},
+        {"name": "Hong Kong (HKHKG)", "lat": 22.3, "lon": 114.2, "country": "Hong Kong", "region": "East Asia"},
+        {"name": "Busan (KRPUS)", "lat": 35.1, "lon": 129.0, "country": "South Korea", "region": "East Asia"},
+        {"name": "Tokyo (JPTYO)", "lat": 35.7, "lon": 139.7, "country": "Japan", "region": "East Asia"},
+        {"name": "Port Klang (MYPKG)", "lat": 3.0, "lon": 101.4, "country": "Malaysia", "region": "Southeast Asia"},
+        {"name": "Colombo (LKCMB)", "lat": 6.9, "lon": 79.8, "country": "Sri Lanka", "region": "South Asia"},
+        
+        # Middle East
+        {"name": "Dubai (AEDXB)", "lat": 25.3, "lon": 55.3, "country": "UAE", "region": "Middle East"},
+        {"name": "Jebel Ali (AEJEA)", "lat": 25.0, "lon": 55.0, "country": "UAE", "region": "Middle East"},
+        {"name": "Port Said (EGPSD)", "lat": 31.3, "lon": 32.3, "country": "Egypt", "region": "Middle East"},
+        
+        # Europe
+        {"name": "Rotterdam (NLRTM)", "lat": 51.9, "lon": 4.5, "country": "Netherlands", "region": "Europe"},
+        {"name": "Hamburg (DEHAM)", "lat": 53.5, "lon": 9.9, "country": "Germany", "region": "Europe"},
+        {"name": "Antwerp (BEANR)", "lat": 51.2, "lon": 4.4, "country": "Belgium", "region": "Europe"},
+        {"name": "Felixstowe (GBFXT)", "lat": 51.9, "lon": 1.3, "country": "UK", "region": "Europe"},
+        
+        # Americas
+        {"name": "Los Angeles (USLAX)", "lat": 33.7, "lon": -118.2, "country": "USA", "region": "North America"},
+        {"name": "New York (USNYC)", "lat": 40.7, "lon": -74.0, "country": "USA", "region": "North America"},
+        {"name": "Long Beach (USLGB)", "lat": 33.8, "lon": -118.2, "country": "USA", "region": "North America"},
+        {"name": "Santos (BRSSZ)", "lat": -23.9, "lon": -46.3, "country": "Brazil", "region": "South America"},
+    ]
+    
+    return {
+        "success": True,
+        "ports": international_ports,
+        "total": len(international_ports)
+    }
 
 @maritime_router.get("/route/safety-zones")
 async def get_safety_zones(

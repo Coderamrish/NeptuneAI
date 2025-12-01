@@ -19,6 +19,7 @@ import {
   FormControl,
   InputLabel,
   Divider,
+  Autocomplete,
 } from '@mui/material';
 import {
   DirectionsBoat,
@@ -36,6 +37,41 @@ import MaritimeRouteMapView from './MaritimeRouteMapView';
 
 const API_BASE_URL = 'http://localhost:8000';
 
+// Major ports in India and worldwide
+const MAJOR_PORTS = {
+  india: [
+    { name: 'Mumbai (INNSA)', lat: 19.0, lon: 72.8, country: 'India' },
+    { name: 'Chennai (INMAA)', lat: 13.1, lon: 80.3, country: 'India' },
+    { name: 'Kolkata (INCCU)', lat: 22.6, lon: 88.4, country: 'India' },
+    { name: 'Visakhapatnam (INVTZ)', lat: 17.7, lon: 83.3, country: 'India' },
+    { name: 'Kochi (INCOK)', lat: 9.9, lon: 76.3, country: 'India' },
+    { name: 'Kandla (INKAN)', lat: 23.0, lon: 70.2, country: 'India' },
+    { name: 'Tuticorin (INTUT)', lat: 8.8, lon: 78.2, country: 'India' },
+    { name: 'Paradip (INPPT)', lat: 20.3, lon: 86.7, country: 'India' },
+    { name: 'New Mangalore (INNMP)', lat: 12.9, lon: 74.8, country: 'India' },
+    { name: 'Ennore (INENR)', lat: 13.2, lon: 80.3, country: 'India' },
+  ],
+  international: [
+    { name: 'Singapore (SGSIN)', lat: 1.3, lon: 103.8, country: 'Singapore' },
+    { name: 'Shanghai (CNSHA)', lat: 31.2, lon: 121.5, country: 'China' },
+    { name: 'Dubai (AEDXB)', lat: 25.3, lon: 55.3, country: 'UAE' },
+    { name: 'Rotterdam (NLRTM)', lat: 51.9, lon: 4.5, country: 'Netherlands' },
+    { name: 'New York (USNYC)', lat: 40.7, lon: -74.0, country: 'USA' },
+    { name: 'Los Angeles (USLAX)', lat: 33.7, lon: -118.2, country: 'USA' },
+    { name: 'Tokyo (JPTYO)', lat: 35.7, lon: 139.7, country: 'Japan' },
+    { name: 'Hong Kong (HKHKG)', lat: 22.3, lon: 114.2, country: 'Hong Kong' },
+    { name: 'Busan (KRPUS)', lat: 35.1, lon: 129.0, country: 'South Korea' },
+    { name: 'Hamburg (DEHAM)', lat: 53.5, lon: 9.9, country: 'Germany' },
+    { name: 'Antwerp (BEANR)', lat: 51.2, lon: 4.4, country: 'Belgium' },
+    { name: 'Port Said (EGPSD)', lat: 31.3, lon: 32.3, country: 'Egypt' },
+    { name: 'Colombo (LKCMB)', lat: 6.9, lon: 79.8, country: 'Sri Lanka' },
+    { name: 'Port Klang (MYPKG)', lat: 3.0, lon: 101.4, country: 'Malaysia' },
+    { name: 'Jebel Ali (AEJEA)', lat: 25.0, lon: 55.0, country: 'UAE' },
+  ]
+};
+
+const ALL_PORTS = [...MAJOR_PORTS.india, ...MAJOR_PORTS.international];
+
 const MaritimeRoutePlanning = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [routeData, setRouteData] = useState(null);
@@ -44,8 +80,8 @@ const MaritimeRoutePlanning = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  const [origin, setOrigin] = useState({ lat: '', lon: '', name: '' });
-  const [destination, setDestination] = useState({ lat: '', lon: '', name: '' });
+  const [origin, setOrigin] = useState(null);
+  const [destination, setDestination] = useState(null);
   const [shipType, setShipType] = useState('cargo');
   const [departureTime, setDepartureTime] = useState('');
 
@@ -80,8 +116,8 @@ const MaritimeRoutePlanning = () => {
   };
 
   const calculateRoute = async () => {
-    if (!origin.lat || !origin.lon || !destination.lat || !destination.lon) {
-      setError('Please enter valid origin and destination coordinates');
+    if (!origin || !destination) {
+      setError('Please select both origin and destination ports');
       return;
     }
 
@@ -107,7 +143,7 @@ const MaritimeRoutePlanning = () => {
       const data = await response.json();
       if (data.success) {
         setRouteData(data.route);
-        setActiveTab(4); // Switch to map view tab
+        setActiveTab(4); 
       } else {
         setError(data.detail || 'Failed to calculate route');
       }
@@ -119,9 +155,9 @@ const MaritimeRoutePlanning = () => {
     }
   };
 
-  const checkCalamities = async (lat, lon) => {
-    if (!lat || !lon) {
-      setError('Please enter valid coordinates');
+  const checkCalamities = async (port) => {
+    if (!port) {
+      setError('Please select a port');
       return;
     }
 
@@ -133,8 +169,8 @@ const MaritimeRoutePlanning = () => {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          latitude: parseFloat(lat),
-          longitude: parseFloat(lon),
+          latitude: parseFloat(port.lat),
+          longitude: parseFloat(port.lon),
           radius_km: 500
         })
       });
@@ -156,13 +192,13 @@ const MaritimeRoutePlanning = () => {
 
   const usePopularRoute = (route) => {
     setOrigin({ 
-      lat: route.origin.lat.toString(), 
-      lon: route.origin.lon.toString(),
+      lat: route.origin.lat, 
+      lon: route.origin.lon,
       name: route.origin.name 
     });
     setDestination({ 
-      lat: route.destination.lat.toString(), 
-      lon: route.destination.lon.toString(),
+      lat: route.destination.lat, 
+      lon: route.destination.lon,
       name: route.destination.name 
     });
     setActiveTab(0);
@@ -203,7 +239,7 @@ const MaritimeRoutePlanning = () => {
               Maritime Route Planning
             </Typography>
             <Typography variant="body1" color="rgba(255,255,255,0.9)">
-              AI-Powered Safe Navigation & Calamity Detection with Interactive Maps
+              AI-Powered Safe Navigation - India to Global Ports
             </Typography>
           </Box>
         </Box>
@@ -237,72 +273,86 @@ const MaritimeRoutePlanning = () => {
             </Typography>
             
             <Grid container spacing={3} sx={{ mt: 2 }}>
-              {/* Origin */}
+              {/* Origin Port Selection */}
               <Grid item xs={12} md={6}>
                 <Typography variant="h6" gutterBottom>
-                  <Place sx={{ verticalAlign: 'middle', color: 'success.main' }} /> Origin
+                  <Place sx={{ verticalAlign: 'middle', color: 'success.main' }} /> Origin Port
                 </Typography>
-                <TextField
-                  fullWidth
-                  label="Location Name"
-                  value={origin.name}
-                  onChange={(e) => setOrigin({ ...origin, name: e.target.value })}
-                  sx={{ mb: 2 }}
+                <Autocomplete
+                  options={ALL_PORTS}
+                  groupBy={(option) => option.country}
+                  getOptionLabel={(option) => option.name}
+                  value={origin}
+                  onChange={(event, newValue) => setOrigin(newValue)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Origin Port"
+                      placeholder="Search for a port..."
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box>
+                        <Typography variant="body2">{option.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.lat.toFixed(2)}°, {option.lon.toFixed(2)}°
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
                 />
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Latitude"
-                      value={origin.lat}
-                      onChange={(e) => setOrigin({ ...origin, lat: e.target.value })}
-                    />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Longitude"
-                      value={origin.lon}
-                      onChange={(e) => setOrigin({ ...origin, lon: e.target.value })}
-                    />
-                  </Grid>
-                </Grid>
+                {origin && (
+                  <Box mt={2} p={2} bgcolor="success.lighter" borderRadius={1}>
+                    <Typography variant="body2" fontWeight="bold">
+                      Selected: {origin.name}
+                    </Typography>
+                    <Typography variant="caption">
+                      Coordinates: {origin.lat.toFixed(4)}°, {origin.lon.toFixed(4)}°
+                    </Typography>
+                  </Box>
+                )}
               </Grid>
 
-              {/* Destination */}
+              {/* Destination Port Selection */}
               <Grid item xs={12} md={6}>
                 <Typography variant="h6" gutterBottom>
-                  <Place sx={{ verticalAlign: 'middle', color: 'error.main' }} /> Destination
+                  <Place sx={{ verticalAlign: 'middle', color: 'error.main' }} /> Destination Port
                 </Typography>
-                <TextField
-                  fullWidth
-                  label="Location Name"
-                  value={destination.name}
-                  onChange={(e) => setDestination({ ...destination, name: e.target.value })}
-                  sx={{ mb: 2 }}
+                <Autocomplete
+                  options={ALL_PORTS}
+                  groupBy={(option) => option.country}
+                  getOptionLabel={(option) => option.name}
+                  value={destination}
+                  onChange={(event, newValue) => setDestination(newValue)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Destination Port"
+                      placeholder="Search for a port..."
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box>
+                        <Typography variant="body2">{option.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.lat.toFixed(2)}°, {option.lon.toFixed(2)}°
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
                 />
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Latitude"
-                      value={destination.lat}
-                      onChange={(e) => setDestination({ ...destination, lat: e.target.value })}
-                    />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Longitude"
-                      value={destination.lon}
-                      onChange={(e) => setDestination({ ...destination, lon: e.target.value })}
-                    />
-                  </Grid>
-                </Grid>
+                {destination && (
+                  <Box mt={2} p={2} bgcolor="error.lighter" borderRadius={1}>
+                    <Typography variant="body2" fontWeight="bold">
+                      Selected: {destination.name}
+                    </Typography>
+                    <Typography variant="caption">
+                      Coordinates: {destination.lat.toFixed(4)}°, {destination.lon.toFixed(4)}°
+                    </Typography>
+                  </Box>
+                )}
               </Grid>
 
               {/* Ship Type & Departure */}
@@ -327,11 +377,34 @@ const MaritimeRoutePlanning = () => {
                 <TextField
                   fullWidth
                   type="datetime-local"
-                  label="Departure Time"
+                  label="Departure Time (Optional)"
                   value={departureTime}
                   onChange={(e) => setDepartureTime(e.target.value)}
                   InputLabelProps={{ shrink: true }}
                 />
+              </Grid>
+
+              {/* Quick Port Suggestions */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Popular Routes from India:
+                </Typography>
+                <Box display="flex" gap={1} flexWrap="wrap">
+                  {MAJOR_PORTS.india.slice(0, 3).map((indiaPort) => (
+                    MAJOR_PORTS.international.slice(0, 3).map((intlPort) => (
+                      <Chip
+                        key={`${indiaPort.name}-${intlPort.name}`}
+                        label={`${indiaPort.name.split(' ')[0]} → ${intlPort.name.split(' ')[0]}`}
+                        onClick={() => {
+                          setOrigin(indiaPort);
+                          setDestination(intlPort);
+                        }}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ))
+                  ))}
+                </Box>
               </Grid>
 
               {/* Action Buttons */}
@@ -342,7 +415,7 @@ const MaritimeRoutePlanning = () => {
                     variant="contained"
                     size="large"
                     onClick={calculateRoute}
-                    disabled={loading}
+                    disabled={loading || !origin || !destination}
                     startIcon={loading ? <CircularProgress size={20} /> : <NavigationIcon />}
                   >
                     {loading ? 'Calculating...' : 'Calculate Safe Route'}
@@ -351,11 +424,11 @@ const MaritimeRoutePlanning = () => {
                     variant="outlined"
                     size="large"
                     color="warning"
-                    onClick={() => checkCalamities(origin.lat, origin.lon)}
-                    disabled={loading || !origin.lat || !origin.lon}
+                    onClick={() => checkCalamities(origin)}
+                    disabled={loading || !origin}
                     startIcon={<Warning />}
                   >
-                    Check Hazards
+                    Check Origin Hazards
                   </Button>
                 </Box>
               </Grid>
@@ -528,17 +601,59 @@ const MaritimeRoutePlanning = () => {
                 </Card>
               </Grid>
             </Grid>
+<Paper
+  elevation={4}
+  sx={{
+    p: 3,
+    mb: 3,
+    borderRadius: 4,
+    background: 'linear-gradient(135deg, #E3F2FD 0%, #E8F5E9 100%)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-4px)',
+      boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+    },
+  }}
+>
+  <Typography
+    variant="h6"
+    fontWeight="bold"
+    gutterBottom
+    sx={{
+      display: 'flex',
+      alignItems: 'center',
+      color: 'primary.dark',
+      mb: 2,
+    }}
+  >
+    <DirectionsBoat
+      sx={{
+        fontSize: 30,
+        mr: 1,
+        color: 'primary.main',
+      }}
+    />
+    AI Recommendations
+  </Typography>
 
-            <Paper elevation={1} sx={{ p: 3, bgcolor: 'info.lighter', mb: 3 }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                <DirectionsBoat sx={{ verticalAlign: 'middle', mr: 1 }} />
-                AI Recommendations
-              </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                {routeData.recommendations}
-              </Typography>
-            </Paper>
+  <Typography
+    variant="body1"
+    sx={{
+      whiteSpace: 'pre-line',
+      lineHeight: 1.7,
+      color: 'text.secondary',
+      fontSize: '1rem',
+      borderLeft: '4px solid #1976D2',
+      pl: 2,
+      py: 1,
+    }}
+  >
+    {routeData.recommendations}
+  </Typography>
+</Paper>
 
+           
             {routeData.hazards_detected.length > 0 && (
               <Box>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -569,13 +684,16 @@ const MaritimeRoutePlanning = () => {
           </Box>
         )}
 
-        {/* Map View Tab - NEW! */}
-        {activeTab === 4 && routeData && (
+        {/* Map View Tab */}
+        {activeTab === 4 && (
           <Box>
             <Typography variant="h5" fontWeight="bold" gutterBottom>
               Interactive Route Map
             </Typography>
-            <MaritimeRouteMapView />
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              Route: {origin?.name} → {destination?.name}
+            </Typography>
+            <MaritimeRouteMapView routeData={routeData} />
           </Box>
         )}
       </Paper>

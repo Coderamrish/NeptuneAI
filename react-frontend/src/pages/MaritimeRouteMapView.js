@@ -67,8 +67,8 @@ const MapController = ({ center, zoom }) => {
   return null;
 };
 
-const MaritimeRouteMapView = () => {
-  const [routeData, setRouteData] = useState(null);
+const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => {
+  const [routeData, setRouteData] = useState(externalRouteData || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [mapCenter, setMapCenter] = useState([20, 70]);
@@ -77,59 +77,45 @@ const MaritimeRouteMapView = () => {
   const [showHazards, setShowHazards] = useState(true);
   const [realTimeWeather, setRealTimeWeather] = useState({});
 
-  // Example: Load route from API
-  const loadRoute = async (origin, destination) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const token = localStorage.getItem('neptuneai_token');
-      const response = await fetch('http://localhost:8000/api/maritime/route/calculate', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          origin_lat: origin.lat,
-          origin_lon: origin.lon,
-          destination_lat: destination.lat,
-          destination_lon: destination.lon,
-          ship_type: 'cargo'
-        })
-      });
-      
-      if (!response.ok) throw new Error('Failed to calculate route');
-      
-      const data = await response.json();
-      if (data.success) {
-        setRouteData(data.route);
-        
-        // Center map on route
-        const midLat = (origin.lat + destination.lat) / 2;
-        const midLon = (origin.lon + destination.lon) / 2;
-        setMapCenter([midLat, midLon]);
-        
-        // Calculate appropriate zoom
-        const latDiff = Math.abs(origin.lat - destination.lat);
-        const lonDiff = Math.abs(origin.lon - destination.lon);
-        const maxDiff = Math.max(latDiff, lonDiff);
-        const zoom = maxDiff > 50 ? 3 : maxDiff > 20 ? 4 : maxDiff > 10 ? 5 : 6;
-        setMapZoom(zoom);
-        
-        // Fetch real-time weather for waypoints
-        fetchWeatherForWaypoints(data.route.waypoints);
-      }
-    } catch (err) {
-      console.error('Route loading error:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  // Update route when external data changes
+  useEffect(() => {
+    if (externalRouteData) {
+      setRouteData(externalRouteData);
+      updateMapView(externalRouteData);
+      fetchWeatherForWaypoints(externalRouteData.waypoints);
     }
+  }, [externalRouteData]);
+
+  const updateMapView = (route) => {
+    if (!route) return;
+    
+    // Center map on route midpoint
+    const midLat = (route.origin.latitude + route.destination.latitude) / 2;
+    const midLon = (route.origin.longitude + route.destination.longitude) / 2;
+    setMapCenter([midLat, midLon]);
+    
+    // Calculate appropriate zoom based on distance
+    const latDiff = Math.abs(route.origin.latitude - route.destination.latitude);
+    const lonDiff = Math.abs(route.origin.longitude - route.destination.longitude);
+    const maxDiff = Math.max(latDiff, lonDiff);
+    
+    let zoom = 5; // default
+    if (maxDiff > 50) zoom = 3;
+    else if (maxDiff > 30) zoom = 4;
+    else if (maxDiff > 20) zoom = 4;
+    else if (maxDiff > 10) zoom = 5;
+    else if (maxDiff > 5) zoom = 6;
+    else zoom = 7;
+    
+    setMapZoom(zoom);
   };
 
   const fetchWeatherForWaypoints = async (waypoints) => {
+    if (!waypoints || waypoints.length === 0) return;
+    
     const token = localStorage.getItem('neptuneai_token');
+    if (!token) return;
+    
     const weatherData = {};
     
     // Sample every 5th waypoint to avoid too many requests
@@ -156,14 +142,6 @@ const MaritimeRouteMapView = () => {
     setRealTimeWeather(weatherData);
   };
 
-  // Load example route on mount
-  useEffect(() => {
-    // Dubai to Mumbai route
-    const origin = { lat: 25.3, lon: 55.3 };
-    const destination = { lat: 19.0, lon: 72.8 };
-    loadRoute(origin, destination);
-  }, []);
-
   const getSafetyColor = (safety) => {
     const colors = {
       safe: '#4caf50',
@@ -183,13 +161,16 @@ const MaritimeRouteMapView = () => {
     return '#f44336';
   };
 
-  if (loading && !routeData) {
+  if (!routeData) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="600px">
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <Box textAlign="center">
-          <CircularProgress size={60} />
-          <Typography variant="h6" mt={2}>
-            Calculating optimal route...
+          <Info sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary">
+            No route calculated yet
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mt={1}>
+            Use the Route Planner to calculate a maritime route
           </Typography>
         </Box>
       </Box>
@@ -199,75 +180,73 @@ const MaritimeRouteMapView = () => {
   return (
     <Box>
       {/* Header Stats */}
-      {routeData && (
-        <Grid container spacing={2} mb={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-              <CardContent sx={{ py: 2 }}>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <NavigationIcon />
-                  <Box>
-                    <Typography variant="h5" fontWeight="bold">
-                      {routeData.total_distance_nm.toFixed(0)}
-                    </Typography>
-                    <Typography variant="caption">Nautical Miles</Typography>
-                  </Box>
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+            <CardContent sx={{ py: 2 }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <NavigationIcon />
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {routeData.total_distance_nm.toFixed(0)}
+                  </Typography>
+                  <Typography variant="caption">Nautical Miles</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: 'secondary.light', color: 'secondary.contrastText' }}>
-              <CardContent sx={{ py: 2 }}>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Sailing />
-                  <Box>
-                    <Typography variant="h5" fontWeight="bold">
-                      {(routeData.estimated_duration_hours / 24).toFixed(1)}
-                    </Typography>
-                    <Typography variant="caption">Days</Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: getSafetyColor(routeData.overall_safety) }}>
-              <CardContent sx={{ py: 2 }}>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <CheckCircle sx={{ color: 'white' }} />
-                  <Box>
-                    <Typography variant="h5" fontWeight="bold" color="white">
-                      {routeData.overall_safety.toUpperCase()}
-                    </Typography>
-                    <Typography variant="caption" color="white">
-                      Safety Level
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: 'warning.light' }}>
-              <CardContent sx={{ py: 2 }}>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Warning />
-                  <Box>
-                    <Typography variant="h5" fontWeight="bold">
-                      {routeData.hazards_detected.length}
-                    </Typography>
-                    <Typography variant="caption">Hazards</Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+              </Box>
+            </CardContent>
+          </Card>
         </Grid>
-      )}
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'secondary.light', color: 'secondary.contrastText' }}>
+            <CardContent sx={{ py: 2 }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Sailing />
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {(routeData.estimated_duration_hours / 24).toFixed(1)}
+                  </Typography>
+                  <Typography variant="caption">Days</Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: getSafetyColor(routeData.overall_safety) }}>
+            <CardContent sx={{ py: 2 }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <CheckCircle sx={{ color: 'white' }} />
+                <Box>
+                  <Typography variant="h5" fontWeight="bold" color="white">
+                    {routeData.overall_safety.toUpperCase()}
+                  </Typography>
+                  <Typography variant="caption" color="white">
+                    Safety Level
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'warning.light' }}>
+            <CardContent sx={{ py: 2 }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Warning />
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {routeData.hazards_detected.length}
+                  </Typography>
+                  <Typography variant="caption">Hazards</Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Map */}
       <Paper elevation={3} sx={{ height: '600px', position: 'relative', overflow: 'hidden' }}>
