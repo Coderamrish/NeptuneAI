@@ -1,825 +1,1135 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Slider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Tabs,
-  Tab,
-  Chip,
-  Tooltip,
-  CircularProgress,
-  Alert,
-  LinearProgress,
-} from '@mui/material';
-import {
-  Search,
-  FilterList,
-  Download,
-  Refresh,
-  Visibility,
-  VisibilityOff,
-  TrendingUp,
-  TrendingDown,
-  Water,
-  Thermostat,
-  Speed,
-  LocationOn,
-  BarChart,
-  TableChart,
-  Map,
-  Timeline,
-} from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
-import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from 'react';
+import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Cell, PieChart, Pie } from 'recharts';
+import { Search, Filter, Download, RefreshCw, MapPin, Thermometer, Droplets, Activity, TrendingUp, TrendingDown, Waves, Navigation, Globe, BarChart3, Settings, Eye, EyeOff, Calendar, Clock, AlertCircle, CheckCircle, Zap, Wind, Compass, Anchor, Map as MapIcon } from 'lucide-react';
 
-const DataExplorer = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [tabValue, setTabValue] = useState(0);
+const AdvancedDataExplorer = () => {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState('overview');
+  const [showFilters, setShowFilters] = useState(true);
+  const [selectedStation, setSelectedStation] = useState(null);
+  const [animatedStats, setAnimatedStats] = useState({ records: 0, temp: 0, salinity: 0, stations: 0 });
+  const canvasRef = useRef(null);
+  
   const [filters, setFilters] = useState({
     search: '',
     region: 'All',
-    year: 'All',
-    temperature: [0, 30],
-    salinity: [0, 40],
-    depth: [0, 5000],
-    latitude: [-90, 90],
-    longitude: [-180, 180],
+    year: '2024',
+    tempRange: [0, 30],
+    salinityRange: [30, 40],
+    depthRange: [0, 5000],
+    quality: 'All'
   });
-  const [viewMode, setViewMode] = useState('table'); // table, chart, map
-  const [showFilters, setShowFilters] = useState(true);
-  const { user } = useAuth();
 
   useEffect(() => {
-    fetchData();
+    generateEnhancedData();
+    animateCanvas();
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [data, filters]);
+  }, [filters, data]);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('neptuneai_token');
-      
-      // Try to fetch from API first
-      const response = await fetch('/api/data/explorer', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        const fetchedData = result.data || [];
-        setData(fetchedData);
-        setFilteredData(fetchedData);
-        
-        // Update filters with available options
-        const regions = [...new Set(fetchedData.map(item => item.region))];
-        const years = [...new Set(fetchedData.map(item => item.year))];
-        const qualities = [...new Set(fetchedData.map(item => item.quality))];
-        
-        setFilters(prev => ({
-          ...prev,
-          regions: regions.sort(),
-          years: years.sort(),
-          qualities: qualities.sort()
-        }));
-      } else {
-        // Generate enhanced sample data if API fails
-        generateSampleData();
-      }
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      setError('Failed to load data');
-      generateSampleData();
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    // Animate stats
+    const interval = setInterval(() => {
+      setAnimatedStats(prev => ({
+        records: Math.min(prev.records + 1000, filteredData.length),
+        temp: Math.min(prev.temp + 0.5, calculateAverage('temperature')),
+        salinity: Math.min(prev.salinity + 0.5, calculateAverage('salinity')),
+        stations: Math.min(prev.stations + 1, new Set(filteredData.map(d => d.station_id)).size)
+      }));
+    }, 50);
+    return () => clearInterval(interval);
+  }, [filteredData]);
 
-  const generateSampleData = () => {
-    const sampleData = Array.from({ length: 1000 }, (_, i) => ({
+  const generateEnhancedData = () => {
+    const regions = ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern'];
+    const qualities = ['Excellent', 'Good', 'Fair', 'Poor'];
+    
+    const sampleData = Array.from({ length: 2000 }, (_, i) => ({
       id: i + 1,
+      station_id: `ST-${String(i + 1).padStart(4, '0')}`,
       timestamp: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      latitude: -90 + Math.random() * 180,
+      latitude: -80 + Math.random() * 160,
       longitude: -180 + Math.random() * 360,
-      temperature: 10 + Math.random() * 20,
+      temperature: 2 + Math.random() * 28,
       salinity: 30 + Math.random() * 10,
       pressure: Math.random() * 1000,
       depth: Math.random() * 5000,
-      region: ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern'][Math.floor(Math.random() * 5)],
-      year: 2020 + Math.floor(Math.random() * 4),
-      station_id: `ST${String(i + 1).padStart(4, '0')}`,
-      quality: Math.random() > 0.1 ? 'Good' : 'Poor',
+      ph: 7.5 + Math.random() * 1,
+      oxygen: 4 + Math.random() * 4,
+      chlorophyll: Math.random() * 10,
+      turbidity: Math.random() * 5,
+      currentSpeed: Math.random() * 3,
+      waveHeight: Math.random() * 5,
+      region: regions[Math.floor(Math.random() * regions.length)],
+      year: 2020 + Math.floor(Math.random() * 5),
+      quality: qualities[Math.floor(Math.random() * qualities.length)],
     }));
+    
     setData(sampleData);
+    setFilteredData(sampleData);
   };
 
   const applyFilters = () => {
     let filtered = [...data];
 
-    // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(item => 
         item.station_id.toLowerCase().includes(searchLower) ||
-        item.region.toLowerCase().includes(searchLower) ||
-        item.quality.toLowerCase().includes(searchLower)
+        item.region.toLowerCase().includes(searchLower)
       );
     }
 
-    // Region filter
     if (filters.region !== 'All') {
       filtered = filtered.filter(item => item.region === filters.region);
     }
 
-    // Year filter
     if (filters.year !== 'All') {
       filtered = filtered.filter(item => item.year === parseInt(filters.year));
     }
 
-    // Temperature filter
-    filtered = filtered.filter(item => 
-      item.temperature >= filters.temperature[0] && 
-      item.temperature <= filters.temperature[1]
-    );
+    if (filters.quality !== 'All') {
+      filtered = filtered.filter(item => item.quality === filters.quality);
+    }
 
-    // Salinity filter
     filtered = filtered.filter(item => 
-      item.salinity >= filters.salinity[0] && 
-      item.salinity <= filters.salinity[1]
-    );
-
-    // Depth filter
-    filtered = filtered.filter(item => 
-      item.depth >= filters.depth[0] && 
-      item.depth <= filters.depth[1]
-    );
-
-    // Latitude filter
-    filtered = filtered.filter(item => 
-      item.latitude >= filters.latitude[0] && 
-      item.latitude <= filters.latitude[1]
-    );
-
-    // Longitude filter
-    filtered = filtered.filter(item => 
-      item.longitude >= filters.longitude[0] && 
-      item.longitude <= filters.longitude[1]
+      item.temperature >= filters.tempRange[0] && 
+      item.temperature <= filters.tempRange[1] &&
+      item.salinity >= filters.salinityRange[0] && 
+      item.salinity <= filters.salinityRange[1] &&
+      item.depth >= filters.depthRange[0] && 
+      item.depth <= filters.depthRange[1]
     );
 
     setFilteredData(filtered);
   };
 
-  const handleFilterChange = (filterName, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterName]: value
+  const calculateAverage = (field) => {
+    if (filteredData.length === 0) return 0;
+    return filteredData.reduce((sum, d) => sum + d[field], 0) / filteredData.length;
+  };
+
+  const animateCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth * 2;
+    canvas.height = canvas.offsetHeight * 2;
+    ctx.scale(2, 2);
+
+    const particles = Array.from({ length: 100 }, () => ({
+      x: Math.random() * canvas.width / 2,
+      y: Math.random() * canvas.height / 2,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.5,
+      size: Math.random() * 3 + 1,
+    }));
+
+    const animate = () => {
+      ctx.fillStyle = 'rgba(10, 25, 47, 0.1)';
+      ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > canvas.width / 2) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height / 2) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(6, 182, 212, ${0.6})`;
+        ctx.fill();
+
+        // Draw connections
+        particles.forEach(p2 => {
+          const dx = p.x - p2.x;
+          const dy = p.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 100) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `rgba(6, 182, 212, ${0.2 * (1 - dist / 100)})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        });
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+  };
+
+  const getRegionData = () => {
+    const regions = {};
+    filteredData.forEach(d => {
+      if (!regions[d.region]) {
+        regions[d.region] = { count: 0, avgTemp: 0, avgSalinity: 0 };
+      }
+      regions[d.region].count++;
+      regions[d.region].avgTemp += d.temperature;
+      regions[d.region].avgSalinity += d.salinity;
+    });
+
+    return Object.entries(regions).map(([region, stats]) => ({
+      region,
+      count: stats.count,
+      avgTemp: (stats.avgTemp / stats.count).toFixed(1),
+      avgSalinity: (stats.avgSalinity / stats.count).toFixed(1),
     }));
   };
 
-  const handleExport = (format = 'csv') => {
-    try {
-      if (filteredData.length === 0) {
-        toast.warning('No data to export');
-        return;
-      }
-
-      if (format === 'csv') {
-        exportToCSV();
-      } else if (format === 'json') {
-        exportToJSON();
-      } else if (format === 'excel') {
-        exportToExcel();
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Export failed. Please try again.');
-    }
+  const getDepthProfile = () => {
+    const depths = [0, 500, 1000, 2000, 3000, 4000, 5000];
+    return depths.map(depth => {
+      const inRange = filteredData.filter(d => 
+        d.depth >= depth && d.depth < depth + 500
+      );
+      return {
+        depth: `${depth}m`,
+        temperature: inRange.length > 0 ? (inRange.reduce((s, d) => s + d.temperature, 0) / inRange.length).toFixed(1) : 0,
+        salinity: inRange.length > 0 ? (inRange.reduce((s, d) => s + d.salinity, 0) / inRange.length).toFixed(1) : 0,
+        count: inRange.length
+      };
+    });
   };
 
-  const exportToCSV = () => {
-    const csvContent = [
-      ['Station ID', 'Timestamp', 'Latitude', 'Longitude', 'Temperature', 'Salinity', 'Pressure', 'Depth', 'Region', 'Year', 'Quality'],
-      ...filteredData.map(item => [
-        item.station_id,
-        item.timestamp,
-        item.latitude.toFixed(4),
-        item.longitude.toFixed(4),
-        item.temperature.toFixed(2),
-        item.salinity.toFixed(2),
-        item.pressure.toFixed(2),
-        item.depth.toFixed(2),
-        item.region,
-        item.year,
-        item.quality
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ocean_data_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Data exported as CSV successfully!');
+  const getTimeSeriesData = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months.map((month, i) => {
+      const monthData = filteredData.filter(d => new Date(d.timestamp).getMonth() === i);
+      return {
+        month,
+        temperature: monthData.length > 0 ? (monthData.reduce((s, d) => s + d.temperature, 0) / monthData.length).toFixed(1) : 0,
+        salinity: monthData.length > 0 ? (monthData.reduce((s, d) => s + d.salinity, 0) / monthData.length).toFixed(1) : 0,
+        records: monthData.length
+      };
+    });
   };
 
-  const exportToJSON = () => {
-    const jsonContent = JSON.stringify(filteredData, null, 2);
-    const blob = new Blob([jsonContent], { type: 'application/json' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ocean_data_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Data exported as JSON successfully!');
+  const getQualityDistribution = () => {
+    const qualities = {};
+    filteredData.forEach(d => {
+      qualities[d.quality] = (qualities[d.quality] || 0) + 1;
+    });
+    return Object.entries(qualities).map(([quality, count]) => ({
+      quality,
+      count,
+      percentage: ((count / filteredData.length) * 100).toFixed(1)
+    }));
   };
 
-  const exportToExcel = () => {
-    // For Excel export, we'll create a CSV with .xlsx extension
-    // In a real implementation, you'd use a library like xlsx
-    const csvContent = [
-      ['Station ID', 'Timestamp', 'Latitude', 'Longitude', 'Temperature', 'Salinity', 'Pressure', 'Depth', 'Region', 'Year', 'Quality'],
-      ...filteredData.map(item => [
-        item.station_id,
-        item.timestamp,
-        item.latitude.toFixed(4),
-        item.longitude.toFixed(4),
-        item.temperature.toFixed(2),
-        item.salinity.toFixed(2),
-        item.pressure.toFixed(2),
-        item.depth.toFixed(2),
-        item.region,
-        item.year,
-        item.quality
-      ])
-    ].map(row => row.join('\t')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ocean_data_${new Date().toISOString().split('T')[0]}.xlsx`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Data exported as Excel successfully!');
-  };
-
-  const handleRefresh = () => {
-    fetchData();
-    toast.success('Data refreshed!');
-  };
-
-  const TemperatureChart = () => (
-    <Card sx={{ height: 400, background: 'linear-gradient(135deg, #ff6b6b15 0%, #ff6b6b05 100%)' }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Thermostat color="primary" />
-          Temperature Distribution
-        </Typography>
-        <Plot
-          data={[
-            {
-              x: filteredData.map(d => d.temperature),
-              type: 'histogram',
-              name: 'Temperature',
-              marker: { color: '#ff6b6b' },
-              nbinsx: 20,
-            },
-          ]}
-          layout={{
-            xaxis: { title: 'Temperature (°C)' },
-            yaxis: { title: 'Frequency' },
-            margin: { t: 20, b: 40, l: 40, r: 20 },
-            height: 300,
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            paper_bgcolor: 'rgba(0,0,0,0)',
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  const SalinityChart = () => (
-    <Card sx={{ height: 400, background: 'linear-gradient(135deg, #4ecdc415 0%, #4ecdc405 100%)' }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Water color="primary" />
-          Salinity Distribution
-        </Typography>
-        <Plot
-          data={[
-            {
-              x: filteredData.map(d => d.salinity),
-              type: 'histogram',
-              name: 'Salinity',
-              marker: { color: '#4ecdc4' },
-              nbinsx: 20,
-            },
-          ]}
-          layout={{
-            xaxis: { title: 'Salinity (PSU)' },
-            yaxis: { title: 'Frequency' },
-            margin: { t: 20, b: 40, l: 40, r: 20 },
-            height: 300,
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            paper_bgcolor: 'rgba(0,0,0,0)',
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  const ScatterPlot = () => (
-    <Card sx={{ height: 400, background: 'linear-gradient(135deg, #45b7d115 0%, #45b7d105 100%)' }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <BarChart color="primary" />
-          Temperature vs Salinity
-        </Typography>
-        <Plot
-          data={[
-            {
-              x: filteredData.map(d => d.temperature),
-              y: filteredData.map(d => d.salinity),
-              mode: 'markers',
-              type: 'scatter',
-              name: 'Data Points',
-              marker: {
-                size: 8,
-                color: filteredData.map(d => d.depth),
-                colorscale: 'Viridis',
-                showscale: true,
-                colorbar: { title: 'Depth (m)' },
-              },
-              text: filteredData.map(d => `Station: ${d.station_id}<br>Region: ${d.region}<br>Depth: ${d.depth.toFixed(0)}m`),
-              hovertemplate: '%{text}<extra></extra>',
-            },
-          ]}
-          layout={{
-            xaxis: { title: 'Temperature (°C)' },
-            yaxis: { title: 'Salinity (PSU)' },
-            margin: { t: 20, b: 40, l: 40, r: 20 },
-            height: 300,
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            paper_bgcolor: 'rgba(0,0,0,0)',
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  const GeographicMap = () => (
-    <Card sx={{ height: 500, background: 'linear-gradient(135deg, #96ceb415 0%, #96ceb405 100%)' }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Map color="primary" />
-          Geographic Distribution
-        </Typography>
-        <Plot
-          data={[
-            {
-              type: 'scattermapbox',
-              lat: filteredData.map(d => d.latitude),
-              lon: filteredData.map(d => d.longitude),
-              mode: 'markers',
-              marker: {
-                size: 8,
-                color: filteredData.map(d => d.temperature),
-                colorscale: 'Viridis',
-                showscale: true,
-                colorbar: { title: 'Temperature (°C)' },
-              },
-              text: filteredData.map(d => 
-                `Station: ${d.station_id}<br>Temp: ${d.temperature.toFixed(1)}°C<br>Salinity: ${d.salinity.toFixed(1)} PSU<br>Region: ${d.region}`
-              ),
-              hovertemplate: '%{text}<extra></extra>',
-            },
-          ]}
-          layout={{
-            mapbox: {
-              style: 'open-street-map',
-              center: { lat: 0, lon: 0 },
-              zoom: 1,
-            },
-            margin: { t: 0, b: 0, l: 0, r: 0 },
-            height: 400,
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress size={60} sx={{ mb: 2 }} />
-          <Typography variant="h6">Loading ocean data...</Typography>
-        </Box>
-      </Box>
-    );
-  }
+  const COLORS = ['#06b6d4', '#0ea5e9', '#14b8a6', '#22d3ee', '#67e8f9'];
 
   return (
-    <Box sx={{ p: 3, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: '#1976d2' }}>
-              Ocean Data Explorer 🔍
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Explore and analyze ocean data with advanced filtering and visualization tools
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="Refresh Data">
-              <IconButton onClick={handleRefresh} color="primary">
-                <Refresh />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Export as CSV">
-              <IconButton onClick={() => handleExport('csv')} color="primary">
-                <Download />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Export as JSON">
-              <IconButton onClick={() => handleExport('json')} color="primary">
-                <Download />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Export as Excel">
-              <IconButton onClick={() => handleExport('excel')} color="primary">
-                <Download />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Toggle Filters">
-              <IconButton onClick={() => setShowFilters(!showFilters)} color="primary">
-                <FilterList />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-      </motion.div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      color: '#e2e8f0',
+      padding: '2rem',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <style>{`
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+        .card {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
+          padding: 1.5rem;
+          transition: all 0.3s ease;
+        }
 
-      {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Card sx={{ background: 'linear-gradient(135deg, #1976d215 0%, #1976d205 100%)' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ color: '#1976d2', fontSize: '2rem' }}>
-                    <BarChart />
-                  </Box>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#1976d2' }}>
-                      {filteredData.length.toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Records
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Card sx={{ background: 'linear-gradient(135deg, #ff6b6b15 0%, #ff6b6b05 100%)' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ color: '#ff6b6b', fontSize: '2rem' }}>
-                    <Thermostat />
-                  </Box>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#ff6b6b' }}>
-                      {filteredData.length > 0 ? (filteredData.reduce((sum, d) => sum + d.temperature, 0) / filteredData.length).toFixed(1) : '0.0'}°C
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Avg Temperature
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card sx={{ background: 'linear-gradient(135deg, #4ecdc415 0%, #4ecdc405 100%)' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ color: '#4ecdc4', fontSize: '2rem' }}>
-                    <Water />
-                  </Box>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#4ecdc4' }}>
-                      {filteredData.length > 0 ? (filteredData.reduce((sum, d) => sum + d.salinity, 0) / filteredData.length).toFixed(1) : '0.0'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Avg Salinity (PSU)
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <Card sx={{ background: 'linear-gradient(135deg, #45b7d115 0%, #45b7d105 100%)' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ color: '#45b7d1', fontSize: '2rem' }}>
-                    <Speed />
-                  </Box>
-                  <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#45b7d1' }}>
-                      {filteredData.length > 0 ? Math.max(...filteredData.map(d => d.depth)).toFixed(0) : '0'}m
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Max Depth
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-      </Grid>
+        .card:hover {
+          border-color: rgba(255, 255, 255, 0.2);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+          transform: translateY(-2px);
+        }
 
-      {/* Filters */}
-      {showFilters && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <FilterList color="primary" />
-                Advanced Filters
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Search"
+        .stat-card {
+          background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(6, 182, 212, 0.05) 100%);
+          padding: 1.5rem;
+          border-radius: 16px;
+          border: 1px solid rgba(6, 182, 212, 0.3);
+          transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 12px 40px rgba(6, 182, 212, 0.3);
+        }
+
+        .btn {
+          padding: 0.75rem 1.5rem;
+          border-radius: 12px;
+          border: none;
+          background: rgba(6, 182, 212, 0.2);
+          color: #06b6d4;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-weight: 600;
+        }
+
+        .btn:hover {
+          background: rgba(6, 182, 212, 0.3);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px rgba(6, 182, 212, 0.3);
+        }
+
+        .btn-primary {
+          background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%);
+          color: white;
+        }
+
+        .btn-primary:hover {
+          background: linear-gradient(135deg, #0891b2 0%, #0284c7 100%);
+        }
+
+        .input {
+          padding: 0.75rem 1rem;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          background: rgba(255, 255, 255, 0.05);
+          color: #e2e8f0;
+          width: 100%;
+          transition: all 0.3s ease;
+        }
+
+        .input:focus {
+          outline: none;
+          border-color: #06b6d4;
+          box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+        }
+
+        .select {
+          padding: 0.75rem 1rem;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          background: rgba(255, 255, 255, 0.05);
+          color: #e2e8f0;
+          cursor: pointer;
+          width: 100%;
+        }
+
+        .tab {
+          padding: 0.75rem 1.5rem;
+          border-radius: 12px;
+          border: none;
+          background: transparent;
+          color: #94a3b8;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          font-weight: 600;
+        }
+
+        .tab:hover {
+          background: rgba(255, 255, 255, 0.05);
+          color: #e2e8f0;
+        }
+
+        .tab.active {
+          background: linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(20, 184, 166, 0.3) 100%);
+          color: white;
+          box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3);
+        }
+
+        .map-marker {
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .map-marker:hover {
+          transform: scale(1.2);
+        }
+
+        .slider {
+          width: 100%;
+          height: 6px;
+          border-radius: 3px;
+          background: rgba(255, 255, 255, 0.1);
+          outline: none;
+          -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #06b6d4;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(6, 182, 212, 0.5);
+        }
+
+        .slider::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #06b6d4;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(6, 182, 212, 0.5);
+          border: none;
+        }
+
+        .grid {
+          display: grid;
+          gap: 1.5rem;
+        }
+
+        .grid-2 {
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .grid-4 {
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        .pulse {
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        .recharts-wrapper {
+          font-family: inherit !important;
+        }
+
+        .background-canvas {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          opacity: 0.3;
+          z-index: 0;
+        }
+
+        .content {
+          position: relative;
+          z-index: 1;
+        }
+      `}</style>
+
+      <canvas ref={canvasRef} className="background-canvas" />
+
+      <div className="content">
+        {/* Header */}
+        <div className="card" style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem', background: 'linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                🌊 Advanced Data Explorer
+              </h1>
+              <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>
+                Comprehensive ocean data analysis and visualization platform
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button className="btn" onClick={() => setShowFilters(!showFilters)}>
+                <Filter size={18} />
+                {showFilters ? 'Hide' : 'Show'} Filters
+              </button>
+              <button className="btn" onClick={generateEnhancedData}>
+                <RefreshCw size={18} />
+                Refresh
+              </button>
+              <button className="btn btn-primary">
+                <Download size={18} />
+                Export Data
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-4" style={{ marginBottom: '2rem' }}>
+          <div className="stat-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div style={{ padding: '0.75rem', background: 'rgba(6, 182, 212, 0.2)', borderRadius: '12px' }}>
+                <BarChart3 size={28} color="#06b6d4" />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#4caf50' }}>
+                <TrendingUp size={16} />
+                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>+12.5%</span>
+              </div>
+            </div>
+            <h3 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              {animatedStats.records.toLocaleString()}
+            </h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Total Records</p>
+          </div>
+
+          <div className="stat-card" style={{ background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.2) 0%, rgba(236, 72, 153, 0.05) 100%)', borderColor: 'rgba(236, 72, 153, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div style={{ padding: '0.75rem', background: 'rgba(236, 72, 153, 0.2)', borderRadius: '12px' }}>
+                <Thermometer size={28} color="#ec4899" />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#4caf50' }}>
+                <TrendingUp size={16} />
+                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>+0.3°C</span>
+              </div>
+            </div>
+            <h3 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              {animatedStats.temp.toFixed(1)}°C
+            </h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Avg Temperature</p>
+          </div>
+
+          <div className="stat-card" style={{ background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.2) 0%, rgba(20, 184, 166, 0.05) 100%)', borderColor: 'rgba(20, 184, 166, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div style={{ padding: '0.75rem', background: 'rgba(20, 184, 166, 0.2)', borderRadius: '12px' }}>
+                <Droplets size={28} color="#14b8a6" />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#f44336' }}>
+                <TrendingDown size={16} />
+                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>-0.1</span>
+              </div>
+            </div>
+            <h3 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              {animatedStats.salinity.toFixed(1)} PSU
+            </h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Avg Salinity</p>
+          </div>
+
+          <div className="stat-card" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0.05) 100%)', borderColor: 'rgba(168, 85, 247, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div style={{ padding: '0.75rem', background: 'rgba(168, 85, 247, 0.2)', borderRadius: '12px' }}>
+                <MapPin size={28} color="#a855f7" />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#4caf50' }}>
+                <TrendingUp size={16} />
+                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>+5</span>
+              </div>
+            </div>
+            <h3 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              {animatedStats.stations}
+            </h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Active Stations</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        {showFilters && (
+          <div className="card" style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Filter size={24} color="#06b6d4" />
+              Advanced Filters
+            </h3>
+            <div className="grid grid-3">
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1', fontSize: '0.875rem' }}>
+                  Search Stations
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Search by station ID or region..."
                     value={filters.search}
-                    onChange={(e) => handleFilterChange('search', e.target.value)}
-                    placeholder="Search stations, regions..."
-                    size="small"
+                    onChange={(e) => setFilters({...filters, search: e.target.value})}
+                    style={{ paddingLeft: '3rem' }}
                   />
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Region</InputLabel>
-                    <Select
-                      value={filters.region}
-                      onChange={(e) => handleFilterChange('region', e.target.value)}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1', fontSize: '0.875rem' }}>
+                  Region
+                </label>
+                <select 
+                  className="select"
+                  value={filters.region}
+                  onChange={(e) => setFilters({...filters, region: e.target.value})}
+                >
+                  <option value="All">All Regions</option>
+                  <option value="Atlantic">Atlantic Ocean</option>
+                  <option value="Pacific">Pacific Ocean</option>
+                  <option value="Indian">Indian Ocean</option>
+                  <option value="Arctic">Arctic Ocean</option>
+                  <option value="Southern">Southern Ocean</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1', fontSize: '0.875rem' }}>
+                  Year
+                </label>
+                <select 
+                  className="select"
+                  value={filters.year}
+                  onChange={(e) => setFilters({...filters, year: e.target.value})}
+                >
+                  <option value="All">All Years</option>
+                  <option value="2024">2024</option>
+                  <option value="2023">2023</option>
+                  <option value="2022">2022</option>
+                  <option value="2021">2021</option>
+                  <option value="2020">2020</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1', fontSize: '0.875rem' }}>
+                  Data Quality
+                </label>
+                <select 
+                  className="select"
+                  value={filters.quality}
+                  onChange={(e) => setFilters({...filters, quality: e.target.value})}
+                >
+                  <option value="All">All Quality Levels</option>
+                  <option value="Excellent">Excellent</option>
+                  <option value="Good">Good</option>
+                  <option value="Fair">Fair</option>
+                  <option value="Poor">Poor</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1', fontSize: '0.875rem' }}>
+                  Temperature: {filters.tempRange[0]}°C - {filters.tempRange[1]}°C
+                </label>
+                <input
+                  type="range"
+                  className="slider"
+                  min="0"
+                  max="30"
+                  value={filters.tempRange[1]}
+                  onChange={(e) => setFilters({...filters, tempRange: [filters.tempRange[0], parseInt(e.target.value)]})}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1', fontSize: '0.875rem' }}>
+                  Salinity: {filters.salinityRange[0]} - {filters.salinityRange[1]} PSU
+                </label>
+                <input
+                  type="range"
+                  className="slider"
+                  min="30"
+                  max="40"
+                  value={filters.salinityRange[1]}
+                  onChange={(e) => setFilters({...filters, salinityRange: [filters.salinityRange[0], parseInt(e.target.value)]})}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Mode Tabs */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', padding: '0.5rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '16px' }}>
+          <button 
+            className={`tab ${viewMode === 'overview' ? 'active' : ''}`}
+            onClick={() => setViewMode('overview')}
+          >
+            <Globe size={18} />
+            Overview
+          </button>
+          <button 
+            className={`tab ${viewMode === 'map' ? 'active' : ''}`}
+            onClick={() => setViewMode('map')}
+          >
+            <MapIcon size={18} />
+            Map View
+          </button>
+          <button 
+            className={`tab ${viewMode === 'analysis' ? 'active' : ''}`}
+            onClick={() => setViewMode('analysis')}
+          >
+            <Activity size={18} />
+            Analysis
+          </button>
+          <button 
+            className={`tab ${viewMode === 'depth' ? 'active' : ''}`}
+            onClick={() => setViewMode('depth')}
+          >
+            <Anchor size={18} />
+            Depth Profile
+          </button>
+        </div>
+
+        {/* Overview View */}
+        {viewMode === 'overview' && (
+          <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+            <div className="card" style={{ height: '500px' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Globe size={24} color="#06b6d4" />
+                Global Temperature Distribution
+              </h3>
+              <ResponsiveContainer width="100%" height="90%">
+                <ScatterChart>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis 
+                    type="number" 
+                    dataKey="longitude" 
+                    name="Longitude" 
+                    domain={[-180, 180]}
+                    stroke="#94a3b8"
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="latitude" 
+                    name="Latitude" 
+                    domain={[-90, 90]}
+                    stroke="#94a3b8"
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }} 
+                  />
+                  <Scatter 
+                    data={filteredData.slice(0, 200)} 
+                    fill="#06b6d4"
+                    onClick={(data) => setSelectedStation(data)}
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="grid" style={{ gap: '1.5rem' }}>
+              <div className="card">
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle size={20} color="#14b8a6" />
+                  Data Quality
+                </h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={getQualityDistribution()}
+                      dataKey="count"
+                      nameKey="quality"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      label
                     >
-                      <MenuItem value="All">All Regions</MenuItem>
-                      <MenuItem value="Atlantic">Atlantic</MenuItem>
-                      <MenuItem value="Pacific">Pacific</MenuItem>
-                      <MenuItem value="Indian">Indian</MenuItem>
-                      <MenuItem value="Arctic">Arctic</MenuItem>
-                      <MenuItem value="Southern">Southern</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Year</InputLabel>
-                    <Select
-                      value={filters.year}
-                      onChange={(e) => handleFilterChange('year', e.target.value)}
-                    >
-                      <MenuItem value="All">All Years</MenuItem>
-                      <MenuItem value="2023">2023</MenuItem>
-                      <MenuItem value="2022">2022</MenuItem>
-                      <MenuItem value="2021">2021</MenuItem>
-                      <MenuItem value="2020">2020</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Box>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Temperature: {filters.temperature[0]}°C - {filters.temperature[1]}°C
-                    </Typography>
-                    <Slider
-                      value={filters.temperature}
-                      onChange={(e, value) => handleFilterChange('temperature', value)}
-                      valueLabelDisplay="auto"
-                      min={0}
-                      max={30}
-                      sx={{ color: '#ff6b6b' }}
+                      {getQualityDistribution().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'rgba(15, 23, 42, 0.95)', 
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        borderRadius: '8px',
+                        color: '#e2e8f0'
+                      }} 
                     />
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Box>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Salinity: {filters.salinity[0]} - {filters.salinity[1]} PSU
-                    </Typography>
-                    <Slider
-                      value={filters.salinity}
-                      onChange={(e, value) => handleFilterChange('salinity', value)}
-                      valueLabelDisplay="auto"
-                      min={0}
-                      max={40}
-                      sx={{ color: '#4ecdc4' }}
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="card">
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <MapPin size={20} color="#a855f7" />
+                  Regional Stats
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {getRegionData().slice(0, 5).map((region, i) => (
+                    <div key={i} style={{ padding: '0.75rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <span style={{ fontWeight: 600 }}>{region.region}</span>
+                        <span style={{ color: '#06b6d4' }}>{region.count} records</span>
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                        Temp: {region.avgTemp}°C | Salinity: {region.avgSalinity} PSU
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ gridColumn: '1 / -1' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Activity size={24} color="#ec4899" />
+                Monthly Trends
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={getTimeSeriesData()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis dataKey="month" stroke="#94a3b8" />
+                  <YAxis stroke="#94a3b8" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }} 
+                  />
+                  <Legend />
+                  <Area 
+                    type="monotone" 
+                    dataKey="temperature" 
+                    stroke="#ec4899" 
+                    fill="rgba(236, 72, 153, 0.3)" 
+                    name="Temperature (°C)"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="salinity" 
+                    stroke="#14b8a6" 
+                    fill="rgba(20, 184, 166, 0.3)" 
+                    name="Salinity (PSU)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Map View */}
+        {viewMode === 'map' && (
+          <div className="grid" style={{ gap: '1.5rem' }}>
+            <div className="card" style={{ height: '600px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <MapIcon size={24} color="#06b6d4" />
+                  Interactive Station Map
+                </h3>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span className="pulse" style={{ width: '12px', height: '12px', background: '#4caf50', borderRadius: '50%' }}></span>
+                  <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Live Data</span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height="90%">
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis 
+                    type="number" 
+                    dataKey="longitude" 
+                    name="Longitude" 
+                    domain={[-180, 180]}
+                    stroke="#94a3b8"
+                    label={{ value: 'Longitude', position: 'insideBottom', offset: -10, fill: '#94a3b8' }}
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="latitude" 
+                    name="Latitude" 
+                    domain={[-90, 90]}
+                    stroke="#94a3b8"
+                    label={{ value: 'Latitude', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div style={{ padding: '1rem' }}>
+                            <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{data.station_id}</p>
+                            <p style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Region: {data.region}</p>
+                            <p style={{ fontSize: '0.875rem', color: '#ec4899' }}>Temp: {data.temperature.toFixed(1)}°C</p>
+                            <p style={{ fontSize: '0.875rem', color: '#14b8a6' }}>Salinity: {data.salinity.toFixed(1)} PSU</p>
+                            <p style={{ fontSize: '0.875rem', color: '#a855f7' }}>Depth: {data.depth.toFixed(0)}m</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Scatter 
+                    data={filteredData.slice(0, 300)} 
+                    fill="#06b6d4"
+                    className="map-marker"
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+
+            {selectedStation && (
+              <div className="card">
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>
+                  Selected Station: {selectedStation.station_id}
+                </h3>
+                <div className="grid grid-2" style={{ gap: '1rem' }}>
+                  <div style={{ padding: '1rem', background: 'rgba(236, 72, 153, 0.1)', borderRadius: '12px', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <Thermometer size={20} color="#ec4899" />
+                      <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Temperature</span>
+                    </div>
+                    <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{selectedStation.temperature.toFixed(1)}°C</p>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'rgba(20, 184, 166, 0.1)', borderRadius: '12px', border: '1px solid rgba(20, 184, 166, 0.3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <Droplets size={20} color="#14b8a6" />
+                      <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Salinity</span>
+                    </div>
+                    <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{selectedStation.salinity.toFixed(1)} PSU</p>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <Anchor size={20} color="#a855f7" />
+                      <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Depth</span>
+                    </div>
+                    <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{selectedStation.depth.toFixed(0)}m</p>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'rgba(6, 182, 212, 0.1)', borderRadius: '12px', border: '1px solid rgba(6, 182, 212, 0.3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <Activity size={20} color="#06b6d4" />
+                      <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Quality</span>
+                    </div>
+                    <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{selectedStation.quality}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Analysis View */}
+        {viewMode === 'analysis' && (
+          <div className="grid grid-2">
+            <div className="card">
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Thermometer size={24} color="#ec4899" />
+                Temperature vs Salinity
+              </h3>
+              <ResponsiveContainer width="100%" height={350}>
+                <ScatterChart>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis 
+                    type="number" 
+                    dataKey="temperature" 
+                    name="Temperature" 
+                    unit="°C"
+                    stroke="#94a3b8"
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="salinity" 
+                    name="Salinity" 
+                    unit=" PSU"
+                    stroke="#94a3b8"
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }} 
+                  />
+                  <Scatter data={filteredData.slice(0, 200)} fill="#ec4899" />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card">
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Waves size={24} color="#14b8a6" />
+                Temperature Distribution
+              </h3>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={getTimeSeriesData()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis dataKey="month" stroke="#94a3b8" />
+                  <YAxis stroke="#94a3b8" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }} 
+                  />
+                  <Bar dataKey="temperature" fill="#ec4899" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card">
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Activity size={24} color="#06b6d4" />
+                Regional Comparison
+              </h3>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={getRegionData()} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis type="number" stroke="#94a3b8" />
+                  <YAxis type="category" dataKey="region" stroke="#94a3b8" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }} 
+                  />
+                  <Legend />
+                  <Bar dataKey="count" fill="#06b6d4" name="Record Count" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card">
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <BarChart3 size={24} color="#a855f7" />
+                Data Collection Volume
+              </h3>
+              <ResponsiveContainer width="100%" height={350}>
+                <LineChart data={getTimeSeriesData()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis dataKey="month" stroke="#94a3b8" />
+                  <YAxis stroke="#94a3b8" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="records" 
+                    stroke="#a855f7" 
+                    strokeWidth={3}
+                    dot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Depth Profile View */}
+        {viewMode === 'depth' && (
+          <div className="grid">
+            <div className="card" style={{ gridColumn: '1 / -1' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Anchor size={24} color="#06b6d4" />
+                Depth Profile Analysis
+              </h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={getDepthProfile()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis dataKey="depth" stroke="#94a3b8" />
+                  <YAxis stroke="#94a3b8" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'rgba(15, 23, 42, 0.95)', 
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }} 
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="temperature" 
+                    stroke="#ec4899" 
+                    strokeWidth={3}
+                    dot={{ r: 6 }}
+                    name="Temperature (°C)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="salinity" 
+                    stroke="#14b8a6" 
+                    strokeWidth={3}
+                    dot={{ r: 6 }}
+                    name="Salinity (PSU)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="grid grid-2">
+              <div className="card">
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Thermometer size={20} color="#ec4899" />
+                  Temperature by Depth
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={getDepthProfile()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                    <XAxis dataKey="depth" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'rgba(15, 23, 42, 0.95)', 
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        borderRadius: '8px',
+                        color: '#e2e8f0'
+                      }} 
                     />
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Box>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Depth: {filters.depth[0]} - {filters.depth[1]} m
-                    </Typography>
-                    <Slider
-                      value={filters.depth}
-                      onChange={(e, value) => handleFilterChange('depth', value)}
-                      valueLabelDisplay="auto"
-                      min={0}
-                      max={5000}
-                      sx={{ color: '#45b7d1' }}
+                    <Area 
+                      type="monotone" 
+                      dataKey="temperature" 
+                      stroke="#ec4899" 
+                      fill="rgba(236, 72, 153, 0.3)" 
                     />
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
 
-      {/* View Mode Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
-          <Tab label="Table View" icon={<TableChart />} />
-          <Tab label="Charts" icon={<BarChart />} />
-          <Tab label="Map View" icon={<Map />} />
-        </Tabs>
-      </Box>
-
-      {/* Tab Content */}
-      {tabValue === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TableChart color="primary" />
-                Data Table ({filteredData.length} records)
-              </Typography>
-              <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
-                <Table stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Station ID</TableCell>
-                      <TableCell>Timestamp</TableCell>
-                      <TableCell>Latitude</TableCell>
-                      <TableCell>Longitude</TableCell>
-                      <TableCell>Temperature</TableCell>
-                      <TableCell>Salinity</TableCell>
-                      <TableCell>Depth</TableCell>
-                      <TableCell>Region</TableCell>
-                      <TableCell>Quality</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredData.slice(0, 100).map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>{row.station_id}</TableCell>
-                        <TableCell>{new Date(row.timestamp).toLocaleDateString()}</TableCell>
-                        <TableCell>{row.latitude.toFixed(4)}</TableCell>
-                        <TableCell>{row.longitude.toFixed(4)}</TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2">{row.temperature.toFixed(1)}°C</Typography>
-                            <Chip 
-                              size="small" 
-                              label={row.temperature > 20 ? 'High' : row.temperature > 10 ? 'Medium' : 'Low'}
-                              color={row.temperature > 20 ? 'error' : row.temperature > 10 ? 'warning' : 'success'}
-                            />
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2">{row.salinity.toFixed(1)} PSU</Typography>
-                            <Chip 
-                              size="small" 
-                              label={row.salinity > 36 ? 'High' : row.salinity > 34 ? 'Normal' : 'Low'}
-                              color={row.salinity > 36 ? 'error' : row.salinity > 34 ? 'success' : 'warning'}
-                            />
-                          </Box>
-                        </TableCell>
-                        <TableCell>{row.depth.toFixed(0)}m</TableCell>
-                        <TableCell>
-                          <Chip label={row.region} size="small" variant="outlined" />
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={row.quality} 
-                            size="small" 
-                            color={row.quality === 'Good' ? 'success' : 'error'}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {tabValue === 1 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <TemperatureChart />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <SalinityChart />
-          </Grid>
-          <Grid item xs={12}>
-            <ScatterPlot />
-          </Grid>
-        </Grid>
-      )}
-
-      {tabValue === 2 && (
-        <GeographicMap />
-      )}
-    </Box>
+              <div className="card">
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Droplets size={20} color="#14b8a6" />
+                  Salinity by Depth
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={getDepthProfile()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                    <XAxis dataKey="depth" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'rgba(15, 23, 42, 0.95)', 
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        borderRadius: '8px',
+                        color: '#e2e8f0'
+                      }} 
+                    />
+                    <Bar dataKey="salinity" fill="#14b8a6" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
-export default DataExplorer;
+export default AdvancedDataExplorer;

@@ -1,7 +1,3 @@
-"""
-Real-Time Ocean Data API Integration Module
-Integrates multiple free ocean data APIs for live oceanographic information
-"""
 
 from cmath import cos
 import requests
@@ -33,11 +29,9 @@ class RealTimeOceanDataAPI:
         # Cache settings
         self.cache_duration = 3600  # 1 hour cache
         
-        logger.info("✅ Real-Time Ocean Data API initialized")
+        logger.info(" Real-Time Ocean Data API initialized")
     
-    # ==========================================
-    # 1. NOAA ERDDAP - Best Free Ocean Data API
-    # ==========================================
+   
     
     def get_noaa_buoy_data(self, station_id: str = "46042", 
                            days_back: int = 7) -> Dict[str, Any]:
@@ -106,11 +100,11 @@ class RealTimeOceanDataAPI:
                         result["data"][field_mapping[header]] = float(value)
                         result["units"][field_mapping[header]] = units[i] if i < len(units) else ""
             
-            logger.info(f"✅ Retrieved NOAA buoy data for station {station_id}")
+            logger.info(f" Retrieved NOAA buoy data for station {station_id}")
             return result
             
         except Exception as e:
-            logger.error(f"❌ NOAA buoy data error: {e}")
+            logger.error(f" NOAA buoy data error: {e}")
             return {"error": str(e), "status": "failed"}
     
     def get_sea_surface_temperature(self, lat: float, lon: float, 
@@ -157,12 +151,10 @@ class RealTimeOceanDataAPI:
                 return {"error": "No data found for location", "status": "no_data"}
                 
         except Exception as e:
-            logger.error(f"❌ SST data error: {e}")
+            logger.error(f" SST data error: {e}")
             return {"error": str(e), "status": "failed"}
     
-    # ==========================================
-    # 2. Open-Meteo Marine API - FREE & RELIABLE
-    # ==========================================
+    
     
     def get_marine_weather(self, lat: float, lon: float) -> Dict[str, Any]:
         """
@@ -225,16 +217,14 @@ class RealTimeOceanDataAPI:
                         "wave_direction_deg": hourly_data.get("wave_direction", [])[i]
                     })
             
-            logger.info(f"✅ Retrieved marine weather for ({lat}, {lon})")
+            logger.info(f" Retrieved marine weather for ({lat}, {lon})")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Marine weather error: {e}")
+            logger.error(f" Marine weather error: {e}")
             return {"error": str(e), "status": "failed"}
     
-    # ==========================================
-    # 3. NASA PODAAC - Satellite Ocean Data
-    # ==========================================
+
     
     def get_nasa_sea_level(self, lat: float, lon: float) -> Dict[str, Any]:
         """
@@ -266,12 +256,10 @@ class RealTimeOceanDataAPI:
             return result
             
         except Exception as e:
-            logger.error(f"❌ NASA sea level error: {e}")
+            logger.error(f" NASA sea level error: {e}")
             return {"error": str(e), "status": "failed"}
     
-    # ==========================================
-    # 4. WorldBank Climate API - Ocean Stats
-    # ==========================================
+
     
     def get_climate_trends(self, country_code: str = "USA") -> Dict[str, Any]:
         """
@@ -321,10 +309,7 @@ class RealTimeOceanDataAPI:
         except Exception as e:
             logger.error(f"❌ Climate trends error: {e}")
             return {"error": str(e), "status": "failed"}
-    
-    # ==========================================
-    # 5. ARGO Float Data (Real Profiles)
-    # ==========================================
+
     
     def get_argo_profiles_nearby(self, lat: float, lon: float, 
                                   radius_km: float = 500) -> Dict[str, Any]:
@@ -371,12 +356,9 @@ class RealTimeOceanDataAPI:
                 return {"error": "No profiles found", "status": "no_data"}
                 
         except Exception as e:
-            logger.error(f"❌ ARGO profiles error: {e}")
+            logger.error(f" ARGO profiles error: {e}")
             return {"error": str(e), "status": "failed"}
     
-    # ==========================================
-    # 6. Comprehensive Ocean Report
-    # ==========================================
     
     def get_comprehensive_ocean_report(self, lat: float, lon: float,
                                         include_forecast: bool = True) -> Dict[str, Any]:
@@ -430,7 +412,7 @@ class RealTimeOceanDataAPI:
             report["real_time_data"]["argo_floats"] = argo_data
             report["data_sources"].append("ARGO GDAC")
         
-        logger.info(f"✅ Report generated with {len(report['data_sources'])} sources")
+        logger.info(f" Report generated with {len(report['data_sources'])} sources")
         return report
     
     def _find_nearest_buoy(self, lat: float, lon: float) -> Optional[str]:
@@ -458,9 +440,7 @@ class RealTimeOceanDataAPI:
         return nearest if min_dist < 10 else None  # Within ~10 degrees
 
 
-# ==========================================
-# Integration with your RAG Pipeline
-# ==========================================
+# Rag pipeline integration function
 
 def integrate_realtime_data_with_query(user_query: str, lat: float = None, 
                                        lon: float = None) -> Dict[str, Any]:

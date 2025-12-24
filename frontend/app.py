@@ -26,7 +26,7 @@ sys.path.append('../backend')
 
 # Page configuration
 # Add the project root to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..',  )))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..','backend')))
 
 try:
     from backend.rag_pipeline import answer_query

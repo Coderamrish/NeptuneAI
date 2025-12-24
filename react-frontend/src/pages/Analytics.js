@@ -1,684 +1,1039 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Slider,
-  Tabs,
-  Tab,
-  CircularProgress,
-  Alert,
-  Tooltip,
-  Chip,
-  Paper,
-} from '@mui/material';
-import {
-  Download,
-  Refresh,
-  FilterList,
-  Map,
-  Water,
-  Thermostat,
-  Speed,
-  LocationOn,
-  TrendingUp,
-  TrendingDown,
-  BarChart,
-  PieChart,
-  Timeline,
-  Public,
-} from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
-import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from 'react';
+import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { TrendingUp, TrendingDown, RefreshCw, Download, Filter, MapPin, Droplets, Thermometer, Activity, Globe, BarChart3, PieChart as PieChartIcon, Clock, Waves } from 'lucide-react';
 
-const Analytics = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [tabValue, setTabValue] = useState(0);
+const OceanAnalyticsDashboard = () => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     region: 'All',
     year: '2024',
-    temperature: [0, 30],
-    salinity: [0, 40],
-    depth: [0, 5000],
+    tempRange: [0, 30],
+    salinityRange: [0, 40]
   });
-  const [analyticsData, setAnalyticsData] = useState({
-    stats: {
-      totalRecords: 0,
-      avgTemperature: 0,
-      avgSalinity: 0,
-      maxDepth: 0,
-      dataPoints: 0,
-    },
-    temperatureData: [],
-    salinityData: [],
-    depthData: [],
-    geographicData: [],
-    monthlyData: [],
-    correlationData: [],
-  });
-  const { user } = useAuth();
+  const canvasRef = useRef(null);
 
+  // Generate rich ocean data
+  const generateOceanData = () => {
+    const regions = ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    const timeSeriesData = months.map((month, i) => ({
+      month,
+      temperature: 15 + Math.sin(i * Math.PI / 6) * 8 + Math.random() * 2,
+      salinity: 35 + Math.sin(i * Math.PI / 6) * 1.5 + Math.random() * 0.5,
+      pressure: 1000 + Math.sin(i * Math.PI / 6) * 50 + Math.random() * 20,
+      phLevel: 7.8 + Math.random() * 0.4,
+      oxygen: 6 + Math.random() * 2
+    }));
+
+    const depthData = Array.from({ length: 20 }, (_, i) => ({
+      depth: i * 250,
+      temperature: 25 - (i * 1.2) + Math.random() * 2,
+      salinity: 35 + Math.sin(i * 0.3) * 0.8,
+      pressure: i * 25 + Math.random() * 10,
+      density: 1025 + i * 0.5
+    }));
+
+    const regionData = regions.map(region => ({
+      region,
+      avgTemp: 10 + Math.random() * 15,
+      avgSalinity: 33 + Math.random() * 4,
+      dataPoints: 5000 + Math.floor(Math.random() * 5000),
+      stations: 10 + Math.floor(Math.random() * 20)
+    }));
+
+    const correlationData = Array.from({ length: 100 }, () => ({
+      temperature: 5 + Math.random() * 25,
+      salinity: 30 + Math.random() * 10,
+      depth: Math.random() * 5000,
+      oxygen: 4 + Math.random() * 4
+    }));
+
+    const radarData = [
+      { metric: 'Temperature', value: 85, fullMark: 100 },
+      { metric: 'Salinity', value: 92, fullMark: 100 },
+      { metric: 'Pressure', value: 78, fullMark: 100 },
+      { metric: 'pH Level', value: 88, fullMark: 100 },
+      { metric: 'Oxygen', value: 75, fullMark: 100 },
+      { metric: 'Current', value: 82, fullMark: 100 }
+    ];
+
+    return { timeSeriesData, depthData, regionData, correlationData, radarData };
+  };
+
+  const data = generateOceanData();
+
+  // 3D Globe Animation
   useEffect(() => {
-    fetchAnalyticsData();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth * 2;
+    canvas.height = canvas.offsetHeight * 2;
+    ctx.scale(2, 2);
+
+    let rotation = 0;
+    const particles = Array.from({ length: 150 }, () => ({
+      x: Math.random() * canvas.width / 2,
+      y: Math.random() * canvas.height / 2,
+      z: Math.random() * 200 - 100,
+      size: Math.random() * 2 + 1,
+      color: `hsl(${Math.random() * 60 + 180}, 70%, 60%)`
+    }));
+
+    const animate = () => {
+      ctx.fillStyle = 'rgba(10, 25, 47, 0.1)';
+      ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+
+      rotation += 0.002;
+      const centerX = canvas.width / 4;
+      const centerY = canvas.height / 4;
+      const radius = 80;
+
+      // Draw globe outline
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw latitude lines
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        const y = centerY + (i * radius / 3);
+        const width = Math.sqrt(radius * radius - (i * radius / 3) * (i * radius / 3));
+        ctx.ellipse(centerX, y, width, width * 0.3, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Draw longitude lines
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath();
+        const angle = (i * Math.PI / 4) + rotation;
+        ctx.ellipse(centerX, centerY, radius * Math.abs(Math.cos(angle)), radius, Math.PI / 2, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Animate particles
+      particles.forEach(p => {
+        const rotatedX = p.x - centerX;
+        const rotatedZ = p.z;
+        const newX = rotatedX * Math.cos(rotation) - rotatedZ * Math.sin(rotation);
+        const newZ = rotatedX * Math.sin(rotation) + rotatedZ * Math.cos(rotation);
+        
+        const scale = 200 / (200 + newZ);
+        const x2d = newX * scale + centerX;
+        const y2d = p.y * scale + centerY / 2;
+
+        if (newZ > -100) {
+          ctx.beginPath();
+          ctx.arc(x2d, y2d, p.size * scale, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.fill();
+
+          // Add glow effect
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = p.color;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
   }, []);
 
-  const fetchAnalyticsData = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('neptuneai_token');
-      
-      // Try to fetch from API first
-      const response = await fetch('/api/analytics', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Enhance with real data structure
-        setAnalyticsData({
-          stats: data.stats || {},
-          temperatureData: data.temperatureData || generateTemperatureData(),
-          salinityData: data.salinityData || generateSalinityData(),
-          depthData: data.depthData || generateDepthData(),
-          geographicData: data.geographicData || generateGeographicData(),
-          monthlyData: data.monthlyData || generateMonthlyData(),
-          correlationData: data.correlationData || generateCorrelationData()
-        });
-      } else {
-        // Generate enhanced sample data if API fails
-        generateSampleData();
-      }
-    } catch (error) {
-      console.error('Failed to fetch analytics data:', error);
-      setError('Failed to load analytics data');
-      generateSampleData();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateTemperatureData = () => {
-    return Array.from({ length: 200 }, (_, i) => ({
-      x: i,
-      y: 15 + Math.sin(i * 0.1) * 8 + Math.cos(i * 0.05) * 3 + Math.random() * 2,
-      region: ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern'][Math.floor(Math.random() * 5)],
-      depth: Math.random() * 5000,
-      timestamp: new Date(Date.now() - (200 - i) * 24 * 60 * 60 * 1000).toISOString(),
-    }));
-  };
-
-  const generateSalinityData = () => {
-    return Array.from({ length: 200 }, (_, i) => ({
-      x: i,
-      y: 35 + Math.sin(i * 0.15) * 3 + Math.cos(i * 0.08) * 1.5 + Math.random() * 1,
-      region: ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern'][Math.floor(Math.random() * 5)],
-      depth: Math.random() * 5000,
-      timestamp: new Date(Date.now() - (200 - i) * 24 * 60 * 60 * 1000).toISOString(),
-    }));
-  };
-
-  const generateDepthData = () => {
-    return Array.from({ length: 100 }, (_, i) => ({
-      depth: i * 50,
-      temperature: 25 - (i * 0.4) + Math.sin(i * 0.1) * 2 + Math.random() * 1.5,
-      salinity: 35 + Math.sin(i * 0.05) * 1 + Math.random() * 0.8,
-      pressure: i * 5,
-      density: 1025 + (i * 0.1) + Math.random() * 0.5,
-    }));
-  };
-
-  const generateGeographicData = () => {
-    const regions = [
-      { name: 'North Atlantic', lat: 40, lon: -30, temp: 18, sal: 35.5 },
-      { name: 'South Atlantic', lat: -30, lon: -20, temp: 22, sal: 35.2 },
-      { name: 'North Pacific', lat: 35, lon: -150, temp: 16, sal: 34.8 },
-      { name: 'South Pacific', lat: -20, lon: -120, temp: 24, sal: 35.0 },
-      { name: 'Indian Ocean', lat: -10, lon: 80, temp: 26, sal: 35.3 },
-      { name: 'Arctic Ocean', lat: 80, lon: 0, temp: 2, sal: 34.5 },
-      { name: 'Southern Ocean', lat: -60, lon: 0, temp: 4, sal: 34.2 },
-    ];
-    
-    return regions.flatMap(region => 
-      Array.from({ length: 20 }, (_, i) => ({
-        lat: region.lat + (Math.random() - 0.5) * 10,
-        lon: region.lon + (Math.random() - 0.5) * 20,
-        temperature: region.temp + (Math.random() - 0.5) * 4,
-        salinity: region.sal + (Math.random() - 0.5) * 0.5,
-        depth: Math.random() * 5000,
-        region: region.name,
-        station_id: `ST${String(i + 1).padStart(3, '0')}`,
-      }))
-    );
-  };
-
-  const generateMonthlyData = () => {
-    return Array.from({ length: 12 }, (_, i) => {
-      const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i];
-      const seasonalFactor = Math.sin((i - 2) * Math.PI / 6); // Peak in summer
-      return {
-        month,
-        temperature: 15 + seasonalFactor * 8 + Math.random() * 2,
-        salinity: 35 + seasonalFactor * 1.5 + Math.random() * 0.8,
-        depth: 2500 + seasonalFactor * 800 + Math.random() * 400,
-        pressure: 250 + seasonalFactor * 50 + Math.random() * 20,
-        dataPoints: 1000 + Math.floor(Math.random() * 500),
-      };
-    });
-  };
-
-  const generateCorrelationData = () => {
-    return Array.from({ length: 150 }, (_, i) => {
-      const temp = 10 + Math.random() * 20;
-      const sal = 30 + Math.random() * 10;
-      return {
-        temperature: temp,
-        salinity: sal,
-        depth: Math.random() * 5000,
-        pressure: Math.random() * 1000,
-        density: 1025 + (temp * 0.2) + (sal * 0.1) + Math.random() * 0.5,
-        oxygen: 8 + Math.random() * 2,
-        ph: 7.8 + Math.random() * 0.4,
-      };
-    });
-  };
-
-  const generateSampleData = () => {
-    setAnalyticsData({
-      stats: {
-        totalRecords: 125000,
-        avgTemperature: 15.2,
-        avgSalinity: 35.1,
-        maxDepth: 5000,
-        dataPoints: 200,
-        activeStations: 45,
-        dataQuality: 94.5,
-      },
-      temperatureData: generateTemperatureData(),
-      salinityData: generateSalinityData(),
-      depthData: generateDepthData(),
-      geographicData: generateGeographicData(),
-      monthlyData: generateMonthlyData(),
-      correlationData: generateCorrelationData(),
-    });
-  };
-
-  const handleFilterChange = (filterName, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterName]: value
-    }));
-  };
+  const StatCard = ({ title, value, unit, icon: Icon, trend, change, gradient }) => (
+    <div className={`stat-card ${gradient}`}>
+      <div className="stat-header">
+        <div className="stat-icon">
+          <Icon size={24} />
+        </div>
+        <div className={`stat-trend ${trend === 'up' ? 'trend-up' : 'trend-down'}`}>
+          {trend === 'up' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+          <span>{change}</span>
+        </div>
+      </div>
+      <div className="stat-value">
+        {value}<span className="stat-unit">{unit}</span>
+      </div>
+      <div className="stat-title">{title}</div>
+    </div>
+  );
 
   const handleRefresh = () => {
-    fetchAnalyticsData();
-    toast.success('Analytics data refreshed!');
+    setLoading(true);
+    setTimeout(() => setLoading(false), 1000);
   };
-
-  const handleExport = () => {
-    toast.success('Exporting analytics data...');
-    // Implement export functionality
-  };
-
-  const StatCard = ({ title, value, unit, icon, trend, change, color = '#1976d2' }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)` }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box sx={{ color, p: 1, borderRadius: 2, bgcolor: `${color}20` }}>
-              {icon}
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {trend === 'up' ? <TrendingUp color="success" /> : <TrendingDown color="error" />}
-              <Typography variant="body2" color={trend === 'up' ? 'success.main' : 'error.main'}>
-                {change > 0 ? '+' : ''}{change}{unit}
-              </Typography>
-            </Box>
-          </Box>
-          <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-            {value}{unit}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {title}
-          </Typography>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-
-  const TemperatureVsSalinityChart = () => (
-    <Card sx={{ height: 400 }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Thermostat color="primary" />
-          Temperature vs Salinity Correlation
-        </Typography>
-        <Plot
-          data={[
-            {
-              x: analyticsData.correlationData.map(d => d.temperature),
-              y: analyticsData.correlationData.map(d => d.salinity),
-              mode: 'markers',
-              type: 'scatter',
-              name: 'Data Points',
-              marker: {
-                size: 8,
-                color: analyticsData.correlationData.map(d => d.depth),
-                colorscale: 'Viridis',
-                showscale: true,
-                colorbar: {
-                  title: 'Depth (m)',
-                  titleside: 'right',
-                },
-              },
-              text: analyticsData.correlationData.map(d => `Temp: ${d.temperature.toFixed(1)}°C<br>Salinity: ${d.salinity.toFixed(1)} PSU<br>Depth: ${d.depth.toFixed(0)}m`),
-              hovertemplate: '%{text}<extra></extra>',
-            },
-          ]}
-          layout={{
-            xaxis: { title: 'Temperature (°C)' },
-            yaxis: { title: 'Salinity (PSU)' },
-            margin: { t: 20, b: 40, l: 40, r: 20 },
-            height: 300,
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  const MonthlyDistributionChart = () => (
-    <Card sx={{ height: 400 }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <BarChart color="primary" />
-          Monthly Data Distribution
-        </Typography>
-        <Plot
-          data={[
-            {
-              x: analyticsData.monthlyData.map(d => d.month),
-              y: analyticsData.monthlyData.map(d => d.records),
-              type: 'bar',
-              name: 'Records',
-              marker: { color: '#4ecdc4' },
-            },
-          ]}
-          layout={{
-            xaxis: { title: 'Month' },
-            yaxis: { title: 'Number of Records' },
-            margin: { t: 20, b: 40, l: 40, r: 20 },
-            height: 300,
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  const GeographicDistributionChart = () => (
-    <Card sx={{ height: 500 }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Map color="primary" />
-          Global Ocean Data Distribution
-        </Typography>
-        <Plot
-          data={[
-            {
-              type: 'scattermapbox',
-              lat: analyticsData.geographicData.map(d => d.lat),
-              lon: analyticsData.geographicData.map(d => d.lon),
-              mode: 'markers',
-              marker: {
-                size: 8,
-                color: analyticsData.geographicData.map(d => d.temp),
-                colorscale: 'Viridis',
-                showscale: true,
-                colorbar: {
-                  title: 'Temperature (°C)',
-                  titleside: 'right',
-                },
-              },
-              text: analyticsData.geographicData.map(d => 
-                `Region: ${d.region}<br>Temp: ${d.temp.toFixed(1)}°C<br>Salinity: ${d.salinity.toFixed(1)} PSU<br>Depth: ${d.depth.toFixed(0)}m`
-              ),
-              hovertemplate: '%{text}<extra></extra>',
-            },
-          ]}
-          layout={{
-            mapbox: {
-              style: 'open-street-map',
-              center: { lat: 0, lon: 0 },
-              zoom: 1,
-            },
-            margin: { t: 0, b: 0, l: 0, r: 0 },
-            height: 400,
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  const DepthProfileChart = () => (
-    <Card sx={{ height: 400 }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Speed color="primary" />
-          Depth Profile Analysis
-        </Typography>
-        <Plot
-          data={[
-            {
-              x: analyticsData.depthData.map(d => d.temperature),
-              y: analyticsData.depthData.map(d => d.depth),
-              type: 'scatter',
-              mode: 'lines+markers',
-              name: 'Temperature',
-              line: { color: '#ff6b6b', width: 3 },
-              marker: { size: 6 },
-            },
-            {
-              x: analyticsData.depthData.map(d => d.salinity),
-              y: analyticsData.depthData.map(d => d.depth),
-              type: 'scatter',
-              mode: 'lines+markers',
-              name: 'Salinity',
-              line: { color: '#4ecdc4', width: 3 },
-              marker: { size: 6 },
-              xaxis: 'x2',
-            },
-          ]}
-          layout={{
-            xaxis: { title: 'Temperature (°C)', domain: [0, 0.45] },
-            xaxis2: { title: 'Salinity (PSU)', domain: [0.55, 1] },
-            yaxis: { title: 'Depth (m)', autorange: 'reversed' },
-            margin: { t: 20, b: 40, l: 40, r: 20 },
-            height: 300,
-          }}
-          config={{ displayModeBar: false }}
-        />
-      </CardContent>
-    </Card>
-  );
-
-  const OceanParametersPieChart = () => {
-    const pieData = [
-      { name: 'Temperature', value: 35, color: '#ff6b6b' },
-      { name: 'Salinity', value: 25, color: '#4ecdc4' },
-      { name: 'Pressure', value: 20, color: '#45b7d1' },
-      { name: 'Current Speed', value: 15, color: '#96ceb4' },
-      { name: 'pH Level', value: 5, color: '#ff9ff3' },
-    ];
-
-    return (
-      <Card sx={{ height: 400 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PieChart color="primary" />
-            Ocean Parameters Distribution
-          </Typography>
-          <Plot
-            data={[
-              {
-                values: pieData.map(d => d.value),
-                labels: pieData.map(d => d.name),
-                type: 'pie',
-                marker: {
-                  colors: pieData.map(d => d.color),
-                },
-                textinfo: 'label+percent',
-                textposition: 'outside',
-              },
-            ]}
-            layout={{
-              margin: { t: 20, b: 20, l: 20, r: 20 },
-              height: 300,
-              showlegend: true,
-            }}
-            config={{ displayModeBar: false }}
-          />
-        </CardContent>
-      </Card>
-    );
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress size={60} sx={{ mb: 2 }} />
-          <Typography variant="h6">Loading analytics...</Typography>
-        </Box>
-      </Box>
-    );
-  }
 
   return (
-    <Box sx={{ p: 3, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: '#1976d2' }}>
-              Ocean Analytics 📊
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Comprehensive analysis of ocean data and trends
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="Refresh Data">
-              <IconButton onClick={handleRefresh} color="primary">
-                <Refresh />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Export Data">
-              <IconButton onClick={handleExport} color="primary">
-                <Download />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-      </motion.div>
+    <div className="dashboard">
+      <style>{`
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
+        body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+          color: #e2e8f0;
+          overflow-x: hidden;
+        }
+
+        .dashboard {
+          min-height: 100vh;
+          padding: 2rem;
+          position: relative;
+        }
+
+        .dashboard::before {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: 
+            radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 50% 20%, rgba(34, 211, 238, 0.08) 0%, transparent 50%);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .dashboard > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+          padding: 1.5rem;
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-content h1 {
+          font-size: 2.5rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 50%, #22d3ee 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          margin-bottom: 0.5rem;
+        }
+
+        .header-content p {
+          color: #94a3b8;
+          font-size: 1rem;
+        }
+
+        .header-actions {
+          display: flex;
+          gap: 1rem;
+        }
+
+        .icon-btn {
+          padding: 0.75rem;
+          background: rgba(6, 182, 212, 0.15);
+          border: 1px solid rgba(6, 182, 212, 0.3);
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          color: #06b6d4;
+        }
+
+        .icon-btn:hover {
+          background: rgba(6, 182, 212, 0.25);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px rgba(6, 182, 212, 0.3);
+        }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+
+        .stat-card {
+          padding: 1.5rem;
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+          transition: all 0.3s ease;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .stat-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: inherit;
+          opacity: 0.5;
+          z-index: -1;
+        }
+
+        .gradient-blue {
+          background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(8, 145, 178, 0.1) 100%);
+        }
+
+        .gradient-red {
+          background: linear-gradient(135deg, rgba(236, 72, 153, 0.2) 0%, rgba(219, 39, 119, 0.1) 100%);
+        }
+
+        .gradient-teal {
+          background: linear-gradient(135deg, rgba(20, 184, 166, 0.2) 0%, rgba(13, 148, 136, 0.1) 100%);
+        }
+
+        .gradient-purple {
+          background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(147, 51, 234, 0.1) 100%);
+        }
+
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+
+        .stat-icon {
+          padding: 0.75rem;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .stat-trend {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          font-size: 0.875rem;
+          font-weight: 600;
+          padding: 0.25rem 0.75rem;
+          border-radius: 20px;
+        }
+
+        .trend-up {
+          color: #22c55e;
+          background: rgba(34, 197, 94, 0.1);
+        }
+
+        .trend-down {
+          color: #ef4444;
+          background: rgba(239, 68, 68, 0.1);
+        }
+
+        .stat-value {
+          font-size: 2.5rem;
+          font-weight: 700;
+          margin-bottom: 0.5rem;
+        }
+
+        .stat-unit {
+          font-size: 1.5rem;
+          color: #94a3b8;
+          margin-left: 0.25rem;
+        }
+
+        .stat-title {
+          color: #cbd5e1;
+          font-size: 0.875rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .tabs {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 2rem;
+          padding: 0.5rem;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab {
+          flex: 1;
+          padding: 1rem;
+          background: transparent;
+          border: none;
+          border-radius: 12px;
+          color: #94a3b8;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+        }
+
+        .tab:hover {
+          background: rgba(255, 255, 255, 0.05);
+          color: #e2e8f0;
+        }
+
+        .tab.active {
+          background: linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(20, 184, 166, 0.3) 100%);
+          color: #fff;
+          box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3);
+        }
+
+        .charts-grid {
+          display: grid;
+          grid-template-columns: repeat(12, 1fr);
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+
+        .chart-card {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 1.5rem;
+          transition: all 0.3s ease;
+        }
+
+        .chart-card:hover {
+          border-color: rgba(255, 255, 255, 0.2);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .chart-card.full {
+          grid-column: span 12;
+        }
+
+        .chart-card.half {
+          grid-column: span 6;
+        }
+
+        .chart-card.third {
+          grid-column: span 4;
+        }
+
+        .chart-card.two-third {
+          grid-column: span 8;
+        }
+
+        @media (max-width: 768px) {
+          .chart-card.half,
+          .chart-card.third,
+          .chart-card.two-third {
+            grid-column: span 12;
+          }
+        }
+
+        .chart-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .chart-header h3 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          color: #e2e8f0;
+        }
+
+        .chart-icon {
+          padding: 0.5rem;
+          background: rgba(6, 182, 212, 0.15);
+          border-radius: 10px;
+          color: #06b6d4;
+          display: flex;
+        }
+
+        .globe-canvas {
+          width: 100%;
+          height: 400px;
+          border-radius: 12px;
+          background: rgba(0, 0, 0, 0.2);
+        }
+
+        .filters {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+          padding: 1.5rem;
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          margin-bottom: 2rem;
+        }
+
+        .filter-group label {
+          display: block;
+          color: #cbd5e1;
+          font-size: 0.875rem;
+          margin-bottom: 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .filter-group select {
+          width: 100%;
+          padding: 0.75rem;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+          color: #e2e8f0;
+          font-size: 1rem;
+        }
+
+        .loading-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(10, 25, 47, 0.8);
+          backdrop-filter: blur(5px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .spinner {
+          width: 50px;
+          height: 50px;
+          border: 3px solid rgba(6, 182, 212, 0.3);
+          border-top-color: #06b6d4;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .recharts-wrapper {
+          font-family: inherit !important;
+        }
+
+        .recharts-cartesian-axis-tick-value {
+          fill: #94a3b8 !important;
+        }
+
+        .recharts-legend-item-text {
+          color: #cbd5e1 !important;
+        }
+      `}</style>
+
+      {loading && (
+        <div className="loading-overlay">
+          <div className="spinner" />
+        </div>
       )}
 
-      {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Records"
-            value={analyticsData.stats.totalRecords.toLocaleString()}
-            unit=""
-            icon={<BarChart />}
-            trend="up"
-            change="12.5%"
-            color="#1976d2"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Avg Temperature"
-            value={analyticsData.stats.avgTemperature}
-            unit="°C"
-            icon={<Thermostat />}
-            trend="up"
-            change="0.3°C"
-            color="#ff6b6b"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Avg Salinity"
-            value={analyticsData.stats.avgSalinity}
-            unit=" PSU"
-            icon={<Water />}
-            trend="down"
-            change="-0.1 PSU"
-            color="#4ecdc4"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Data Points"
-            value={analyticsData.stats.dataPoints}
-            unit=""
-            icon={<LocationOn />}
-            trend="up"
-            change="25"
-            color="#4caf50"
-          />
-        </Grid>
-      </Grid>
+      <div className="header">
+        <div className="header-content">
+          <h1>🌊 Ocean Analytics 3D</h1>
+          <p>Real-time ocean data visualization and insights</p>
+        </div>
+        <div className="header-actions">
+          <button className="icon-btn" onClick={handleRefresh}>
+            <RefreshCw size={20} />
+          </button>
+          <button className="icon-btn">
+            <Download size={20} />
+          </button>
+          <button className="icon-btn">
+            <Filter size={20} />
+          </button>
+        </div>
+      </div>
 
-      {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FilterList color="primary" />
-              Filters
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Region</InputLabel>
-                  <Select
-                    value={filters.region}
-                    onChange={(e) => handleFilterChange('region', e.target.value)}
-                  >
-                    <MenuItem value="All">All Regions</MenuItem>
-                    <MenuItem value="Atlantic">Atlantic</MenuItem>
-                    <MenuItem value="Pacific">Pacific</MenuItem>
-                    <MenuItem value="Indian">Indian</MenuItem>
-                    <MenuItem value="Arctic">Arctic</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Year</InputLabel>
-                  <Select
-                    value={filters.year}
-                    onChange={(e) => handleFilterChange('year', e.target.value)}
-                  >
-                    <MenuItem value="2024">2024</MenuItem>
-                    <MenuItem value="2023">2023</MenuItem>
-                    <MenuItem value="2022">2022</MenuItem>
-                    <MenuItem value="2021">2021</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Box>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Temperature: {filters.temperature[0]}°C - {filters.temperature[1]}°C
-                  </Typography>
-                  <Slider
-                    value={filters.temperature}
-                    onChange={(e, value) => handleFilterChange('temperature', value)}
-                    valueLabelDisplay="auto"
-                    min={0}
-                    max={30}
-                    sx={{ color: '#ff6b6b' }}
-                  />
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Box>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Salinity: {filters.salinity[0]} - {filters.salinity[1]} PSU
-                  </Typography>
-                  <Slider
-                    value={filters.salinity}
-                    onChange={(e, value) => handleFilterChange('salinity', value)}
-                    valueLabelDisplay="auto"
-                    min={0}
-                    max={40}
-                    sx={{ color: '#4ecdc4' }}
-                  />
-                </Box>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-      </motion.div>
+      <div className="stats-grid">
+        <StatCard
+          title="Total Records"
+          value="125,847"
+          unit=""
+          icon={BarChart3}
+          trend="up"
+          change="+12.5%"
+          gradient="gradient-blue"
+        />
+        <StatCard
+          title="Avg Temperature"
+          value="15.2"
+          unit="°C"
+          icon={Thermometer}
+          trend="up"
+          change="+0.3°C"
+          gradient="gradient-red"
+        />
+        <StatCard
+          title="Avg Salinity"
+          value="35.1"
+          unit="PSU"
+          icon={Droplets}
+          trend="down"
+          change="-0.1"
+          gradient="gradient-teal"
+        />
+        <StatCard
+          title="Active Stations"
+          value="248"
+          unit=""
+          icon={Activity}
+          trend="up"
+          change="+18"
+          gradient="gradient-purple"
+        />
+      </div>
 
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
-          <Tab label="Charts" icon={<BarChart />} />
-          <Tab label="Map View" icon={<Map />} />
-          <Tab label="Time Series" icon={<Timeline />} />
-        </Tabs>
-      </Box>
+      <div className="tabs">
+        <button 
+          className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          <Globe size={18} />
+          Overview
+        </button>
+        <button 
+          className={`tab ${activeTab === 'depth' ? 'active' : ''}`}
+          onClick={() => setActiveTab('depth')}
+        >
+          <Waves size={18} />
+          Depth Analysis
+        </button>
+        <button 
+          className={`tab ${activeTab === 'regions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('regions')}
+        >
+          <MapPin size={18} />
+          Regions
+        </button>
+        <button 
+          className={`tab ${activeTab === 'timeline' ? 'active' : ''}`}
+          onClick={() => setActiveTab('timeline')}
+        >
+          <Clock size={18} />
+          Timeline
+        </button>
+      </div>
 
-      {/* Tab Content */}
-      {tabValue === 0 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} lg={8}>
-            <TemperatureVsSalinityChart />
-          </Grid>
-          <Grid item xs={12} lg={4}>
-            <OceanParametersPieChart />
-          </Grid>
-          <Grid item xs={12} lg={6}>
-            <MonthlyDistributionChart />
-          </Grid>
-          <Grid item xs={12} lg={6}>
-            <DepthProfileChart />
-          </Grid>
-        </Grid>
+      {activeTab === 'overview' && (
+        <div className="charts-grid">
+          <div className="chart-card two-third">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Globe size={20} />
+              </div>
+              <h3>3D Ocean Globe Visualization</h3>
+            </div>
+            <canvas ref={canvasRef} className="globe-canvas" />
+          </div>
+
+          <div className="chart-card third">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Activity size={20} />
+              </div>
+              <h3>Performance Metrics</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={350}>
+              <RadarChart data={data.radarData}>
+                <PolarGrid stroke="rgba(148, 163, 184, 0.3)" />
+                <PolarAngleAxis dataKey="metric" stroke="#94a3b8" />
+                <PolarRadiusAxis stroke="#94a3b8" />
+                <Radar name="Current" dataKey="value" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.6} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Thermometer size={20} />
+              </div>
+              <h3>Temperature vs Salinity</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <ScatterChart>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis type="number" dataKey="temperature" name="Temperature" unit="°C" stroke="#94a3b8" />
+                <YAxis type="number" dataKey="salinity" name="Salinity" unit="PSU" stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Scatter data={data.correlationData} fill="#14b8a6" />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <PieChartIcon size={20} />
+              </div>
+              <h3>Regional Distribution</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.regionData}
+                  dataKey="dataPoints"
+                  nameKey="region"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                >
+                  {data.regionData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#06b6d4', '#0ea5e9', '#14b8a6', '#22d3ee', '#67e8f9'][index % 5]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       )}
 
-      {tabValue === 1 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <GeographicDistributionChart />
-          </Grid>
-        </Grid>
+      {activeTab === 'depth' && (
+        <div className="charts-grid">
+          <div className="chart-card full">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Waves size={20} />
+              </div>
+              <h3>Depth Profile Analysis</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={data.depthData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="depth" label={{ value: 'Depth (m)', position: 'insideBottom', offset: -5 }} stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Legend />
+                <Line type="monotone" dataKey="temperature" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} name="Temperature (°C)" />
+                <Line type="monotone" dataKey="salinity" stroke="#06b6d4" strokeWidth={3} dot={{ r: 4 }} name="Salinity (PSU)" />
+                <Line type="monotone" dataKey="pressure" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} name="Pressure (dbar)" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Thermometer size={20} />
+              </div>
+              <h3>Temperature Gradient</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={data.depthData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="depth" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Area type="monotone" dataKey="temperature" stroke="#ec4899" fill="rgba(236, 72, 153, 0.3)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Droplets size={20} />
+              </div>
+              <h3>Salinity Distribution</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.depthData.filter((_, i) => i % 2 === 0)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="depth" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Bar dataKey="salinity" fill="#14b8a6" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       )}
 
-      {tabValue === 2 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} lg={6}>
-            <MonthlyDistributionChart />
-          </Grid>
-          <Grid item xs={12} lg={6}>
-            <DepthProfileChart />
-          </Grid>
-        </Grid>
+      {activeTab === 'regions' && (
+        <div className="charts-grid">
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <MapPin size={20} />
+              </div>
+              <h3>Regional Statistics</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={data.regionData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="region" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Legend />
+                <Bar dataKey="avgTemp" fill="#ec4899" radius={[8, 8, 0, 0]} name="Avg Temperature" />
+                <Bar dataKey="avgSalinity" fill="#06b6d4" radius={[8, 8, 0, 0]} name="Avg Salinity" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Activity size={20} />
+              </div>
+              <h3>Data Points by Region</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={data.regionData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis type="number" stroke="#94a3b8" />
+                <YAxis type="category" dataKey="region" stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Bar dataKey="dataPoints" fill="#14b8a6" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card full">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Globe size={20} />
+              </div>
+              <h3>Station Distribution</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={data.regionData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="region" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Area type="monotone" dataKey="stations" stroke="#06b6d4" fill="rgba(6, 182, 212, 0.3)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       )}
-    </Box>
+
+      {activeTab === 'timeline' && (
+        <div className="charts-grid">
+          <div className="chart-card full">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Clock size={20} />
+              </div>
+              <h3>Multi-Parameter Timeline</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={data.timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="month" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Legend />
+                <Line type="monotone" dataKey="temperature" stroke="#ec4899" strokeWidth={3} dot={{ r: 5 }} name="Temperature (°C)" />
+                <Line type="monotone" dataKey="salinity" stroke="#06b6d4" strokeWidth={3} dot={{ r: 5 }} name="Salinity (PSU)" />
+                <Line type="monotone" dataKey="phLevel" stroke="#14b8a6" strokeWidth={3} dot={{ r: 5 }} name="pH Level" />
+                <Line type="monotone" dataKey="oxygen" stroke="#22d3ee" strokeWidth={3} dot={{ r: 5 }} name="Oxygen (mg/L)" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Thermometer size={20} />
+              </div>
+              <h3>Temperature Trends</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={data.timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="month" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Area type="monotone" dataKey="temperature" stroke="#ec4899" fill="rgba(236, 72, 153, 0.4)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card half">
+            <div className="chart-header">
+              <div className="chart-icon">
+                <Waves size={20} />
+              </div>
+              <h3>Pressure Variations</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis dataKey="month" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0'
+                  }} 
+                />
+                <Bar dataKey="pressure" fill="#06b6d4" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      <div className="filters">
+        <div className="filter-group">
+          <label>Region</label>
+          <select 
+            value={filters.region} 
+            onChange={(e) => setFilters({...filters, region: e.target.value})}
+          >
+            <option value="All">All Regions</option>
+            <option value="Atlantic">Atlantic Ocean</option>
+            <option value="Pacific">Pacific Ocean</option>
+            <option value="Indian">Indian Ocean</option>
+            <option value="Arctic">Arctic Ocean</option>
+            <option value="Southern">Southern Ocean</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label>Year</label>
+          <select 
+            value={filters.year} 
+            onChange={(e) => setFilters({...filters, year: e.target.value})}
+          >
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+            <option value="2021">2021</option>
+            <option value="2020">2020</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label>Data Quality</label>
+          <select>
+            <option value="all">All Data</option>
+            <option value="high">High Quality (≥95%)</option>
+            <option value="medium">Medium Quality (80-95%)</option>
+            <option value="low">Low Quality (&lt;80%)</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label>Depth Range</label>
+          <select>
+            <option value="all">All Depths</option>
+            <option value="surface">Surface (0-200m)</option>
+            <option value="intermediate">Intermediate (200-1000m)</option>
+            <option value="deep">Deep (1000-4000m)</option>
+            <option value="abyssal">Abyssal (&gt;4000m)</option>
+          </select>
+        </div>
+      </div>
+    </div>
   );
 };
 
-export default Analytics;
+export default OceanAnalyticsDashboard

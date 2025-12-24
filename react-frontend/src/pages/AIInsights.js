@@ -20,7 +20,10 @@ import {
   Badge,
   Grid,
   Chip,
-  Button, // FIXED: Added missing Button import
+  Button,
+  Avatar,
+  Fade,
+  Zoom,
 } from '@mui/material';
 import {
   Psychology,
@@ -30,6 +33,13 @@ import {
   SmartToy,
   Chat,
   Add,
+  WaterDrop,
+  Waves,
+  Thermostat,
+  Insights,
+  AutoAwesome,
+  Science,
+  TrendingUp,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Plot from 'react-plotly.js';
@@ -43,8 +53,8 @@ const AIInsights = () => {
   const [sessions, setSessions] = useState([]);
   const [showSessions, setShowSessions] = useState(false);
   const [error, setError] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
   
-  // FIXED: Single declaration of quickQuestions
   const quickQuestions = [
     "What's the current ocean temperature?",
     "Show me salinity data",
@@ -66,23 +76,17 @@ const AIInsights = () => {
 
   useEffect(() => {
     fetchChatSessions();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchChatSessions = async () => {
     try {
       const token = localStorage.getItem('neptuneai_token');
-      console.log('Fetching chat sessions...');
-      
       const response = await fetch('/api/chat/sessions', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      console.log('Chat sessions response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('Chat sessions data:', data);
-        
         setSessions(data.sessions || []);
         if (data.sessions && data.sessions.length > 0) {
           setCurrentSession(data.sessions[0]);
@@ -91,13 +95,10 @@ const AIInsights = () => {
           createNewSession();
         }
       } else {
-        const errorData = await response.text();
-        console.error('Failed to fetch sessions:', response.status, errorData);
         createNewSession();
       }
     } catch (error) {
       console.error('Failed to fetch chat sessions:', error);
-      setError('Failed to load chat sessions');
       createNewSession();
     }
   };
@@ -116,8 +117,6 @@ const AIInsights = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('New session data:', data);
-        
         const newSession = {
           session_id: data.session_id,
           title: data.title || 'New Chat',
@@ -128,15 +127,19 @@ const AIInsights = () => {
         setSessions(prev => [newSession, ...prev]);
         setCurrentSession(newSession);
         setMessages([]);
-        toast.success('New chat session created!');
+        toast.success('New chat session created!', {
+          icon: '🌊',
+          style: {
+            borderRadius: '10px',
+            background: '#1976d2',
+            color: '#fff',
+          },
+        });
       } else {
-        const errorData = await response.text();
-        console.error('Failed to create session:', response.status, errorData);
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
+        throw new Error('Failed to create session');
       }
     } catch (error) {
       console.error('Failed to create new session:', error);
-      // Create a local session if API fails
       const localSession = {
         session_id: `local_${Date.now()}`,
         title: 'New Chat',
@@ -145,7 +148,6 @@ const AIInsights = () => {
       setSessions(prev => [localSession, ...prev]);
       setCurrentSession(localSession);
       setMessages([]);
-      toast.warning('Using offline mode');
     }
   };
 
@@ -178,12 +180,12 @@ const AIInsights = () => {
     setMessages(prev => [...prev, userMessage]);
     setQuery('');
     setLoading(true);
+    setIsTyping(true);
     setError(null);
 
     try {
       const token = localStorage.getItem('neptuneai_token');
       console.log('Sending message to backend:', userQuery);
-      console.log('Current session:', currentSession);
       
       const response = await fetch('/api/chat/message', {
         method: 'POST',
@@ -203,185 +205,61 @@ const AIInsights = () => {
         const data = await response.json();
         console.log('Backend response data:', data);
         
-        const aiMessage = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: data.response || data.content || 'I apologize, but I could not generate a response.',
-          timestamp: new Date().toISOString(),
-          plots: data.plots || []
-        };
-        setMessages(prev => [...prev, aiMessage]);
-        toast.success('AI response received!');
-      } else {
-        const errorData = await response.text();
-        console.error('Backend error:', response.status, errorData);
+        // Extract the response text from backend
+        // Backend sends: { summary: "...", plot: {...}, data: [...] }
+        const responseText = data.summary || data.response || data.content || 'I apologize, but I could not generate a response.';
         
-        // Generate AI response locally if API fails
-        const aiResponse = generateAIResponse(userQuery);
+        // Extract plots from backend response
+        const plots = [];
+        if (data.plot) {
+          plots.push(data.plot);
+        }
+        if (data.plots && Array.isArray(data.plots)) {
+          plots.push(...data.plots);
+        }
+        
         const aiMessage = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: aiResponse.content,
+          content: responseText,
           timestamp: new Date().toISOString(),
-          plots: aiResponse.plots || []
+          plots: plots,
+          data: data.data || null
         };
-        setMessages(prev => [...prev, aiMessage]);
-        toast.warning('Using offline AI response');
+        
+        setTimeout(() => {
+          setMessages(prev => [...prev, aiMessage]);
+          setIsTyping(false);
+          toast.success('AI response received!', {
+            icon: '🤖',
+            style: {
+              borderRadius: '10px',
+              background: '#10b981',
+              color: '#fff',
+            },
+          });
+        }, 500);
+      } else {
+        const errorText = await response.text();
+        console.error('Backend error:', response.status, errorText);
+        throw new Error(`Backend error: ${response.status}`);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      setError('Failed to send message');
-      // Generate AI response locally if API fails
-      const aiResponse = generateAIResponse(userQuery);
-      const aiMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: aiResponse.content,
-        timestamp: new Date().toISOString(),
-        plots: aiResponse.plots || []
-      };
-      setMessages(prev => [...prev, aiMessage]);
-      toast.error('Using offline AI response due to connection error');
+      setError('Failed to connect to the server. Please try again.');
+      setIsTyping(false);
+      toast.error('Connection error. Please try again.', {
+        icon: '❌',
+        style: {
+          borderRadius: '10px',
+          background: '#ef4444',
+          color: '#fff',
+        },
+      });
     } finally {
       setLoading(false);
     }
   };
-
-  const generateAIResponse = (query) => {
-    const lowerQuery = query.toLowerCase();
-    
-    if (lowerQuery.includes('temperature') || lowerQuery.includes('temp')) {
-      return {
-        content: `Based on the latest ocean data, the average global ocean temperature is 15.2°C. Temperature varies significantly by region and depth. Surface temperatures in tropical regions can reach 28-30°C, while deep ocean temperatures remain around 2-4°C. Would you like me to show you a temperature distribution map or depth profile?`,
-        plots: [generateTemperatureChart()]
-      };
-    } else if (lowerQuery.includes('salinity')) {
-      return {
-        content: `Ocean salinity averages 35.1 PSU (Practical Salinity Units) globally. Salinity is highest in subtropical regions due to high evaporation (up to 37 PSU) and lowest in polar regions due to ice melt (as low as 32 PSU). The Mediterranean Sea has particularly high salinity due to limited freshwater input.`,
-        plots: [generateSalinityChart()]
-      };
-    } else if (lowerQuery.includes('depth') || lowerQuery.includes('pressure')) {
-      return {
-        content: `Ocean depth varies dramatically, from shallow coastal areas to the Mariana Trench at 11,034 meters. Pressure increases by approximately 1 atmosphere for every 10 meters of depth. At 1000 meters, pressure is about 100 times greater than at the surface. This creates unique ecosystems adapted to high pressure.`,
-        plots: [generateDepthChart()]
-      };
-    } else if (lowerQuery.includes('map') || lowerQuery.includes('location')) {
-      return {
-        content: `I can show you ocean data from various locations worldwide. The data includes measurements from the Atlantic, Pacific, Indian, Arctic, and Southern Oceans. Each region has unique characteristics - for example, the Atlantic has strong currents like the Gulf Stream, while the Pacific is known for its vast size and diverse ecosystems.`,
-        plots: [generateMapChart()]
-      };
-    } else if (lowerQuery.includes('chart') || lowerQuery.includes('graph') || lowerQuery.includes('visualization')) {
-      return {
-        content: `I can create various visualizations for ocean data including temperature maps, salinity distributions, depth profiles, and time series analysis. What specific type of chart would you like to see? I can show correlations between different parameters or analyze trends over time.`,
-        plots: [generateCorrelationChart()]
-      };
-    } else {
-      return {
-        content: `I'm NeptuneAI, your ocean data assistant! I can help you analyze ocean temperature, salinity, depth, pressure, and other parameters. I can create maps, charts, and provide insights about ocean data. What would you like to know about our oceans?`,
-        plots: []
-      };
-    }
-  };
-
-  const generateTemperatureChart = () => ({
-    data: [{
-      x: ['Surface', '100m', '500m', '1000m', '2000m', '4000m'],
-      y: [25, 20, 15, 10, 5, 2],
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Temperature',
-      line: { color: '#ff6b6b', width: 3 },
-      marker: { size: 8 }
-    }],
-    layout: {
-      title: 'Temperature vs Depth Profile',
-      xaxis: { title: 'Depth' },
-      yaxis: { title: 'Temperature (°C)' },
-      height: 300,
-      margin: { t: 40, b: 40, l: 40, r: 20 }
-    }
-  });
-
-  const generateSalinityChart = () => ({
-    data: [{
-      x: ['Tropical', 'Subtropical', 'Temperate', 'Polar'],
-      y: [35.5, 36.8, 35.0, 32.5],
-      type: 'bar',
-      name: 'Salinity',
-      marker: { color: '#4ecdc4' }
-    }],
-    layout: {
-      title: 'Salinity by Ocean Region',
-      xaxis: { title: 'Region' },
-      yaxis: { title: 'Salinity (PSU)' },
-      height: 300,
-      margin: { t: 40, b: 40, l: 40, r: 20 }
-    }
-  });
-
-  const generateDepthChart = () => ({
-    data: [{
-      x: [0, 100, 500, 1000, 2000, 4000, 6000, 8000, 10000],
-      y: [1, 11, 51, 101, 201, 401, 601, 801, 1001],
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Pressure',
-      line: { color: '#45b7d1', width: 3 },
-      marker: { size: 8 }
-    }],
-    layout: {
-      title: 'Pressure vs Depth',
-      xaxis: { title: 'Depth (m)' },
-      yaxis: { title: 'Pressure (atm)' },
-      height: 300,
-      margin: { t: 40, b: 40, l: 40, r: 20 }
-    }
-  });
-
-  const generateMapChart = () => ({
-    data: [{
-      type: 'scattermapbox',
-      lat: [40, 30, -20, 60, 0],
-      lon: [-40, -120, 120, 0, 0],
-      mode: 'markers',
-      marker: {
-        size: 12,
-        color: [25, 15, 20, 5, 18],
-        colorscale: 'Viridis',
-        showscale: true,
-        colorbar: { title: 'Temperature (°C)' }
-      },
-      text: ['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Equatorial'],
-      hovertemplate: '%{text}<br>Temperature: %{marker.color}°C<extra></extra>'
-    }],
-    layout: {
-      mapbox: {
-        style: 'open-street-map',
-        center: { lat: 0, lon: 0 },
-        zoom: 1
-      },
-      height: 400,
-      margin: { t: 0, b: 0, l: 0, r: 0 }
-    }
-  });
-
-  const generateCorrelationChart = () => ({
-    data: [{
-      x: [10, 12, 15, 18, 20, 22, 25, 28],
-      y: [32, 33, 34, 35, 35.5, 36, 36.5, 37],
-      type: 'scatter',
-      mode: 'markers',
-      name: 'Temperature vs Salinity',
-      marker: { size: 10, color: '#ff6b6b' }
-    }],
-    layout: {
-      title: 'Temperature vs Salinity Correlation',
-      xaxis: { title: 'Temperature (°C)' },
-      yaxis: { title: 'Salinity (PSU)' },
-      height: 300,
-      margin: { t: 40, b: 40, l: 40, r: 20 }
-    }
-  });
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -392,320 +270,827 @@ const AIInsights = () => {
 
   const clearMessages = () => {
     setMessages([]);
-    toast.success('Chat cleared!');
+    toast.success('Chat cleared!', {
+      icon: '🧹',
+      style: {
+        borderRadius: '10px',
+        background: '#ef4444',
+        color: '#fff',
+      },
+    });
   };
 
   return (
-    <Box sx={{ p: 3, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: '#1976d2', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Psychology color="primary" />
-              AI Ocean Insights
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Ask me anything about ocean data, and I'll create visualizations and provide insights
-            </Typography>
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+      position: 'relative',
+      overflow: 'hidden',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)',
+        pointerEvents: 'none',
+      }
+    }}>
+      <Box sx={{ position: 'relative', zIndex: 1, p: 3 }}>
+        {/* Animated Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mb: 4,
+            p: 3,
+            borderRadius: 4,
+            background: 'rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ 
+                width: 56, 
+                height: 56, 
+                bgcolor: 'primary.main',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+              }}>
+                <Psychology sx={{ fontSize: 32 }} />
+              </Avatar>
+              <Box>
+                <Typography variant="h4" sx={{ 
+                  fontWeight: 800, 
+                  color: 'white',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                  letterSpacing: '-0.5px',
+                }}>
+                  NeptuneAI
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Advanced Ocean Data Intelligence
+                </Typography>
+              </Box>
+            </Box>
+            
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip title="New Chat" arrow>
+                <IconButton 
+                  onClick={createNewSession}
+                  sx={{ 
+                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    '&:hover': { 
+                      bgcolor: 'rgba(255, 255, 255, 0.2)',
+                      transform: 'scale(1.1)',
+                    },
+                    transition: 'all 0.3s',
+                  }}
+                >
+                  <Add />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Clear Chat" arrow>
+                <IconButton 
+                  onClick={clearMessages}
+                  sx={{ 
+                    bgcolor: 'rgba(239, 68, 68, 0.2)',
+                    color: '#ef4444',
+                    '&:hover': { 
+                      bgcolor: 'rgba(239, 68, 68, 0.3)',
+                      transform: 'scale(1.1)',
+                    },
+                    transition: 'all 0.3s',
+                  }}
+                >
+                  <Clear />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Chat History" arrow>
+                <IconButton 
+                  onClick={() => setShowSessions(!showSessions)}
+                  sx={{ 
+                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    '&:hover': { 
+                      bgcolor: 'rgba(255, 255, 255, 0.2)',
+                      transform: 'scale(1.1)',
+                    },
+                    transition: 'all 0.3s',
+                  }}
+                >
+                  <Badge badgeContent={sessions.length} color="error">
+                    <History />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
-          
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="New Chat">
-              <IconButton onClick={createNewSession} color="primary">
-                <Add />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Clear Chat">
-              <IconButton onClick={clearMessages} color="error">
-                <Clear />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Chat History">
-              <IconButton onClick={() => setShowSessions(!showSessions)} color="primary">
-                <Badge badgeContent={sessions.length} color="error">
-                  <History />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-      </motion.div>
+        </motion.div>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 3,
+                  borderRadius: 2,
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: 'white',
+                }} 
+                onClose={() => setError(null)}
+              >
+                {error}
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <Grid container spacing={3}>
-        {/* Chat Interface */}
-        <Grid item xs={12} md={8}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Paper sx={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
-              {/* Messages */}
-              <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
-                {messages.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', mt: 4 }}>
-                    <SmartToy sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                      Welcome to NeptuneAI! 🌊
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      Ask me anything about ocean data, and I'll create visualizations and provide insights.
-                    </Typography>
-                    
-                    {/* Quick Questions */}
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
-                      {quickQuestions.map((question, index) => (
-                        <Chip
-                          key={index}
-                          label={question}
-                          onClick={() => setQuery(question)}
-                          sx={{ mb: 1, cursor: 'pointer' }}
-                          variant="outlined"
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                ) : (
-                  <List>
-                    <AnimatePresence>
-                      {messages.map((message) => (
-                        <motion.div
-                          key={message.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <ListItem sx={{ flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 1, 
-                              mb: 1,
-                              alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start'
-                            }}>
-                              {message.role === 'assistant' && <SmartToy color="primary" />}
-                              {message.role === 'user' && <Chat color="primary" />}
-                              <Typography variant="caption" color="text.secondary">
-                                {message.role === 'user' ? 'You' : 'NeptuneAI'} • {new Date(message.timestamp).toLocaleTimeString()}
+        <Grid container spacing={3}>
+          {/* Main Chat Interface */}
+          <Grid item xs={12} lg={8}>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <Paper sx={{ 
+                height: '75vh', 
+                display: 'flex', 
+                flexDirection: 'column',
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 4,
+                overflow: 'hidden',
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+              }}>
+                {/* Messages Container */}
+                <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
+                  {messages.length === 0 ? (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      mt: 8,
+                      animation: 'fadeIn 0.6s ease-in',
+                    }}>
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ 
+                          type: "spring",
+                          stiffness: 260,
+                          damping: 20,
+                          delay: 0.3
+                        }}
+                      >
+                        <Avatar sx={{ 
+                          width: 100, 
+                          height: 100, 
+                          margin: '0 auto',
+                          mb: 3,
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          boxShadow: '0 10px 40px rgba(102, 126, 234, 0.4)',
+                        }}>
+                          <SmartToy sx={{ fontSize: 50 }} />
+                        </Avatar>
+                      </motion.div>
+                      
+                      <Typography variant="h4" sx={{ 
+                        color: 'white',
+                        fontWeight: 700,
+                        mb: 2,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                      }}>
+                        Welcome to NeptuneAI
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 4 }}>
+                        Your intelligent companion for ocean data analysis
+                      </Typography>
+                      
+                      {/* Quick Questions Grid */}
+                      <Box sx={{ 
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                        gap: 2,
+                        maxWidth: 800,
+                        margin: '0 auto',
+                        mt: 4,
+                      }}>
+                        {quickQuestions.map((question, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 * index }}
+                          >
+                            <Paper
+                              onClick={() => setQuery(question)}
+                              sx={{ 
+                                p: 2,
+                                cursor: 'pointer',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                transition: 'all 0.3s',
+                                '&:hover': {
+                                  background: 'rgba(255, 255, 255, 0.1)',
+                                  transform: 'translateY(-4px)',
+                                  boxShadow: '0 8px 20px rgba(0, 0, 0, 0.3)',
+                                },
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ color: 'white', textAlign: 'left' }}>
+                                {question}
                               </Typography>
-                            </Box>
-                            <Paper sx={{ 
-                              p: 2, 
-                              bgcolor: message.role === 'user' ? 'primary.main' : 'grey.100',
-                              color: message.role === 'user' ? 'white' : 'text.primary',
-                              maxWidth: '80%',
-                              alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start'
-                            }}>
-                              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                                {message.content}
-                              </Typography>
-                              
-                              {/* Render plots if available */}
-                              {message.plots && message.plots.length > 0 && (
-                                <Box sx={{ mt: 2 }}>
-                                  {message.plots.map((plot, index) => (
-                                    <Plot
-                                      key={index}
-                                      data={plot.data}
-                                      layout={plot.layout}
-                                      config={{ displayModeBar: false }}
-                                      style={{ width: '100%' }}
-                                    />
-                                  ))}
-                                </Box>
-                              )}
                             </Paper>
+                          </motion.div>
+                        ))}
+                      </Box>
+                    </Box>
+                  ) : (
+                    <List sx={{ pb: 2 }}>
+                      <AnimatePresence>
+                        {messages.map((message, index) => (
+                          <motion.div
+                            key={message.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.4 }}
+                          >
+                            <ListItem sx={{ 
+                              flexDirection: 'column', 
+                              alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
+                              mb: 3,
+                              px: 0,
+                            }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 1.5, 
+                                mb: 1,
+                              }}>
+                                {message.role === 'assistant' && (
+                                  <Avatar sx={{ 
+                                    width: 32, 
+                                    height: 32,
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                  }}>
+                                    <SmartToy sx={{ fontSize: 18 }} />
+                                  </Avatar>
+                                )}
+                                <Typography variant="caption" sx={{ 
+                                  color: 'rgba(255, 255, 255, 0.6)',
+                                  fontWeight: 600,
+                                }}>
+                                  {message.role === 'user' ? 'You' : 'NeptuneAI'}
+                                </Typography>
+                                {message.role === 'user' && (
+                                  <Avatar sx={{ 
+                                    width: 32, 
+                                    height: 32,
+                                    bgcolor: 'primary.main',
+                                  }}>
+                                    <Chat sx={{ fontSize: 18 }} />
+                                  </Avatar>
+                                )}
+                              </Box>
+                              
+                              <Paper sx={{ 
+                                p: 2.5, 
+                                maxWidth: '85%',
+                                background: message.role === 'user' 
+                                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                  : 'rgba(255, 255, 255, 0.08)',
+                                backdropFilter: 'blur(10px)',
+                                border: message.role === 'user' 
+                                  ? 'none'
+                                  : '1px solid rgba(255, 255, 255, 0.1)',
+                                color: 'white',
+                                borderRadius: 3,
+                                boxShadow: message.role === 'user'
+                                  ? '0 4px 20px rgba(102, 126, 234, 0.3)'
+                                  : '0 4px 20px rgba(0, 0, 0, 0.2)',
+                              }}>
+                                <Typography variant="body1" sx={{ 
+                                  whiteSpace: 'pre-wrap',
+                                  lineHeight: 1.7,
+                                }}>
+                                  {message.content}
+                                </Typography>
+                                
+                                {/* Render plots from backend */}
+                                {message.plots && message.plots.length > 0 && (
+                                  <Box sx={{ mt: 3 }}>
+                                    {message.plots.map((plot, plotIndex) => (
+                                      <Box 
+                                        key={plotIndex}
+                                        sx={{ 
+                                          mb: 2,
+                                          borderRadius: 2,
+                                          overflow: 'hidden',
+                                          background: 'rgba(0, 0, 0, 0.2)',
+                                        }}
+                                      >
+                                        <Plot
+                                          data={plot.data}
+                                          layout={{
+                                            ...plot.layout,
+                                            paper_bgcolor: 'rgba(0,0,0,0)',
+                                            plot_bgcolor: 'rgba(0,0,0,0)',
+                                            font: { color: 'white' },
+                                          }}
+                                          config={{ displayModeBar: false }}
+                                          style={{ width: '100%' }}
+                                        />
+                                      </Box>
+                                    ))}
+                                  </Box>
+                                )}
+                              </Paper>
+                            </ListItem>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                      
+                      {/* Typing Indicator */}
+                      {isTyping && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                        >
+                          <ListItem sx={{ px: 0 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Avatar sx={{ 
+                                width: 32, 
+                                height: 32,
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              }}>
+                                <SmartToy sx={{ fontSize: 18 }} />
+                              </Avatar>
+                              <Paper sx={{
+                                p: 2,
+                                background: 'rgba(255, 255, 255, 0.08)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: 3,
+                              }}>
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                  <Box sx={{ 
+                                    width: 8, 
+                                    height: 8, 
+                                    borderRadius: '50%',
+                                    bgcolor: 'primary.main',
+                                    animation: 'pulse 1.5s ease-in-out infinite',
+                                  }} />
+                                  <Box sx={{ 
+                                    width: 8, 
+                                    height: 8, 
+                                    borderRadius: '50%',
+                                    bgcolor: 'primary.main',
+                                    animation: 'pulse 1.5s ease-in-out 0.2s infinite',
+                                  }} />
+                                  <Box sx={{ 
+                                    width: 8, 
+                                    height: 8, 
+                                    borderRadius: '50%',
+                                    bgcolor: 'primary.main',
+                                    animation: 'pulse 1.5s ease-in-out 0.4s infinite',
+                                  }} />
+                                  <Typography variant="caption" sx={{ ml: 1, color: 'rgba(255, 255, 255, 0.7)' }}>
+                                    Analyzing...
+                                  </Typography>
+                                </Box>
+                              </Paper>
+                            </Box>
                           </ListItem>
                         </motion.div>
-                      ))}
-                    </AnimatePresence>
-                    {loading && (
-                      <ListItem>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <SmartToy color="primary" />
-                          <CircularProgress size={20} />
-                          <Typography variant="body2" color="text.secondary">
-                            NeptuneAI is thinking...
-                          </Typography>
-                        </Box>
-                      </ListItem>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </List>
-                )}
-              </Box>
+                      )}
+                      
+                      <div ref={messagesEndRef} />
+                    </List>
+                  )}
+                </Box>
 
-              {/* Input */}
-              <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <TextField
-                    fullWidth
-                    placeholder="Ask me about ocean data..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={loading}
-                    multiline
-                    maxRows={3}
+                {/* Enhanced Input Area */}
+                <Box sx={{ 
+                  p: 3, 
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(0, 0, 0, 0.2)',
+                }}>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+                    <TextField
+                      fullWidth
+                      placeholder="Ask me anything about ocean data..."
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      disabled={loading}
+                      multiline
+                      maxRows={4}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          color: 'white',
+                          borderRadius: 3,
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          '& fieldset': {
+                            border: 'none',
+                          },
+                          '&:hover': {
+                            background: 'rgba(255, 255, 255, 0.08)',
+                          },
+                          '&.Mui-focused': {
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(102, 126, 234, 0.5)',
+                          },
+                        },
+                        '& .MuiInputBase-input::placeholder': {
+                          color: 'rgba(255, 255, 255, 0.5)',
+                        },
+                      }}
+                    />
+                    <IconButton
+                      onClick={sendMessage}
+                      disabled={!query.trim() || loading}
+                      sx={{ 
+                        width: 56,
+                        height: 56,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+                        '&:hover': { 
+                          background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                          transform: 'scale(1.05)',
+                        },
+                        '&:disabled': { 
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          color: 'rgba(255, 255, 255, 0.3)',
+                        },
+                        transition: 'all 0.3s',
+                      }}
+                    >
+                      {loading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : <Send />}
+                    </IconButton>
+                  </Box>
+                </Box>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Enhanced Sidebar */}
+          <Grid item xs={12} lg={4}>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <Paper sx={{ 
+                p: 3, 
+                height: '75vh', 
+                overflow: 'auto',
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 4,
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'rgba(255, 255, 255, 0.05)',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  borderRadius: '4px',
+                },
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                  <AutoAwesome sx={{ color: '#fbbf24' }} />
+                  <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+                    AI Capabilities
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Waves sx={{ color: '#3b82f6', fontSize: 20 }} />
+                    <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 600 }}>
+                      Ocean Parameters
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {['Temperature', 'Salinity', 'Pressure', 'Depth', 'Currents', 'pH'].map((param) => (
+                      <Chip 
+                        key={param} 
+                        label={param} 
+                        size="small"
+                        sx={{
+                          background: 'rgba(59, 130, 246, 0.2)',
+                          color: '#60a5fa',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          '&:hover': {
+                            background: 'rgba(59, 130, 246, 0.3)',
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Insights sx={{ color: '#8b5cf6', fontSize: 20 }} />
+                    <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 600 }}>
+                      Visualizations
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {['Maps', 'Charts', 'Graphs', 'Profiles', 'Correlations'].map((viz) => (
+                      <Chip 
+                        key={viz} 
+                        label={viz} 
+                        size="small"
+                        sx={{
+                          background: 'rgba(139, 92, 246, 0.2)',
+                          color: '#a78bfa',
+                          border: '1px solid rgba(139, 92, 246, 0.3)',
+                          '&:hover': {
+                            background: 'rgba(139, 92, 246, 0.3)',
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <TrendingUp sx={{ color: '#10b981', fontSize: 20 }} />
+                    <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 600 }}>
+                      Analysis Types
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {['Trends', 'Correlations', 'Distributions', 'Anomalies', 'Predictions'].map((analysis) => (
+                      <Chip 
+                        key={analysis} 
+                        label={analysis} 
+                        size="small"
+                        sx={{
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: '#34d399',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          '&:hover': {
+                            background: 'rgba(16, 185, 129, 0.3)',
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <WaterDrop sx={{ color: '#06b6d4', fontSize: 20 }} />
+                    <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 600 }}>
+                      Ocean Regions
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern'].map((region) => (
+                      <Chip 
+                        key={region} 
+                        label={region} 
+                        size="small"
+                        sx={{
+                          background: 'rgba(6, 182, 212, 0.2)',
+                          color: '#22d3ee',
+                          border: '1px solid rgba(6, 182, 212, 0.3)',
+                          '&:hover': {
+                            background: 'rgba(6, 182, 212, 0.3)',
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+
+                <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Science sx={{ color: '#f59e0b', fontSize: 20 }} />
+                  <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 600 }}>
+                    Example Questions
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {quickQuestions.map((question, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 * index }}
+                    >
+                      <Button
+                        variant="text"
+                        onClick={() => setQuery(question)}
+                        sx={{ 
+                          textAlign: 'left', 
+                          justifyContent: 'flex-start',
+                          textTransform: 'none',
+                          p: 1.5,
+                          borderRadius: 2,
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          '&:hover': {
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            transform: 'translateX(4px)',
+                          },
+                          transition: 'all 0.3s',
+                        }}
+                      >
+                        <Typography variant="body2">
+                          {question}
+                        </Typography>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </Box>
+
+                {/* Stats Section */}
+                <Box sx={{ mt: 4, p: 2, borderRadius: 2, background: 'rgba(102, 126, 234, 0.1)', border: '1px solid rgba(102, 126, 234, 0.2)' }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)', mb: 1, display: 'block' }}>
+                    Session Stats
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+                        {messages.length}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                        Messages
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+                        {sessions.length}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                        Sessions
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+            </motion.div>
+          </Grid>
+        </Grid>
+
+        {/* Chat History Dialog */}
+        <Dialog 
+          open={showSessions} 
+          onClose={() => setShowSessions(false)} 
+          maxWidth="sm" 
+          fullWidth
+          PaperProps={{
+            sx: {
+              background: 'rgba(15, 23, 42, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: 3,
+              color: 'white',
+            }
+          }}
+        >
+          <DialogTitle sx={{ 
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}>
+            <History />
+            Chat History
+          </DialogTitle>
+          <DialogContent sx={{ mt: 2 }}>
+            <List>
+              {sessions.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <SmartToy sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
+                  <Typography variant="body2" color="rgba(255, 255, 255, 0.6)">
+                    No chat history yet. Start a conversation!
+                  </Typography>
+                </Box>
+              ) : (
+                sessions.map((session) => (
+                  <ListItem
+                    key={session.session_id}
+                    button
+                    onClick={() => {
+                      setCurrentSession(session);
+                      fetchMessages(session.session_id);
+                      setShowSessions(false);
+                      toast.success('Session loaded!', {
+                        icon: '📂',
+                        style: {
+                          borderRadius: '10px',
+                          background: '#1976d2',
+                          color: '#fff',
+                        },
+                      });
+                    }}
+                    selected={currentSession?.session_id === session.session_id}
                     sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
+                      borderRadius: 2,
+                      mb: 1,
+                      background: currentSession?.session_id === session.session_id 
+                        ? 'rgba(102, 126, 234, 0.2)' 
+                        : 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid',
+                      borderColor: currentSession?.session_id === session.session_id
+                        ? 'rgba(102, 126, 234, 0.5)'
+                        : 'rgba(255, 255, 255, 0.1)',
+                      '&:hover': {
+                        background: 'rgba(255, 255, 255, 0.08)',
                       },
                     }}
-                  />
-                  <IconButton
-                    onClick={sendMessage}
-                    disabled={!query.trim() || loading}
-                    color="primary"
-                    sx={{ 
-                      bgcolor: 'primary.main',
-                      color: 'white',
-                      '&:hover': { bgcolor: 'primary.dark' },
-                      '&:disabled': { bgcolor: 'grey.300' }
-                    }}
                   >
-                    <Send />
-                  </IconButton>
-                </Box>
-              </Box>
-            </Paper>
-          </motion.div>
-        </Grid>
+                    <ListItemIcon>
+                      <Chat sx={{ color: 'white' }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={session.title}
+                      secondary={new Date(session.created_at).toLocaleDateString()}
+                      primaryTypographyProps={{ sx: { color: 'white' } }}
+                      secondaryTypographyProps={{ sx: { color: 'rgba(255, 255, 255, 0.6)' } }}
+                    />
+                  </ListItem>
+                ))
+              )}
+            </List>
+          </DialogContent>
+          <DialogActions sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', p: 2 }}>
+            <Button 
+              onClick={() => setShowSessions(false)}
+              sx={{ 
+                color: 'white',
+                '&:hover': {
+                  background: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-        {/* AI Capabilities Sidebar */}
-        <Grid item xs={12} md={4}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <Paper sx={{ p: 3, height: '70vh', overflow: 'auto' }}>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Psychology color="primary" />
-                AI Capabilities
-              </Typography>
-              
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                  🌊 Ocean Parameters
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {['Temperature', 'Salinity', 'Pressure', 'Depth', 'Currents', 'pH'].map((param) => (
-                    <Chip key={param} label={param} size="small" variant="outlined" />
-                  ))}
-                </Box>
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                  📊 Visualizations
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {['Maps', 'Charts', 'Graphs', 'Profiles', 'Correlations'].map((viz) => (
-                    <Chip key={viz} label={viz} size="small" variant="outlined" />
-                  ))}
-                </Box>
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                  🔍 Analysis Types
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {['Trends', 'Correlations', 'Distributions', 'Anomalies', 'Predictions'].map((analysis) => (
-                    <Chip key={analysis} label={analysis} size="small" variant="outlined" />
-                  ))}
-                </Box>
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                  🌍 Ocean Regions
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {['Atlantic', 'Pacific', 'Indian', 'Arctic', 'Southern'].map((region) => (
-                    <Chip key={region} label={region} size="small" variant="outlined" />
-                  ))}
-                </Box>
-              </Box>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                💡 Example Questions
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {quickQuestions.map((question, index) => (
-                  <Button
-                    key={index}
-                    variant="text"
-                    size="small"
-                    onClick={() => setQuery(question)}
-                    sx={{ 
-                      textAlign: 'left', 
-                      justifyContent: 'flex-start',
-                      textTransform: 'none',
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    {question}
-                  </Button>
-                ))}
-              </Box>
-            </Paper>
-          </motion.div>
-        </Grid>
-      </Grid>
-
-      {/* Chat History Dialog */}
-      <Dialog open={showSessions} onClose={() => setShowSessions(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Chat History</DialogTitle>
-        <DialogContent>
-          <List>
-            {sessions.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-                No chat history yet. Start a conversation!
-              </Typography>
-            ) : (
-              sessions.map((session) => (
-                <ListItem
-                  key={session.session_id}
-                  button
-                  onClick={() => {
-                    setCurrentSession(session);
-                    fetchMessages(session.session_id);
-                    setShowSessions(false);
-                  }}
-                  selected={currentSession?.session_id === session.session_id}
-                >
-                  <ListItemIcon>
-                    <Chat />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={session.title}
-                    secondary={new Date(session.created_at).toLocaleDateString()}
-                  />
-                </ListItem>
-              ))
-            )}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSessions(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+        {/* Add keyframe animations */}
+        <style>
+          {`
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            
+            @keyframes pulse {
+              0%, 100% {
+                opacity: 0.4;
+                transform: scale(1);
+              }
+              50% {
+                opacity: 1;
+                transform: scale(1.2);
+              }
+            }
+          `}
+        </style>
+      </Box>
     </Box>
   );
 };

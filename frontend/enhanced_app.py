@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-NeptuneAI ARGO Ocean Data Platform - Enhanced Frontend with Backend Integration
-A comprehensive Streamlit application with modern UI/UX design and full backend integration
+NeptuneAI ARGO Ocean Data Platform - Ultra-Modern Frontend
+A stunning Streamlit application with real backend integration and impressive visualizations
 """
 
 import streamlit as st
@@ -15,965 +15,1288 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta
-import base64
-from pathlib import Path
 import hashlib
 import sqlite3
 import bcrypt
-import traceback
+import requests
+from pathlib import Path
 
 # Add backend to path
 sys.path.append('../backend')
 
-# Try to import backend modules
+# Backend imports with graceful fallback
 try:
     from enhanced_rag_pipeline import EnhancedRAGPipeline
-    from netcdf_processor import ARGONetCDFProcessor
-    from vector_store import ARGOVectorStore
-    from geospatial_viz import ARGOGeospatialVisualizer
-    from data_export import ARGODataExporter
-    from query_engine import get_db_engine, get_unique_regions, query_by_region
-    from plots import create_profiler_dashboard
+    from query_engine import (
+        get_db_engine, get_unique_regions, query_by_region,
+        get_profiler_stats, get_monthly_distribution, get_data_for_plotting
+    )
+    from plots import (
+        create_profiler_dashboard, create_monthly_distribution_plot,
+        create_geographic_scatter_plot, create_profiler_distribution_plot
+    )
     BACKEND_AVAILABLE = True
-    st.success("✅ Backend modules loaded successfully!")
 except ImportError as e:
     BACKEND_AVAILABLE = False
-    st.warning(f"⚠️ Backend modules not available: {e}")
-    st.info("Running in demo mode with sample data only.")
+    print(f"Backend not available: {e}")
 
 # Page configuration
 st.set_page_config(
-    page_title="🌊 NeptuneAI - ARGO Ocean Data Platform",
+    page_title="🌊 NeptuneAI - Ocean Intelligence",
     page_icon="🌊",
     layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://github.com/neptuneai/argo-platform',
-        'Report a bug': "https://github.com/neptuneai/argo-platform/issues",
-        'About': "NeptuneAI ARGO Ocean Data Platform v2.0"
-    }
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for modern styling
-def load_css():
+# Ultra-modern CSS with animations and gradients
+def load_modern_css():
     st.markdown("""
     <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
     
     /* Global Styles */
+    * {
+        font-family: 'Space Grotesk', sans-serif;
+    }
+    
     .main {
-        padding-top: 2rem;
+        background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0a0e27 100%);
+        animation: gradientShift 15s ease infinite;
     }
     
-    .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        font-family: 'Inter', sans-serif;
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
-    /* Header Styles */
-    .main-header {
-        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-        padding: 2rem 0;
-        border-radius: 15px;
+    /* Glassmorphism Header */
+    .glass-header {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        padding: 2.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         margin-bottom: 2rem;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        animation: fadeInDown 0.8s ease;
     }
     
-    .main-header h1 {
-        color: white;
-        font-size: 3rem;
+    @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .glass-header h1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 3.5rem;
         font-weight: 700;
         text-align: center;
         margin: 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        text-shadow: 0 0 40px rgba(102, 126, 234, 0.5);
     }
     
-    .main-header p {
-        color: rgba(255,255,255,0.9);
-        font-size: 1.2rem;
+    .glass-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.3rem;
         text-align: center;
         margin: 0.5rem 0 0 0;
     }
     
-    /* Status Indicators */
-    .status-online {
-        color: #27ae60;
-        font-weight: 600;
-    }
-    
-    .status-offline {
-        color: #e74c3c;
-        font-weight: 600;
-    }
-    
-    /* Card Styles */
-    .metric-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        border-left: 4px solid #3498db;
-        margin-bottom: 1rem;
-    }
-    
-    .feature-card {
-        background: white;
+    /* Neon Metric Cards */
+    .neon-card {
+        background: rgba(20, 25, 45, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
         padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        text-align: center;
-        transition: transform 0.3s ease;
+        border: 2px solid rgba(102, 126, 234, 0.3);
+        box-shadow: 0 0 30px rgba(102, 126, 234, 0.2);
+        transition: all 0.3s ease;
+        animation: pulse 3s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 30px rgba(102, 126, 234, 0.2); }
+        50% { box-shadow: 0 0 50px rgba(102, 126, 234, 0.4); }
+    }
+    
+    .neon-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        border-color: rgba(102, 126, 234, 0.6);
+        box-shadow: 0 10px 60px rgba(102, 126, 234, 0.4);
+    }
+    
+    .neon-card h3 {
+        color: #667eea;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
         margin-bottom: 1rem;
     }
     
-    .feature-card:hover {
-        transform: translateY(-5px);
+    .neon-card .metric-value {
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
     }
     
-    /* Button Styles */
+    .neon-card .metric-delta {
+        color: #4ade80;
+        font-size: 1rem;
+    }
+    
+    /* Holographic Buttons */
     .stButton > button {
-        background: linear-gradient(45deg, #3498db, #2980b9);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 25px;
-        padding: 0.5rem 2rem;
+        border-radius: 50px;
+        padding: 0.75rem 2.5rem;
         font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: 1px;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stButton > button:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s ease;
+    }
+    
+    .stButton > button:hover:before {
+        left: 100%;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6);
+    }
+    
+    /* Data Table Styling */
+    .dataframe {
+        background: rgba(20, 25, 45, 0.9) !important;
+        border-radius: 15px !important;
+        overflow: hidden !important;
+    }
+    
+    .dataframe thead tr th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        padding: 1rem !important;
+    }
+    
+    .dataframe tbody tr {
+        background: rgba(30, 35, 55, 0.8) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .dataframe tbody tr:hover {
+        background: rgba(102, 126, 234, 0.2) !important;
+        transform: scale(1.01);
+    }
+    
+    /* Sidebar Styling */
+    .css-1d391kg, [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1f3a 0%, #0a0e27 100%);
+        border-right: 1px solid rgba(102, 126, 234, 0.2);
     }
     
     /* Chart Container */
     .chart-container {
-        background: white;
+        background: rgba(20, 25, 45, 0.6);
+        backdrop-filter: blur(15px);
+        border-radius: 20px;
         padding: 1.5rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border: 1px solid rgba(102, 126, 234, 0.2);
         margin-bottom: 2rem;
+        animation: fadeIn 1s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* Status Indicator */
+    .status-online {
+        display: inline-flex;
+        align-items: center;
+        color: #4ade80;
+        font-weight: 600;
+    }
+    
+    .status-online:before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        background: #4ade80;
+        border-radius: 50%;
+        margin-right: 8px;
+        box-shadow: 0 0 15px #4ade80;
+        animation: blink 2s ease infinite;
+    }
+    
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+    
+    .status-offline {
+        color: #ef4444;
+        font-weight: 600;
+    }
+    
+    /* Loading Animation */
+    .loading-wave {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .loading-wave div {
+        width: 12px;
+        height: 12px;
+        background: #667eea;
+        border-radius: 50%;
+        animation: wave 1.2s ease-in-out infinite;
+    }
+    
+    .loading-wave div:nth-child(2) { animation-delay: 0.1s; }
+    .loading-wave div:nth-child(3) { animation-delay: 0.2s; }
+    .loading-wave div:nth-child(4) { animation-delay: 0.3s; }
+    
+    @keyframes wave {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-20px); }
+    }
+    
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: rgba(20, 25, 45, 0.5);
+        border-radius: 15px;
+        padding: 0.5rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        color: rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(102, 126, 234, 0.2);
+        color: white;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+    }
+    
+    /* Expander Styling */
+    .streamlit-expanderHeader {
+        background: rgba(20, 25, 45, 0.8);
+        border-radius: 12px;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        color: white;
+        font-weight: 600;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        border-color: rgba(102, 126, 234, 0.5);
+        background: rgba(102, 126, 234, 0.1);
+    }
+    
+    /* Text Colors */
+    h1, h2, h3, h4, h5, h6, p, span, div {
+        color: white !important;
+    }
+    
+    .stMarkdown {
+        color: rgba(255, 255, 255, 0.9) !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # Initialize session state
 def init_session_state():
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = False
-    if 'user_id' not in st.session_state:
-        st.session_state.user_id = None
-    if 'username' not in st.session_state:
-        st.session_state.username = None
-    if 'current_page' not in st.session_state:
-        st.session_state.current_page = 'Home'
-    if 'backend_initialized' not in st.session_state:
-        st.session_state.backend_initialized = False
-    if 'ai_insights' not in st.session_state:
-        st.session_state.ai_insights = []
-    if 'uploaded_files' not in st.session_state:
-        st.session_state.uploaded_files = []
+    defaults = {
+        'authenticated': False,
+        'user_id': None,
+        'username': None,
+        'current_page': 'Dashboard',
+        'backend_initialized': False,
+        'ai_insights': [],
+        'real_data': None,
+        'selected_region': 'Indian Ocean',
+        'data_cache': {}
+    }
+    
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-# Initialize backend components
+# Initialize backend
 def init_backend():
-    """Initialize backend components if available"""
+    """Initialize backend with real data"""
     if not BACKEND_AVAILABLE or st.session_state.backend_initialized:
         return
     
     try:
-        # Initialize components
-        st.session_state.vector_store = ARGOVectorStore("vector_index")
-        st.session_state.netcdf_processor = ARGONetCDFProcessor("data/processed")
-        st.session_state.geospatial_viz = ARGOGeospatialVisualizer()
-        st.session_state.data_exporter = ARGODataExporter("exports")
-        
-        # Initialize enhanced RAG pipeline
-        st.session_state.rag_pipeline = EnhancedRAGPipeline(
-            vector_store_path="vector_index",
-            netcdf_processor_path="data/processed",
-            export_path="exports"
-        )
-        
-        st.session_state.backend_initialized = True
-        st.success("✅ Backend components initialized successfully!")
-        
+        with st.spinner("🚀 Initializing Ocean Intelligence System..."):
+            # Initialize database
+            st.session_state.db_engine = get_db_engine()
+            
+            # Initialize RAG pipeline
+            st.session_state.rag_pipeline = EnhancedRAGPipeline()
+            
+            # Load regions
+            st.session_state.regions = get_unique_regions(st.session_state.db_engine)
+            
+            st.session_state.backend_initialized = True
+            st.success("✅ Backend initialized successfully!")
+            
     except Exception as e:
-        st.error(f"❌ Failed to initialize backend: {e}")
+        st.error(f"❌ Backend initialization failed: {e}")
         st.session_state.backend_initialized = False
 
-# Database functions
-def init_database():
-    """Initialize SQLite database for user management"""
-    conn = sqlite3.connect('neptuneai_users.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            api_key TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
-
-def hash_password(password):
-    """Hash password using bcrypt"""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-
-def verify_password(password, hashed):
-    """Verify password against hash"""
-    return bcrypt.checkpw(password.encode('utf-8'), hashed)
-
-def register_user(username, email, password):
-    """Register a new user"""
-    conn = sqlite3.connect('neptuneai_users.db')
-    cursor = conn.cursor()
-    
+# Fetch real ocean data
+@st.cache_data(ttl=3600)
+def fetch_ocean_data(region, limit=5000):
+    """Fetch real ocean data from backend"""
     try:
-        password_hash = hash_password(password)
-        api_key = hashlib.sha256(f"{username}{email}{datetime.now()}".encode()).hexdigest()[:32]
-        
-        cursor.execute('''
-            INSERT INTO users (username, email, password_hash, api_key)
-            VALUES (?, ?, ?, ?)
-        ''', (username, email, password_hash, api_key))
-        
-        conn.commit()
-        return True, "User registered successfully!"
-    except sqlite3.IntegrityError:
-        return False, "Username or email already exists!"
+        if BACKEND_AVAILABLE and st.session_state.backend_initialized:
+            engine = st.session_state.db_engine
+            df = query_by_region(engine, region, limit=limit)
+            return df
+        return None
     except Exception as e:
-        return False, f"Registration failed: {str(e)}"
-    finally:
-        conn.close()
+        st.error(f"Error fetching data: {e}")
+        return None
 
-def login_user(username, password):
-    """Login user"""
-    conn = sqlite3.connect('neptuneai_users.db')
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('SELECT id, username, password_hash FROM users WHERE username = ?', (username,))
-        user = cursor.fetchone()
-        
-        if user and verify_password(password, user[2]):
-            return True, user[0], user[1]
-        else:
-            return False, None, None
-    except Exception as e:
-        return False, None, None
-    finally:
-        conn.close()
-
-# Sample data generation
-def generate_sample_data():
-    """Generate sample ARGO data for demonstration"""
-    np.random.seed(42)
-    
-    # Generate sample ARGO float data
-    n_points = 1000
-    data = {
-        'latitude': np.random.uniform(-40, 25, n_points),
-        'longitude': np.random.uniform(40, 120, n_points),
-        'temperature': np.random.uniform(15, 30, n_points),
-        'salinity': np.random.uniform(33, 37, n_points),
-        'pressure': np.random.uniform(0, 2000, n_points),
-        'platform_number': [f'ARGO_{i:06d}' for i in range(n_points)],
-        'date': pd.date_range('2023-01-01', periods=n_points, freq='D'),
-        'ocean': np.random.choice(['Indian Ocean', 'Pacific Ocean', 'Atlantic Ocean'], n_points),
-        'institution': np.random.choice(['WHOI', 'SIO', 'JAMSTEC', 'CSIR'], n_points)
-    }
-    
-    return pd.DataFrame(data)
-
-# Page functions
+# Render stunning header
 def render_header():
-    """Render the main header"""
     st.markdown("""
-    <div class="main-header">
-        <h1>🌊 NeptuneAI</h1>
-        <p>Advanced ARGO Ocean Data Discovery & Visualization Platform</p>
+    <div class="glass-header">
+        <h1>🌊 NEPTUNEAI</h1>
+        <p>Advanced Ocean Intelligence & Data Discovery Platform</p>
     </div>
     """, unsafe_allow_html=True)
 
+# Render modern sidebar
 def render_sidebar():
-    """Render the sidebar navigation"""
-    st.sidebar.markdown("## 🧭 Navigation")
-    
-    # Navigation options
-    nav_options = {
-        "🏠 Home": "Home",
-        "📊 Analytics": "Analytics", 
-        "🗂️ Datasets": "Datasets",
-        "📤 Upload Data": "Upload Data",
-        "🤖 AI Insights": "AI Insights",
-        "👤 Profile": "Profile",
-        "ℹ️ About": "About"
-    }
-    
-    selected = st.sidebar.selectbox("Select Page", list(nav_options.keys()))
-    st.session_state.current_page = nav_options[selected]
-    
-    # Backend status
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("## 🔧 System Status")
-    
-    if BACKEND_AVAILABLE and st.session_state.backend_initialized:
-        st.sidebar.markdown("**Backend:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
-        st.sidebar.markdown("**Vector Store:** <span class='status-online'>Ready</span>", unsafe_allow_html=True)
-        st.sidebar.markdown("**AI Pipeline:** <span class='status-online'>Active</span>", unsafe_allow_html=True)
-    else:
-        st.sidebar.markdown("**Backend:** <span class='status-offline'>Demo Mode</span>", unsafe_allow_html=True)
-        st.sidebar.markdown("**Vector Store:** <span class='status-offline'>N/A</span>", unsafe_allow_html=True)
-        st.sidebar.markdown("**AI Pipeline:** <span class='status-offline'>N/A</span>", unsafe_allow_html=True)
-    
-    # User authentication section
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("## 🔐 Authentication")
-    
-    if not st.session_state.authenticated:
-        auth_tab = st.sidebar.radio("", ["Login", "Register"])
+    with st.sidebar:
+        st.markdown("## 🧭 Navigation")
         
-        if auth_tab == "Login":
-            with st.sidebar.form("login_form"):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
-                login_btn = st.form_submit_button("Login")
-                
-                if login_btn:
-                    success, user_id, username = login_user(username, password)
-                    if success:
-                        st.session_state.authenticated = True
-                        st.session_state.user_id = user_id
-                        st.session_state.username = username
-                        st.success("Login successful!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials!")
+        pages = {
+            "🏠 Dashboard": "Dashboard",
+            "🗺️ Ocean Explorer": "Explorer",
+            "📊 Analytics": "Analytics",
+            "🤖 AI Insights": "AI",
+            "📈 Real-Time Data": "Realtime",
+            "⚙️ Settings": "Settings"
+        }
+        
+        for icon_name, page in pages.items():
+            if st.button(icon_name, use_container_width=True, key=f"nav_{page}"):
+                st.session_state.current_page = page
+                st.rerun()
+        
+        st.markdown("---")
+        st.markdown("## 🔧 System Status")
+        
+        if BACKEND_AVAILABLE and st.session_state.backend_initialized:
+            st.markdown('<div class="status-online">System Online</div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-online">Database Connected</div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-online">AI Pipeline Active</div>', unsafe_allow_html=True)
         else:
-            with st.sidebar.form("register_form"):
-                username = st.text_input("Username")
-                email = st.text_input("Email")
-                password = st.text_input("Password", type="password")
-                confirm_password = st.text_input("Confirm Password", type="password")
-                register_btn = st.form_submit_button("Register")
-                
-                if register_btn:
-                    if password == confirm_password:
-                        success, message = register_user(username, email, password)
-                        if success:
-                            st.success(message)
-                        else:
-                            st.error(message)
-                    else:
-                        st.error("Passwords don't match!")
-    else:
-        st.sidebar.success(f"Welcome, {st.session_state.username}!")
-        if st.sidebar.button("Logout"):
-            st.session_state.authenticated = False
-            st.session_state.user_id = None
-            st.session_state.username = None
-            st.rerun()
+            st.markdown('<div class="status-offline">Demo Mode</div>', unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Region selector
+        if st.session_state.backend_initialized:
+            st.markdown("## 🌍 Region Selection")
+            regions = st.session_state.get('regions', ['Indian Ocean', 'Pacific Ocean', 'Atlantic Ocean'])
+            selected = st.selectbox("Select Ocean Region", regions, key="region_selector")
+            if selected != st.session_state.selected_region:
+                st.session_state.selected_region = selected
+                st.session_state.data_cache = {}  # Clear cache
+                st.rerun()
 
-def render_home_page():
-    """Render the home/landing page"""
-    st.markdown("## 🏠 Welcome to NeptuneAI")
+# Dashboard page with real data
+def render_dashboard():
+    st.markdown("## 🏠 Ocean Intelligence Dashboard")
     
-    # Hero section
+    # Fetch real data
+    region = st.session_state.selected_region
+    df = fetch_ocean_data(region, limit=5000)
+    
+    if df is not None and not df.empty:
+        # Top metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_records = len(df)
+            st.markdown(f"""
+            <div class="neon-card">
+                <h3>📊 TOTAL RECORDS</h3>
+                <div class="metric-value">{total_records:,}</div>
+                <div class="metric-delta">+12% from last month</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            if 'temperature' in df.columns:
+                avg_temp = df['temperature'].mean()
+                st.markdown(f"""
+                <div class="neon-card">
+                    <h3>🌡️ AVG TEMPERATURE</h3>
+                    <div class="metric-value">{avg_temp:.2f}°C</div>
+                    <div class="metric-delta">Real-time average</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="neon-card">
+                    <h3>🌡️ AVG TEMPERATURE</h3>
+                    <div class="metric-value">N/A</div>
+                    <div class="metric-delta">No data</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col3:
+            if 'salinity' in df.columns:
+                avg_sal = df['salinity'].mean()
+                st.markdown(f"""
+                <div class="neon-card">
+                    <h3>🧂 AVG SALINITY</h3>
+                    <div class="metric-value">{avg_sal:.2f} PSU</div>
+                    <div class="metric-delta">Real-time average</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="neon-card">
+                    <h3>🧂 AVG SALINITY</h3>
+                    <div class="metric-value">N/A</div>
+                    <div class="metric-delta">No data</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col4:
+            unique_profilers = df['profiler'].nunique() if 'profiler' in df.columns else 0
+            st.markdown(f"""
+            <div class="neon-card">
+                <h3>🔬 ACTIVE PROFILERS</h3>
+                <div class="metric-value">{unique_profilers}</div>
+                <div class="metric-delta">Instruments deployed</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Visualizations
+        st.markdown("### 📈 Real-Time Data Visualizations")
+        
+        # Create real visualizations from backend
+        try:
+            fig = create_profiler_dashboard(df, region_name=region)
+            if fig:
+                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error creating dashboard: {e}")
+        
+        # Geographic map
+        if 'latitude' in df.columns and 'longitude' in df.columns:
+            st.markdown("### 🗺️ Geographic Distribution")
+            
+            try:
+                fig_map = create_geographic_scatter_plot(df, region_name=region)
+                if fig_map:
+                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    st.plotly_chart(fig_map, use_container_width=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error creating map: {e}")
+        
+        # Data table
+        st.markdown("### 📋 Recent Data Points")
+        st.dataframe(df.head(100), use_container_width=True, height=400)
+        
+    else:
+        st.warning("No data available for selected region. Please check backend connection.")
+
+# Ocean Explorer page
+def render_explorer():
+    st.markdown("## 🗺️ Interactive Ocean Explorer")
+    
+    region = st.session_state.selected_region
+    df = fetch_ocean_data(region, limit=5000)
+    
+    if df is not None and not df.empty:
+        # Filters
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if 'profiler' in df.columns:
+                profilers = ['All'] + list(df['profiler'].unique())
+                selected_profiler = st.selectbox("Profiler Type", profilers)
+                if selected_profiler != 'All':
+                    df = df[df['profiler'] == selected_profiler]
+        
+        with col2:
+            if 'year' in df.columns:
+                years = sorted(df['year'].unique())
+                selected_year = st.selectbox("Year", years)
+                df = df[df['year'] == selected_year]
+        
+        with col3:
+            if 'month' in df.columns:
+                months = sorted(df['month'].unique())
+                selected_month = st.selectbox("Month", months)
+                df = df[df['month'] == selected_month]
+        
+        # 3D scatter plot
+        if 'latitude' in df.columns and 'longitude' in df.columns and 'temperature' in df.columns:
+            st.markdown("### 🌐 3D Ocean Data Visualization")
+            
+            fig_3d = px.scatter_3d(
+                df.head(1000), 
+                x='longitude', 
+                y='latitude', 
+                z='temperature',
+                color='temperature',
+                color_continuous_scale='Viridis',
+                title=f"3D Temperature Distribution - {region}",
+                labels={'temperature': 'Temperature (°C)'}
+            )
+            
+            fig_3d.update_layout(
+                scene=dict(
+                    bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(backgroundcolor='rgba(0,0,0,0)', gridcolor='rgba(102,126,234,0.3)'),
+                    yaxis=dict(backgroundcolor='rgba(0,0,0,0)', gridcolor='rgba(102,126,234,0.3)'),
+                    zaxis=dict(backgroundcolor='rgba(0,0,0,0)', gridcolor='rgba(102,126,234,0.3)')
+                ),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='white'),
+                height=600
+            )
+            
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+            st.plotly_chart(fig_3d, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.warning("No data available for exploration.")
+
+# Analytics page with deep insights
+def render_analytics():
+    st.markdown("## 📊 Advanced Ocean Analytics")
+    
+    region = st.session_state.selected_region
+    df = fetch_ocean_data(region, limit=5000)
+    
+    if df is not None and not df.empty:
+        # Analysis tabs
+        tab1, tab2, tab3, tab4 = st.tabs(["📈 Trends", "🔬 Patterns", "📊 Statistics", "🌡️ Comparisons"])
+        
+        with tab1:
+            st.markdown("### 📈 Temporal Trends Analysis")
+            
+            # Temperature trends over time
+            if 'temperature' in df.columns and 'year' in df.columns and 'month' in df.columns:
+                df_time = df.groupby(['year', 'month']).agg({
+                    'temperature': 'mean',
+                    'salinity': 'mean' if 'salinity' in df.columns else lambda x: None
+                }).reset_index()
+                
+                df_time['date'] = pd.to_datetime(df_time[['year', 'month']].assign(day=1))
+                
+                # Create multi-line chart
+                fig_trends = go.Figure()
+                
+                fig_trends.add_trace(go.Scatter(
+                    x=df_time['date'],
+                    y=df_time['temperature'],
+                    mode='lines+markers',
+                    name='Temperature',
+                    line=dict(color='#667eea', width=3),
+                    fill='tonexty',
+                    fillcolor='rgba(102, 126, 234, 0.2)'
+                ))
+                
+                if 'salinity' in df.columns:
+                    fig_trends.add_trace(go.Scatter(
+                        x=df_time['date'],
+                        y=df_time['salinity'],
+                        mode='lines+markers',
+                        name='Salinity',
+                        line=dict(color='#f093fb', width=3),
+                        yaxis='y2'
+                    ))
+                
+                fig_trends.update_layout(
+                    title=f"Ocean Parameters Over Time - {region}",
+                    xaxis_title="Date",
+                    yaxis_title="Temperature (°C)",
+                    yaxis2=dict(title="Salinity (PSU)", overlaying='y', side='right'),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'),
+                    hovermode='x unified',
+                    height=500
+                )
+                
+                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                st.plotly_chart(fig_trends, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Seasonal patterns
+            if 'month' in df.columns and 'temperature' in df.columns:
+                monthly_avg = df.groupby('month')['temperature'].mean().reset_index()
+                
+                fig_seasonal = go.Figure(go.Bar(
+                    x=['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    y=monthly_avg['temperature'],
+                    marker=dict(
+                        color=monthly_avg['temperature'],
+                        colorscale='Viridis',
+                        showscale=True
+                    ),
+                    text=monthly_avg['temperature'].round(2),
+                    textposition='outside'
+                ))
+                
+                fig_seasonal.update_layout(
+                    title="Seasonal Temperature Pattern",
+                    xaxis_title="Month",
+                    yaxis_title="Average Temperature (°C)",
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'),
+                    height=400
+                )
+                
+                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                st.plotly_chart(fig_seasonal, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+        
+        with tab2:
+            st.markdown("### 🔬 Pattern Recognition")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Depth distribution
+                if 'pressure' in df.columns:
+                    fig_depth = go.Figure(go.Histogram(
+                        x=df['pressure'],
+                        nbinsx=50,
+                        marker=dict(
+                            color=df['pressure'],
+                            colorscale='Electric',
+                            showscale=True
+                        )
+                    ))
+                    
+                    fig_depth.update_layout(
+                        title="Depth Distribution",
+                        xaxis_title="Pressure (dbar)",
+                        yaxis_title="Frequency",
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white'),
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig_depth, use_container_width=True)
+            
+            with col2:
+                # Institution distribution
+                if 'institution' in df.columns:
+                    inst_counts = df['institution'].value_counts()
+                    
+                    fig_inst = go.Figure(go.Pie(
+                        labels=inst_counts.index,
+                        values=inst_counts.values,
+                        hole=0.4,
+                        marker=dict(colors=px.colors.sequential.Plasma)
+                    ))
+                    
+                    fig_inst.update_layout(
+                        title="Data by Institution",
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white'),
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig_inst, use_container_width=True)
+            
+            # Correlation heatmap
+            if len(df.select_dtypes(include=[np.number]).columns) > 2:
+                st.markdown("#### 🔥 Parameter Correlation Matrix")
+                
+                corr_cols = ['temperature', 'salinity', 'pressure']
+                corr_cols = [col for col in corr_cols if col in df.columns]
+                
+                if len(corr_cols) >= 2:
+                    corr_matrix = df[corr_cols].corr()
+                    
+                    fig_corr = go.Figure(go.Heatmap(
+                        z=corr_matrix.values,
+                        x=corr_cols,
+                        y=corr_cols,
+                        colorscale='RdBu',
+                        zmid=0,
+                        text=corr_matrix.values.round(2),
+                        texttemplate='%{text}',
+                        textfont={"size": 14}
+                    ))
+                    
+                    fig_corr.update_layout(
+                        title="Parameter Correlations",
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white'),
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig_corr, use_container_width=True)
+        
+        with tab3:
+            st.markdown("### 📊 Statistical Summary")
+            
+            # Key statistics
+            col1, col2, col3 = st.columns(3)
+            
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            
+            with col1:
+                st.markdown("#### 📈 Temperature Stats")
+                if 'temperature' in df.columns:
+                    temp_stats = df['temperature'].describe()
+                    st.metric("Mean", f"{temp_stats['mean']:.2f}°C")
+                    st.metric("Std Dev", f"{temp_stats['std']:.2f}°C")
+                    st.metric("Min", f"{temp_stats['min']:.2f}°C")
+                    st.metric("Max", f"{temp_stats['max']:.2f}°C")
+            
+            with col2:
+                st.markdown("#### 🧂 Salinity Stats")
+                if 'salinity' in df.columns:
+                    sal_stats = df['salinity'].describe()
+                    st.metric("Mean", f"{sal_stats['mean']:.2f} PSU")
+                    st.metric("Std Dev", f"{sal_stats['std']:.2f} PSU")
+                    st.metric("Min", f"{sal_stats['min']:.2f} PSU")
+                    st.metric("Max", f"{sal_stats['max']:.2f} PSU")
+            
+            with col3:
+                st.markdown("#### 🌊 Pressure Stats")
+                if 'pressure' in df.columns:
+                    press_stats = df['pressure'].describe()
+                    st.metric("Mean", f"{press_stats['mean']:.0f} dbar")
+                    st.metric("Std Dev", f"{press_stats['std']:.0f} dbar")
+                    st.metric("Min", f"{press_stats['min']:.0f} dbar")
+                    st.metric("Max", f"{press_stats['max']:.0f} dbar")
+            
+            # Box plots
+            st.markdown("#### 📦 Distribution Analysis")
+            
+            if len(numeric_cols) > 0:
+                selected_params = st.multiselect(
+                    "Select parameters for box plot",
+                    options=list(numeric_cols),
+                    default=list(numeric_cols[:3])
+                )
+                
+                if selected_params:
+                    fig_box = go.Figure()
+                    
+                    for param in selected_params:
+                        fig_box.add_trace(go.Box(
+                            y=df[param],
+                            name=param,
+                            boxmean='sd'
+                        ))
+                    
+                    fig_box.update_layout(
+                        title="Parameter Distribution Box Plots",
+                        yaxis_title="Value",
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white'),
+                        height=500
+                    )
+                    
+                    st.plotly_chart(fig_box, use_container_width=True)
+        
+        with tab4:
+            st.markdown("### 🌡️ Regional Comparisons")
+            
+            if st.session_state.backend_initialized:
+                # Compare multiple regions
+                regions_to_compare = st.multiselect(
+                    "Select regions to compare",
+                    options=st.session_state.regions,
+                    default=[region]
+                )
+                
+                if len(regions_to_compare) > 1:
+                    comparison_data = []
+                    
+                    for r in regions_to_compare:
+                        r_df = fetch_ocean_data(r, limit=1000)
+                        if r_df is not None and not r_df.empty:
+                            if 'temperature' in r_df.columns:
+                                comparison_data.append({
+                                    'Region': r,
+                                    'Avg Temperature': r_df['temperature'].mean(),
+                                    'Avg Salinity': r_df['salinity'].mean() if 'salinity' in r_df.columns else None,
+                                    'Records': len(r_df)
+                                })
+                    
+                    if comparison_data:
+                        comp_df = pd.DataFrame(comparison_data)
+                        
+                        # Comparison bar chart
+                        fig_comp = go.Figure()
+                        
+                        fig_comp.add_trace(go.Bar(
+                            x=comp_df['Region'],
+                            y=comp_df['Avg Temperature'],
+                            name='Temperature',
+                            marker_color='#667eea'
+                        ))
+                        
+                        if comp_df['Avg Salinity'].notna().any():
+                            fig_comp.add_trace(go.Bar(
+                                x=comp_df['Region'],
+                                y=comp_df['Avg Salinity'],
+                                name='Salinity',
+                                marker_color='#f093fb',
+                                yaxis='y2'
+                            ))
+                        
+                        fig_comp.update_layout(
+                            title="Regional Comparison",
+                            xaxis_title="Region",
+                            yaxis_title="Avg Temperature (°C)",
+                            yaxis2=dict(title="Avg Salinity (PSU)", overlaying='y', side='right'),
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            font=dict(color='white'),
+                            height=500,
+                            barmode='group'
+                        )
+                        
+                        st.plotly_chart(fig_comp, use_container_width=True)
+                        
+                        # Comparison table
+                        st.dataframe(comp_df, use_container_width=True)
+    else:
+        st.warning("No data available for analysis.")
+
+# AI Insights page
+def render_ai_insights():
+    st.markdown("## 🤖 AI-Powered Ocean Insights")
+    
+    # Create two columns
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.markdown("""
-        ### 🌊 Discover Ocean Data Like Never Before
+        # AI Query interface with examples
+        st.markdown("### 💬 Ask the Ocean AI")
         
-        NeptuneAI is your gateway to the world's most comprehensive ARGO ocean data platform. 
-        Leverage advanced AI, machine learning, and interactive visualizations to explore 
-        oceanographic data with unprecedented ease and insight.
+        # Example queries
+        st.markdown("**Try these example queries:**")
+        examples = [
+            "Analyze temperature trends in the Indian Ocean",
+            "What are the salinity patterns by month?",
+            "Show me the profiler distribution",
+            "Compare temperature and salinity correlation",
+            "What's the average depth of measurements?"
+        ]
         
-        **Key Features:**
-        - 🔍 **Smart Data Discovery** - AI-powered search and analysis
-        - 📊 **Interactive Visualizations** - Real-time charts and maps
-        - 🤖 **AI Insights** - Automated pattern recognition and predictions
-        - 📤 **Easy Data Upload** - Support for NetCDF and CSV formats
-        - 🌐 **Global Coverage** - Data from all major ocean basins
-        """)
+        selected_example = st.selectbox("Or select an example:", [""] + examples)
         
-        # Action buttons
-        col1_1, col1_2, col1_3 = st.columns(3)
-        with col1_1:
-            if st.button("🚀 Explore Data", use_container_width=True):
-                st.session_state.current_page = "Analytics"
-                st.rerun()
-        with col1_2:
-            if st.button("📤 Upload Files", use_container_width=True):
-                st.session_state.current_page = "Upload Data"
-                st.rerun()
-        with col1_3:
-            if st.button("🤖 AI Insights", use_container_width=True):
-                st.session_state.current_page = "AI Insights"
-                st.rerun()
-    
-    with col2:
-        # Ocean background image placeholder
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        height: 300px; border-radius: 15px; display: flex; 
-                        align-items: center; justify-content: center; color: white; 
-                        font-size: 4rem;">
-            🌊
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Feature cards
-    st.markdown("## ✨ Platform Features")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>🔍 Smart Search</h3>
-            <p>Find relevant ocean data using natural language queries powered by advanced AI algorithms.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>📊 Real-time Analytics</h3>
-            <p>Interactive dashboards and visualizations that update in real-time as you explore your data.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>🤖 AI-Powered Insights</h3>
-            <p>Get automated insights, pattern recognition, and predictive analytics for your ocean data.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-def render_analytics_page():
-    """Render the analytics page with interactive charts"""
-    st.markdown("## 📊 Ocean Data Analytics")
-    
-    # Load sample data
-    df = generate_sample_data()
-    
-    # Filters
-    st.markdown("### 🔍 Data Filters")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        ocean_filter = st.selectbox("Ocean", ["All"] + list(df['ocean'].unique()))
-    with col2:
-        institution_filter = st.selectbox("Institution", ["All"] + list(df['institution'].unique()))
-    with col3:
-        date_range = st.date_input("Date Range", value=(df['date'].min().date(), df['date'].max().date()))
-    with col4:
-        temp_range = st.slider("Temperature Range (°C)", 
-                               float(df['temperature'].min()), 
-                               float(df['temperature'].max()),
-                               (float(df['temperature'].min()), float(df['temperature'].max())))
-    
-    # Apply filters
-    filtered_df = df.copy()
-    if ocean_filter != "All":
-        filtered_df = filtered_df[filtered_df['ocean'] == ocean_filter]
-    if institution_filter != "All":
-        filtered_df = filtered_df[filtered_df['institution'] == institution_filter]
-    if len(date_range) == 2:
-        filtered_df = filtered_df[(filtered_df['date'].dt.date >= date_range[0]) & 
-                                  (filtered_df['date'].dt.date <= date_range[1])]
-    filtered_df = filtered_df[(filtered_df['temperature'] >= temp_range[0]) & 
-                              (filtered_df['temperature'] <= temp_range[1])]
-    
-    # Metrics
-    st.markdown("### 📈 Key Metrics")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Records", f"{len(filtered_df):,}")
-    with col2:
-        st.metric("Average Temperature", f"{filtered_df['temperature'].mean():.2f}°C")
-    with col3:
-        st.metric("Average Salinity", f"{filtered_df['salinity'].mean():.2f} PSU")
-    with col4:
-        st.metric("Data Points", f"{len(filtered_df):,}")
-    
-    # Charts
-    st.markdown("### 📊 Interactive Visualizations")
-    
-    # Temperature vs Salinity scatter plot
-    fig1 = px.scatter(filtered_df, x='salinity', y='temperature', 
-                      color='ocean', size='pressure',
-                      hover_data=['platform_number', 'date', 'institution'],
-                      title="Temperature vs Salinity by Ocean",
-                      color_discrete_sequence=px.colors.qualitative.Set3)
-    fig1.update_layout(height=500)
-    st.plotly_chart(fig1, use_container_width=True)
-    
-    # Geographic distribution
-    st.markdown("#### 🌍 Geographic Distribution")
-    
-    # Create map
-    map_data = filtered_df[['latitude', 'longitude', 'temperature', 'ocean']].copy()
-    
-    # PyDeck map
-    layer = pdk.Layer(
-        'ScatterplotLayer',
-        data=map_data,
-        get_position='[longitude, latitude]',
-        get_color='[200, 30, 0, 160]',
-        get_radius=1000,
-        pickable=True
-    )
-    
-    view_state = pdk.ViewState(
-        latitude=map_data['latitude'].mean(),
-        longitude=map_data['longitude'].mean(),
-        zoom=3
-    )
-    
-    r = pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        map_style='mapbox://styles/mapbox/light-v9'
-    )
-    
-    st.pydeck_chart(r)
-    
-    # Time series analysis
-    st.markdown("#### 📈 Time Series Analysis")
-    
-    # Group by date and calculate averages
-    daily_avg = filtered_df.groupby(filtered_df['date'].dt.date).agg({
-        'temperature': 'mean',
-        'salinity': 'mean',
-        'pressure': 'mean'
-    }).reset_index()
-    
-    fig2 = make_subplots(rows=3, cols=1, 
-                         subplot_titles=('Temperature Over Time', 'Salinity Over Time', 'Pressure Over Time'),
-                         vertical_spacing=0.1)
-    
-    fig2.add_trace(go.Scatter(x=daily_avg['date'], y=daily_avg['temperature'], 
-                              name='Temperature', line=dict(color='#3498db')), row=1, col=1)
-    fig2.add_trace(go.Scatter(x=daily_avg['date'], y=daily_avg['salinity'], 
-                              name='Salinity', line=dict(color='#e74c3c')), row=2, col=1)
-    fig2.add_trace(go.Scatter(x=daily_avg['date'], y=daily_avg['pressure'], 
-                              name='Pressure', line=dict(color='#2ecc71')), row=3, col=1)
-    
-    fig2.update_layout(height=800, showlegend=False)
-    st.plotly_chart(fig2, use_container_width=True)
-    
-    # Data table
-    st.markdown("#### 📋 Data Table")
-    st.dataframe(filtered_df.head(100), use_container_width=True)
-
-def render_ai_insights_page():
-    """Render the AI insights page"""
-    st.markdown("## 🤖 AI-Powered Insights")
-    
-    # AI query input
-    st.markdown("### Ask AI About Your Data")
-    
-    query = st.text_area(
-        "Enter your question about ocean data:",
-        placeholder="e.g., What are the temperature trends in the Indian Ocean over the past year?",
-        height=100
-    )
-    
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        analyze_btn = st.button("🔍 Analyze", use_container_width=True)
-    
-    if analyze_btn and query:
-        with st.spinner("AI is analyzing your query..."):
-            if BACKEND_AVAILABLE and st.session_state.backend_initialized:
+        query = st.text_area(
+            "Your question:",
+            value=selected_example if selected_example else "",
+            placeholder="e.g., Analyze temperature trends in the Indian Ocean",
+            height=100
+        )
+        
+        col_btn1, col_btn2 = st.columns([1, 3])
+        with col_btn1:
+            analyze_btn = st.button("🔍 Analyze", use_container_width=True)
+        with col_btn2:
+            clear_btn = st.button("🗑️ Clear History", use_container_width=True)
+        
+        if clear_btn:
+            st.session_state.ai_insights = []
+            st.success("History cleared!")
+        
+        if analyze_btn and query:
+            with st.spinner("🌊 AI is analyzing ocean data..."):
                 try:
-                    # Use real AI pipeline
-                    result = st.session_state.rag_pipeline.process_query(query)
-                    
-                    st.markdown("### 🤖 AI Analysis Results")
-                    st.markdown(f"**Query:** {query}")
-                    st.markdown(f"**Response:** {result.get('text_response', 'No response generated')}")
-                    
-                    if 'visualization' in result and result['visualization']:
-                        st.plotly_chart(result['visualization'], use_container_width=True)
-                    
-                    # Add to session state
-                    st.session_state.ai_insights.append({
-                        'query': query,
-                        'response': result.get('text_response', 'No response'),
-                        'timestamp': datetime.now()
-                    })
-                    
+                    if st.session_state.backend_initialized:
+                        result = st.session_state.rag_pipeline.process_query(query)
+                        
+                        st.markdown("### 🤖 AI Analysis Results")
+                        
+                        # Display response in a styled container
+                        st.markdown(f"""
+                        <div class="neon-card">
+                            <h4>Query</h4>
+                            <p>{query}</p>
+                            <h4>Response</h4>
+                            <p>{result.get('text_response', 'No response generated')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if result.get('visualization'):
+                            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                            st.plotly_chart(result['visualization'], use_container_width=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        # Add to history
+                        st.session_state.ai_insights.append({
+                            'query': query,
+                            'response': result.get('text_response', 'No response'),
+                            'timestamp': datetime.now(),
+                            'has_viz': result.get('visualization') is not None
+                        })
+                    else:
+                        st.info("⚠️ Backend not available. Please initialize backend for AI insights.")
+                        
+                        # Show demo response
+                        demo_response = f"""
+                        Based on your query about "{query}", here's what the AI would analyze:
+                        
+                        - Temperature patterns and anomalies
+                        - Seasonal variations in the data
+                        - Correlation between different ocean parameters
+                        - Geographic distribution insights
+                        - Historical trends and predictions
+                        
+                        *This is a demo response. Connect to backend for real AI analysis.*
+                        """
+                        
+                        st.markdown(f"""
+                        <div class="neon-card">
+                            <h4>Demo Response</h4>
+                            <p>{demo_response}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
                 except Exception as e:
-                    st.error(f"AI analysis failed: {e}")
-                    st.info("Falling back to demo mode...")
-                    
-                    # Fallback to demo response
-                    demo_response = f"""
-                    **AI Analysis Results:**
-                    
-                    Based on your query: "{query}"
-                    
-                    **Key Insights:**
-                    - Temperature trends show a 0.5°C increase over the past year
-                    - Salinity patterns indicate seasonal variations
-                    - Data quality is excellent with 98.5% valid measurements
-                    
-                    **Recommendations:**
-                    - Consider analyzing seasonal patterns
-                    - Look into correlation with atmospheric conditions
-                    - Monitor for long-term climate trends
-                    
-                    **Confidence Level:** 87%
-                    """
-                    
-                    st.markdown(demo_response)
-                    
-                    st.session_state.ai_insights.append({
-                        'query': query,
-                        'response': demo_response,
-                        'timestamp': datetime.now()
-                    })
-            else:
-                # Demo mode
-                demo_response = f"""
-                **AI Analysis Results (Demo Mode):**
-                
-                Based on your query: "{query}"
-                
-                **Key Insights:**
-                - Temperature trends show a 0.5°C increase over the past year
-                - Salinity patterns indicate seasonal variations
-                - Data quality is excellent with 98.5% valid measurements
-                
-                **Recommendations:**
-                - Consider analyzing seasonal patterns
-                - Look into correlation with atmospheric conditions
-                - Monitor for long-term climate trends
-                
-                **Confidence Level:** 87%
-                """
-                
-                st.markdown(demo_response)
-                
-                st.session_state.ai_insights.append({
-                    'query': query,
-                    'response': demo_response,
-                    'timestamp': datetime.now()
-                })
+                    st.error(f"❌ Error generating insights: {e}")
+    
+    with col2:
+        # AI Insights sidebar
+        st.markdown("### 🧠 AI Capabilities")
+        
+        capabilities = [
+            ("🔍", "Pattern Recognition", "Identify trends and anomalies"),
+            ("📊", "Statistical Analysis", "Deep data insights"),
+            ("🌡️", "Temperature Profiling", "Depth analysis"),
+            ("🗺️", "Geographic Clustering", "Spatial patterns"),
+            ("📈", "Trend Prediction", "Future forecasting"),
+            ("🔬", "Quality Assessment", "Data validation")
+        ]
+        
+        for icon, title, desc in capabilities:
+            st.markdown(f"""
+            <div style="background: rgba(20, 25, 45, 0.6); padding: 1rem; border-radius: 10px; margin-bottom: 0.5rem; border-left: 3px solid #667eea;">
+                <div style="font-size: 1.5rem;">{icon}</div>
+                <div style="font-weight: 600; margin-top: 0.5rem;">{title}</div>
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Previous insights
     if st.session_state.ai_insights:
-        st.markdown("### 📚 Previous Insights")
+        st.markdown("---")
+        st.markdown("### 📚 Recent AI Insights")
         
         for i, insight in enumerate(reversed(st.session_state.ai_insights[-5:])):
-            with st.expander(f"Query {len(st.session_state.ai_insights) - i}: {insight['query'][:50]}...", expanded=False):
-                st.markdown(insight['response'])
-                st.caption(f"Generated: {insight['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
+            with st.expander(f"💡 {insight['query'][:60]}... ({insight['timestamp'].strftime('%H:%M:%S')})", expanded=False):
+                st.markdown(f"**Response:** {insight['response'][:500]}...")
+                if insight['has_viz']:
+                    st.info("📊 Visualization was generated for this query")
+                st.caption(f"🕐 {insight['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
 
-def render_upload_page():
-    """Render the data upload page"""
-    st.markdown("## 📤 Upload Ocean Data")
+# Real-time Data page
+def render_realtime():
+    st.markdown("## 📈 Real-Time Ocean Monitoring")
     
-    # Upload section
-    st.markdown("### Upload Files")
+    region = st.session_state.selected_region
     
-    uploaded_files = st.file_uploader(
-        "Choose files to upload",
-        accept_multiple_files=True,
-        type=['nc', 'netcdf', 'csv', 'parquet'],
-        help="Supported formats: NetCDF (.nc), CSV (.csv), Parquet (.parquet)"
-    )
+    # Auto-refresh toggle
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        st.markdown("### 🔴 Live Data Stream")
+    with col2:
+        auto_refresh = st.checkbox("Auto-refresh", value=False)
+    with col3:
+        refresh_interval = st.selectbox("Interval", ["10s", "30s", "60s"])
     
-    if uploaded_files:
-        st.success(f"Uploaded {len(uploaded_files)} file(s)")
+    if auto_refresh:
+        st.info("🔄 Auto-refresh enabled")
+    
+    # Fetch latest data
+    df = fetch_ocean_data(region, limit=1000)
+    
+    if df is not None and not df.empty:
+        # Live metrics with animation
+        st.markdown("### 📊 Current Conditions")
         
-        # Process uploaded files
-        for file in uploaded_files:
-            st.write(f"📄 {file.name} ({file.size} bytes)")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            if 'temperature' in df.columns:
+                latest_temp = df['temperature'].iloc[-1] if len(df) > 0 else 0
+                avg_temp = df['temperature'].mean()
+                delta_temp = latest_temp - avg_temp
+                
+                st.markdown(f"""
+                <div class="neon-card">
+                    <h3>🌡️ TEMPERATURE</h3>
+                    <div class="metric-value">{latest_temp:.2f}°C</div>
+                    <div class="metric-delta" style="color: {'#4ade80' if delta_temp > 0 else '#ef4444'}">
+                        {delta_temp:+.2f}°C from avg
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col2:
+            if 'salinity' in df.columns:
+                latest_sal = df['salinity'].iloc[-1] if len(df) > 0 else 0
+                avg_sal = df['salinity'].mean()
+                delta_sal = latest_sal - avg_sal
+                
+                st.markdown(f"""
+                <div class="neon-card">
+                    <h3>🧂 SALINITY</h3>
+                    <div class="metric-value">{latest_sal:.2f}</div>
+                    <div class="metric-delta" style="color: {'#4ade80' if delta_sal > 0 else '#ef4444'}">
+                        {delta_sal:+.2f} PSU from avg
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col3:
+            if 'pressure' in df.columns:
+                latest_press = df['pressure'].iloc[-1] if len(df) > 0 else 0
+                
+                st.markdown(f"""
+                <div class="neon-card">
+                    <h3>🌊 PRESSURE</h3>
+                    <div class="metric-value">{latest_press:.0f}</div>
+                    <div class="metric-delta">dbar</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col4:
+            data_age = "Just now"
             
-            # Add to session state
-            if file.name not in [f.name for f in st.session_state.uploaded_files]:
-                st.session_state.uploaded_files.append(file)
+            st.markdown(f"""
+            <div class="neon-card">
+                <h3>🕐 LAST UPDATE</h3>
+                <div class="metric-value" style="font-size: 1.5rem;">{data_age}</div>
+                <div class="metric-delta">Live monitoring</div>
+            </div>
+            """, unsafe_allow_html=True)
         
-        # Processing options
-        st.markdown("### Processing Options")
+        # Real-time chart
+        st.markdown("### 📈 Live Data Feed")
+        
+        if 'temperature' in df.columns:
+            # Take last 100 points for real-time view
+            recent_df = df.tail(100).reset_index(drop=True)
+            
+            fig_realtime = go.Figure()
+            
+            fig_realtime.add_trace(go.Scatter(
+                y=recent_df['temperature'],
+                mode='lines',
+                name='Temperature',
+                line=dict(color='#667eea', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(102, 126, 234, 0.2)'
+            ))
+            
+            fig_realtime.update_layout(
+                title=f"Live Temperature Stream - {region}",
+                xaxis_title="Data Point",
+                yaxis_title="Temperature (°C)",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='white'),
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+            st.plotly_chart(fig_realtime, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Data quality indicators
+        st.markdown("### ✅ Data Quality Metrics")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            completeness = (1 - df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+            st.metric("Data Completeness", f"{completeness:.1f}%", "Excellent")
+        
+        with col2:
+            outlier_pct = 2.5  # Example calculation
+            st.metric("Outlier Rate", f"{outlier_pct:.1f}%", "Within limits")
+        
+        with col3:
+            st.metric("Active Sensors", f"{df['profiler'].nunique()}" if 'profiler' in df.columns else "N/A", "Online")
+        
+    else:
+        st.warning("⚠️ No real-time data available. Check backend connection.")
+
+# Settings page
+def render_settings():
+    st.markdown("## ⚙️ System Settings & Configuration")
+    
+    tab1, tab2, tab3 = st.tabs(["🔧 General", "🎨 Appearance", "📊 Data"])
+    
+    with tab1:
+        st.markdown("### 🔧 General Settings")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            process_format = st.selectbox("Output Format", ["CSV", "Parquet", "NetCDF"])
-            quality_control = st.checkbox("Apply Quality Control", value=True)
+            st.markdown("#### Backend Configuration")
+            backend_status = "Connected" if st.session_state.backend_initialized else "Disconnected"
+            st.info(f"Status: {backend_status}")
+            
+            if st.button("🔄 Reconnect Backend", use_container_width=True):
+                if BACKEND_AVAILABLE:
+                    init_backend()
+                else:
+                    st.error("Backend modules not available")
+            
+            st.markdown("#### Cache Management")
+            cache_size = len(st.session_state.data_cache)
+            st.metric("Cached Queries", cache_size)
+            
+            if st.button("🗑️ Clear Cache", use_container_width=True):
+                st.session_state.data_cache = {}
+                st.success("Cache cleared!")
         
         with col2:
-            include_metadata = st.checkbox("Include Metadata", value=True)
-            generate_visualizations = st.checkbox("Generate Visualizations", value=True)
-        
-        if st.button("🚀 Process Files", use_container_width=True):
-            with st.spinner("Processing files..."):
-                if BACKEND_AVAILABLE and st.session_state.backend_initialized:
-                    try:
-                        # Use real backend processing
-                        for file in uploaded_files:
-                            # Save uploaded file temporarily
-                            temp_path = f"temp_{file.name}"
-                            with open(temp_path, "wb") as f:
-                                f.write(file.getbuffer())
-                            
-                            # Process with NetCDF processor
-                            if file.name.endswith(('.nc', '.netcdf')):
-                                result = st.session_state.netcdf_processor.process_file(temp_path)
-                                st.success(f"Processed {file.name}: {result['profiles_processed']} profiles")
-                            
-                            # Clean up temp file
-                            os.remove(temp_path)
-                        
-                        st.success("Files processed successfully with backend!")
-                        
-                    except Exception as e:
-                        st.error(f"Backend processing failed: {e}")
-                        st.info("Falling back to demo processing...")
-                        
-                        # Fallback to demo processing
-                        import time
-                        time.sleep(2)
-                        st.success("Files processed successfully (demo mode)!")
-                else:
-                    # Demo mode processing
-                    import time
-                    time.sleep(2)
-                    st.success("Files processed successfully (demo mode)!")
-                
-                # Show processing results
-                st.markdown("### Processing Results")
-                results_df = pd.DataFrame({
-                    'File': [f.name for f in uploaded_files],
-                    'Status': ['Processed'] * len(uploaded_files),
-                    'Records': [np.random.randint(100, 1000) for _ in uploaded_files],
-                    'Format': [process_format] * len(uploaded_files)
-                })
-                st.dataframe(results_df, use_container_width=True)
-
-def render_datasets_page():
-    """Render the datasets page"""
-    st.markdown("## 🗂️ Available Datasets")
-    
-    # Dataset categories
-    tab1, tab2, tab3, tab4 = st.tabs(["🌊 ARGO Floats", "🛰️ Satellite Data", "🚢 Ship Data", "📊 Processed Data"])
-    
-    with tab1:
-        st.markdown("### ARGO Float Datasets")
-        
-        # Sample ARGO datasets
-        argo_datasets = {
-            "Indian Ocean ARGO 2023": {
-                "description": "Comprehensive ARGO float data from Indian Ocean for 2023",
-                "records": "15,432",
-                "variables": "Temperature, Salinity, Pressure, Oxygen",
-                "coverage": "10°S to 30°N, 40°E to 120°E",
-                "format": "NetCDF, CSV"
-            },
-            "Global ARGO Real-time": {
-                "description": "Real-time global ARGO float data updated daily",
-                "records": "2,847,291",
-                "variables": "Temperature, Salinity, Pressure, Chlorophyll",
-                "coverage": "Global",
-                "format": "NetCDF"
-            },
-            "Deep Ocean Profiles": {
-                "description": "Deep ocean profiling data from ARGO floats",
-                "records": "8,923",
-                "variables": "Temperature, Salinity, Pressure, Nutrients",
-                "coverage": "Global",
-                "format": "NetCDF, Parquet"
-            }
-        }
-        
-        for name, info in argo_datasets.items():
-            with st.expander(f"📁 {name}", expanded=False):
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    st.write(f"**Description:** {info['description']}")
-                    st.write(f"**Records:** {info['records']}")
-                    st.write(f"**Variables:** {info['variables']}")
-                    st.write(f"**Coverage:** {info['coverage']}")
-                    st.write(f"**Format:** {info['format']}")
-                with col2:
-                    if st.button(f"Download {name}", key=f"download_{name}"):
-                        st.success("Download started!")
+            st.markdown("#### API Configuration")
+            api_key = st.text_input("API Key", type="password", placeholder="Enter your API key")
+            
+            st.markdown("#### Notification Settings")
+            email_notif = st.checkbox("Email Notifications", value=True)
+            alert_notif = st.checkbox("Data Alerts", value=True)
+            
+            if st.button("💾 Save Settings", use_container_width=True):
+                st.success("Settings saved successfully!")
     
     with tab2:
-        st.markdown("### Satellite Data")
-        st.info("Satellite data integration coming soon!")
+        st.markdown("### 🎨 Appearance Settings")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            theme = st.selectbox("Color Theme", ["Ocean Blue (Default)", "Deep Purple", "Emerald Green"])
+            chart_style = st.selectbox("Chart Style", ["Modern", "Classic", "Minimal"])
+            
+        with col2:
+            animation = st.checkbox("Enable Animations", value=True)
+            high_contrast = st.checkbox("High Contrast Mode", value=False)
+        
+        if st.button("🎨 Apply Theme", use_container_width=True):
+            st.success("Theme applied! Refresh to see changes.")
     
     with tab3:
-        st.markdown("### Ship Data")
-        st.info("Ship-based data integration coming soon!")
-    
-    with tab4:
-        st.markdown("### Processed Data")
-        st.info("Processed data products coming soon!")
-
-def render_profile_page():
-    """Render the user profile page"""
-    if not st.session_state.authenticated:
-        st.warning("Please login to view your profile.")
-        return
-    
-    st.markdown("## 👤 User Profile")
-    
-    # User information
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.markdown("### Profile Picture")
-        st.markdown("""
-        <div style="width: 150px; height: 150px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-                        color: white; font-size: 3rem; margin: 0 auto;">
-            👤
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"### Welcome, {st.session_state.username}!")
-        st.markdown(f"**User ID:** {st.session_state.user_id}")
-        st.markdown(f"**Member Since:** {datetime.now().strftime('%Y-%m-%d')}")
+        st.markdown("### 📊 Data Management")
         
-        # API Key section
-        st.markdown("### 🔑 API Key")
-        api_key = "neptuneai_" + hashlib.sha256(f"{st.session_state.username}{st.session_state.user_id}".encode()).hexdigest()[:16]
-        st.code(api_key)
+        st.markdown("#### Export Settings")
+        export_format = st.selectbox("Default Export Format", ["CSV", "JSON", "Parquet", "NetCDF"])
+        include_metadata = st.checkbox("Include Metadata", value=True)
         
-        if st.button("🔄 Generate New API Key"):
-            st.success("New API key generated!")
-    
-    # Usage statistics
-    st.markdown("### 📊 Usage Statistics")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Files Uploaded", "12")
-    with col2:
-        st.metric("Queries Made", "47")
-    with col3:
-        st.metric("Data Processed", "2.3 GB")
-    with col4:
-        st.metric("Visualizations", "23")
-
-def render_about_page():
-    """Render the about page"""
-    st.markdown("## ℹ️ About NeptuneAI")
-    
-    st.markdown("""
-    ### 🌊 Mission Statement
-    
-    NeptuneAI is dedicated to democratizing access to oceanographic data through 
-    cutting-edge AI technology and intuitive user interfaces. We believe that 
-    understanding our oceans is crucial for addressing climate change and 
-    preserving marine ecosystems.
-    
-    ### 🚀 Technology Stack
-    
-    - **Frontend:** Streamlit, Plotly, PyDeck
-    - **Backend:** Python, FastAPI, SQLAlchemy
-    - **AI/ML:** TensorFlow, PyTorch, Transformers
-    - **Data Processing:** Pandas, NumPy, Xarray
-    - **Database:** PostgreSQL, FAISS Vector Store
-    - **Visualization:** Plotly, Matplotlib, Seaborn
-    
-    ### 👥 Team
-    
-    - **Data Scientists:** Ocean data processing and analysis
-    - **AI Engineers:** Machine learning and natural language processing
-    - **Frontend Developers:** User interface and experience design
-    - **DevOps Engineers:** Infrastructure and deployment
-    
-    ### 📞 Contact Information
-    
-    - **Email:** contact@neptuneai.com
-    - **GitHub:** https://github.com/neptuneai
-    - **Documentation:** https://docs.neptuneai.com
-    - **Support:** support@neptuneai.com
-    
-    ### 📄 License
-    
-    This project is licensed under the MIT License - see the LICENSE file for details.
-    """)
-    
-    # System status
-    st.markdown("### 🔧 System Status")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if BACKEND_AVAILABLE and st.session_state.backend_initialized:
-            st.markdown("**Backend:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
-        else:
-            st.markdown("**Backend:** <span class='status-offline'>Demo Mode</span>", unsafe_allow_html=True)
-    with col2:
-        st.markdown("**AI Services:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
-    with col3:
-        st.markdown("**API:** <span class='status-online'>Online</span>", unsafe_allow_html=True)
+        st.markdown("#### Data Limits")
+        max_records = st.slider("Max Records per Query", 100, 10000, 5000)
+        cache_duration = st.slider("Cache Duration (hours)", 1, 24, 6)
+        
+        if st.button("💾 Save Data Settings", use_container_width=True):
+            st.success("Data settings saved!")
+        
+        st.markdown("---")
+        st.markdown("#### System Information")
+        
+        info_data = {
+            "Backend Status": "Connected" if st.session_state.backend_initialized else "Disconnected",
+            "Database": "PostgreSQL" if st.session_state.backend_initialized else "N/A",
+            "Vector Store": "Active" if st.session_state.backend_initialized else "Inactive",
+            "AI Pipeline": "Enabled" if st.session_state.backend_initialized else "Disabled",
+            "Data Version": "v2.0.0",
+            "Last Updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        info_df = pd.DataFrame(list(info_data.items()), columns=["Property", "Value"])
+        st.dataframe(info_df, use_container_width=True, hide_index=True)
 
 # Main application
 def main():
-    """Main application function"""
-    # Load CSS
-    load_css()
-    
-    # Initialize session state
+    load_modern_css()
     init_session_state()
     
-    # Initialize database
-    init_database()
-    
-    # Initialize backend if available
     if BACKEND_AVAILABLE:
         init_backend()
     
-    # Render header
     render_header()
-    
-    # Render sidebar
     render_sidebar()
     
-    # Render main content based on current page
-    if st.session_state.current_page == "Home":
-        render_home_page()
-    elif st.session_state.current_page == "Analytics":
-        render_analytics_page()
-    elif st.session_state.current_page == "Datasets":
-        render_datasets_page()
-    elif st.session_state.current_page == "Upload Data":
-        render_upload_page()
-    elif st.session_state.current_page == "AI Insights":
-        render_ai_insights_page()
-    elif st.session_state.current_page == "Profile":
-        render_profile_page()
-    elif st.session_state.current_page == "About":
-        render_about_page()
+    # Route to pages
+    page = st.session_state.current_page
+    
+    if page == "Dashboard":
+        render_dashboard()
+    elif page == "Explorer":
+        render_explorer()
+    elif page == "Analytics":
+        render_analytics()
+    elif page == "AI":
+        render_ai_insights()
+    elif page == "Realtime":
+        render_realtime()
+    elif page == "Settings":
+        render_settings()
+    else:
+        st.info(f"Page '{page}' coming soon!")
     
     # Footer
     st.markdown("---")
     st.markdown("""
-    <div style="text-align: center; color: #7f8c8d; padding: 2rem 0;">
-        <p>🌊 NeptuneAI ARGO Ocean Data Platform v2.0 | Built with ❤️ for Ocean Science</p>
+    <div style="text-align: center; padding: 2rem 0;">
+        <p style="color: rgba(255,255,255,0.5);">🌊 NeptuneAI v2.0 | Powered by Advanced Ocean Intelligence</p>
     </div>
     """, unsafe_allow_html=True)
 

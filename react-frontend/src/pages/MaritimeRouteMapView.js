@@ -12,6 +12,12 @@ import {
   Tooltip,
   Grid,
   Divider,
+  Stack,
+  alpha,
+  Button,
+  Collapse,
+  Badge,
+  LinearProgress,
 } from '@mui/material';
 import {
   MyLocation,
@@ -24,6 +30,18 @@ import {
   WbSunny,
   Air,
   Waves,
+  ThermostatAuto,
+  Speed,
+  Visibility,
+  LocationOn,
+  ZoomIn,
+  ZoomOut,
+  CenterFocusStrong,
+  ExpandMore,
+  ExpandLess,
+  Map as MapIcon,
+  Timeline,
+  Security,
 } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -37,22 +55,41 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Custom icons
-const createCustomIcon = (color, icon) => {
+// Enhanced custom icons with animations
+const createCustomIcon = (color, icon, size = 50) => {
   return L.divIcon({
     className: 'custom-marker',
-    html: `<div style="background: ${color}; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-      <span style="color: white; font-size: 20px;">${icon}</span>
-    </div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
+    html: `
+      <div style="
+        background: ${color}; 
+        width: ${size}px; 
+        height: ${size}px; 
+        border-radius: 50%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        border: 4px solid white; 
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        animation: pulse 2s infinite;
+      ">
+        <span style="color: white; font-size: ${size * 0.5}px;">${icon}</span>
+      </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      </style>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
   });
 };
 
-const originIcon = createCustomIcon('#4caf50', '🚢');
-const destinationIcon = createCustomIcon('#f44336', '🏁');
-const waypointIcon = createCustomIcon('#2196f3', '📍');
-const hazardIcon = createCustomIcon('#ff9800', '⚠️');
+const originIcon = createCustomIcon('linear-gradient(135deg, #4caf50 0%, #81c784 100%)', '🚢', 50);
+const destinationIcon = createCustomIcon('linear-gradient(135deg, #f44336 0%, #e57373 100%)', '🏁', 50);
+const waypointIcon = createCustomIcon('linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)', '📍', 40);
+const hazardIcon = createCustomIcon('linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)', '⚠️', 45);
 
 // Map controller component
 const MapController = ({ center, zoom }) => {
@@ -60,14 +97,14 @@ const MapController = ({ center, zoom }) => {
   
   useEffect(() => {
     if (center) {
-      map.setView(center, zoom);
+      map.setView(center, zoom, { animate: true, duration: 1 });
     }
   }, [center, zoom, map]);
   
   return null;
 };
 
-const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => {
+const MaritimeRouteMapView = ({ routeData: externalRouteData }) => {
   const [routeData, setRouteData] = useState(externalRouteData || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -75,7 +112,12 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
   const [mapZoom, setMapZoom] = useState(5);
   const [selectedWaypoint, setSelectedWaypoint] = useState(null);
   const [showHazards, setShowHazards] = useState(true);
+  const [showWaypoints, setShowWaypoints] = useState(true);
   const [realTimeWeather, setRealTimeWeather] = useState({});
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [expandedStats, setExpandedStats] = useState(true);
+  const [mapStyle, setMapStyle] = useState('street');
+  const mapRef = useRef(null);
 
   // Update route when external data changes
   useEffect(() => {
@@ -99,7 +141,7 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
     const lonDiff = Math.abs(route.origin.longitude - route.destination.longitude);
     const maxDiff = Math.max(latDiff, lonDiff);
     
-    let zoom = 5; // default
+    let zoom = 5;
     if (maxDiff > 50) zoom = 3;
     else if (maxDiff > 30) zoom = 4;
     else if (maxDiff > 20) zoom = 4;
@@ -113,16 +155,18 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
   const fetchWeatherForWaypoints = async (waypoints) => {
     if (!waypoints || waypoints.length === 0) return;
     
+    setWeatherLoading(true);
     const token = localStorage.getItem('neptuneai_token');
-    if (!token) return;
+    if (!token) {
+      setWeatherLoading(false);
+      return;
+    }
     
     const weatherData = {};
-    
-    // Sample every 5th waypoint to avoid too many requests
     const sampledWaypoints = waypoints.filter((_, idx) => idx % 5 === 0);
     
-    for (const wp of sampledWaypoints) {
-      try {
+    try {
+      for (const wp of sampledWaypoints.slice(0, 10)) {
         const response = await fetch(
           `http://localhost:8000/api/ocean/realtime/marine-weather?lat=${wp.latitude}&lon=${wp.longitude}`,
           {
@@ -134,12 +178,13 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
           const data = await response.json();
           weatherData[`${wp.latitude},${wp.longitude}`] = data.current_conditions;
         }
-      } catch (err) {
-        console.error('Weather fetch error:', err);
       }
+      setRealTimeWeather(weatherData);
+    } catch (err) {
+      console.error('Weather fetch error:', err);
+    } finally {
+      setWeatherLoading(false);
     }
-    
-    setRealTimeWeather(weatherData);
   };
 
   const getSafetyColor = (safety) => {
@@ -161,124 +206,494 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
     return '#f44336';
   };
 
+  const getSafetyGradient = (safety) => {
+    const gradients = {
+      safe: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)',
+      moderate: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
+      risky: 'linear-gradient(135deg, #ff5722 0%, #ff8a65 100%)',
+      dangerous: 'linear-gradient(135deg, #f44336 0%, #e57373 100%)',
+      critical: 'linear-gradient(135deg, #d32f2f 0%, #ef5350 100%)',
+    };
+    return gradients[safety] || 'linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%)';
+  };
+
+  const recenterMap = () => {
+    if (routeData) {
+      updateMapView(routeData);
+    }
+  };
+
+  const zoomIn = () => {
+    setMapZoom(prev => Math.min(prev + 1, 18));
+  };
+
+  const zoomOut = () => {
+    setMapZoom(prev => Math.max(prev - 1, 2));
+  };
+
+  const getTileLayerUrl = () => {
+    const layers = {
+      street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ocean: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    };
+    return layers[mapStyle];
+  };
+
   if (!routeData) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <Box textAlign="center">
-          <Info sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary">
-            No route calculated yet
+      <Paper
+        elevation={0}
+        sx={{
+          minHeight: '600px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRadius: 4,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <Box 
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: 0.1,
+            backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+          }}
+        />
+        <Box textAlign="center" position="relative" zIndex={1}>
+          <MapIcon sx={{ fontSize: 100, color: 'white', mb: 3, opacity: 0.9 }} />
+          <Typography variant="h4" fontWeight="700" color="white" gutterBottom>
+            No Route Calculated
           </Typography>
-          <Typography variant="body2" color="text.secondary" mt={1}>
-            Use the Route Planner to calculate a maritime route
+          <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)', mb: 3 }}>
+            Use the Route Planner to calculate a maritime route and visualize it here
           </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<NavigationIcon />}
+            sx={{
+              bgcolor: 'white',
+              color: 'primary.main',
+              fontWeight: 700,
+              px: 4,
+              py: 1.5,
+              '&:hover': {
+                bgcolor: 'rgba(255,255,255,0.9)',
+                transform: 'translateY(-2px)',
+              },
+              transition: 'all 0.3s ease',
+            }}
+          >
+            Go to Route Planner
+          </Button>
         </Box>
-      </Box>
+      </Paper>
     );
   }
 
   return (
     <Box>
-      {/* Header Stats */}
-      <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-            <CardContent sx={{ py: 2 }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <NavigationIcon />
-                <Box>
-                  <Typography variant="h5" fontWeight="bold">
+      {/* Enhanced Stats Cards */}
+      <Box mb={3}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Box>
+            <Typography variant="h5" fontWeight="700" gutterBottom>
+              Route Overview
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Real-time maritime intelligence and navigation data
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={() => setExpandedStats(!expandedStats)}
+            sx={{
+              bgcolor: alpha('#667eea', 0.1),
+              '&:hover': { bgcolor: alpha('#667eea', 0.2) },
+            }}
+          >
+            {expandedStats ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        </Box>
+
+        <Collapse in={expandedStats}>
+          <Grid container spacing={2}>
+            {/* Distance Card */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 12px 30px rgba(102, 126, 234, 0.4)',
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -20,
+                    right: -20,
+                    width: 100,
+                    height: 100,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                  }
+                }}
+              >
+                <Box position="relative" zIndex={1}>
+                  <NavigationIcon sx={{ fontSize: 36, color: 'white', mb: 1.5, opacity: 0.9 }} />
+                  <Typography variant="h3" fontWeight="800" color="white" gutterBottom>
                     {routeData.total_distance_nm.toFixed(0)}
                   </Typography>
-                  <Typography variant="caption">Nautical Miles</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                    Nautical Miles
+                  </Typography>
+                  <Box mt={2}>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={100} 
+                      sx={{ 
+                        bgcolor: 'rgba(255,255,255,0.2)',
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor: 'white',
+                        }
+                      }} 
+                    />
+                  </Box>
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'secondary.light', color: 'secondary.contrastText' }}>
-            <CardContent sx={{ py: 2 }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Sailing />
-                <Box>
-                  <Typography variant="h5" fontWeight="bold">
+              </Paper>
+            </Grid>
+
+            {/* Duration Card */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 12px 30px rgba(240, 147, 251, 0.4)',
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -20,
+                    right: -20,
+                    width: 100,
+                    height: 100,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                  }
+                }}
+              >
+                <Box position="relative" zIndex={1}>
+                  <Sailing sx={{ fontSize: 36, color: 'white', mb: 1.5, opacity: 0.9 }} />
+                  <Typography variant="h3" fontWeight="800" color="white" gutterBottom>
                     {(routeData.estimated_duration_hours / 24).toFixed(1)}
                   </Typography>
-                  <Typography variant="caption">Days</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: getSafetyColor(routeData.overall_safety) }}>
-            <CardContent sx={{ py: 2 }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <CheckCircle sx={{ color: 'white' }} />
-                <Box>
-                  <Typography variant="h5" fontWeight="bold" color="white">
-                    {routeData.overall_safety.toUpperCase()}
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                    Days Duration
                   </Typography>
-                  <Typography variant="caption" color="white">
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 1 }}>
+                    ≈ {routeData.estimated_duration_hours.toFixed(0)} hours
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* Safety Card */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  background: getSafetyGradient(routeData.overall_safety),
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: `0 12px 30px ${alpha(getSafetyColor(routeData.overall_safety), 0.4)}`,
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -20,
+                    right: -20,
+                    width: 100,
+                    height: 100,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                  }
+                }}
+              >
+                <Box position="relative" zIndex={1}>
+                  <Security sx={{ fontSize: 36, color: 'white', mb: 1.5, opacity: 0.9 }} />
+                  <Typography variant="h4" fontWeight="800" color="white" gutterBottom sx={{ textTransform: 'uppercase' }}>
+                    {routeData.overall_safety}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
                     Safety Level
                   </Typography>
+                  <Chip
+                    icon={<CheckCircle sx={{ color: 'white !important' }} />}
+                    label="Verified"
+                    size="small"
+                    sx={{
+                      mt: 1.5,
+                      bgcolor: 'rgba(255,255,255,0.2)',
+                      color: 'white',
+                      fontWeight: 600,
+                    }}
+                  />
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'warning.light' }}>
-            <CardContent sx={{ py: 2 }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Warning />
-                <Box>
-                  <Typography variant="h5" fontWeight="bold">
+              </Paper>
+            </Grid>
+
+            {/* Hazards Card */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 12px 30px rgba(250, 112, 154, 0.4)',
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -20,
+                    right: -20,
+                    width: 100,
+                    height: 100,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                  }
+                }}
+              >
+                <Box position="relative" zIndex={1}>
+                  <Badge badgeContent={routeData.hazards_detected.length} color="error">
+                    <Warning sx={{ fontSize: 36, color: 'white', mb: 1.5, opacity: 0.9 }} />
+                  </Badge>
+                  <Typography variant="h3" fontWeight="800" color="white" gutterBottom>
                     {routeData.hazards_detected.length}
                   </Typography>
-                  <Typography variant="caption">Hazards</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                    Hazards Detected
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 1 }}>
+                    {routeData.hazards_detected.length === 0 ? 'Clear route' : 'Caution advised'}
+                  </Typography>
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Collapse>
+      </Box>
 
-      {/* Map */}
-      <Paper elevation={3} sx={{ height: '600px', position: 'relative', overflow: 'hidden' }}>
+      {/* Weather Loading Indicator */}
+      {weatherLoading && (
+        <Alert 
+          severity="info" 
+          icon={<CircularProgress size={20} />}
+          sx={{ mb: 2, borderRadius: 2 }}
+        >
+          Loading real-time weather data for waypoints...
+        </Alert>
+      )}
+
+      {/* Enhanced Map Container */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          height: '700px', 
+          position: 'relative', 
+          overflow: 'hidden',
+          borderRadius: 4,
+          border: '4px solid',
+          borderColor: 'divider',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+        }}
+      >
         {error && (
-          <Alert severity="error" sx={{ position: 'absolute', top: 16, left: 16, right: 16, zIndex: 1000 }}>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              position: 'absolute', 
+              top: 16, 
+              left: 16, 
+              right: 16, 
+              zIndex: 1000,
+              borderRadius: 2,
+            }}
+          >
             {error}
           </Alert>
         )}
         
-        {/* Map Controls */}
-        <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1000 }}>
-          <Tooltip title={showHazards ? 'Hide Hazards' : 'Show Hazards'}>
-            <IconButton
-              onClick={() => setShowHazards(!showHazards)}
-              sx={{ bgcolor: 'white', mb: 1, '&:hover': { bgcolor: 'grey.100' } }}
-            >
-              <Warning color={showHazards ? 'warning' : 'disabled'} />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        {/* Enhanced Map Controls */}
+        <Paper
+          elevation={3}
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+            borderRadius: 3,
+            overflow: 'hidden',
+            bgcolor: 'rgba(255,255,255,0.95)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <Stack spacing={0}>
+            {/* Zoom Controls */}
+            <Tooltip title="Zoom In" placement="left">
+              <IconButton
+                onClick={zoomIn}
+                sx={{
+                  borderRadius: 0,
+                  '&:hover': { bgcolor: alpha('#667eea', 0.1) },
+                }}
+              >
+                <ZoomIn />
+              </IconButton>
+            </Tooltip>
+            
+            <Divider />
+            
+            <Tooltip title="Zoom Out" placement="left">
+              <IconButton
+                onClick={zoomOut}
+                sx={{
+                  borderRadius: 0,
+                  '&:hover': { bgcolor: alpha('#667eea', 0.1) },
+                }}
+              >
+                <ZoomOut />
+              </IconButton>
+            </Tooltip>
+            
+            <Divider />
+            
+            <Tooltip title="Recenter Map" placement="left">
+              <IconButton
+                onClick={recenterMap}
+                sx={{
+                  borderRadius: 0,
+                  '&:hover': { bgcolor: alpha('#667eea', 0.1) },
+                }}
+              >
+                <CenterFocusStrong />
+              </IconButton>
+            </Tooltip>
+            
+            <Divider />
+            
+            <Tooltip title={showHazards ? 'Hide Hazards' : 'Show Hazards'} placement="left">
+              <IconButton
+                onClick={() => setShowHazards(!showHazards)}
+                sx={{
+                  borderRadius: 0,
+                  bgcolor: showHazards ? alpha('#ff9800', 0.1) : 'transparent',
+                  '&:hover': { bgcolor: alpha('#ff9800', 0.2) },
+                }}
+              >
+                <Warning color={showHazards ? 'warning' : 'disabled'} />
+              </IconButton>
+            </Tooltip>
+            
+            <Divider />
+            
+            <Tooltip title={showWaypoints ? 'Hide Waypoints' : 'Show Waypoints'} placement="left">
+              <IconButton
+                onClick={() => setShowWaypoints(!showWaypoints)}
+                sx={{
+                  borderRadius: 0,
+                  bgcolor: showWaypoints ? alpha('#2196f3', 0.1) : 'transparent',
+                  '&:hover': { bgcolor: alpha('#2196f3', 0.2) },
+                }}
+              >
+                <LocationOn color={showWaypoints ? 'primary' : 'disabled'} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Paper>
+
+        {/* Map Style Selector */}
+        <Paper
+          elevation={3}
+          sx={{
+            position: 'absolute',
+            bottom: 16,
+            left: 16,
+            zIndex: 1000,
+            borderRadius: 2,
+            bgcolor: 'rgba(255,255,255,0.95)',
+            backdropFilter: 'blur(10px)',
+            p: 1,
+          }}
+        >
+          <Stack direction="row" spacing={1}>
+            <Chip
+              label="Street"
+              onClick={() => setMapStyle('street')}
+              color={mapStyle === 'street' ? 'primary' : 'default'}
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label="Satellite"
+              onClick={() => setMapStyle('satellite')}
+              color={mapStyle === 'satellite' ? 'primary' : 'default'}
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label="Ocean"
+              onClick={() => setMapStyle('ocean')}
+              color={mapStyle === 'ocean' ? 'primary' : 'default'}
+              sx={{ fontWeight: 600 }}
+            />
+          </Stack>
+        </Paper>
 
         <MapContainer
           center={mapCenter}
           zoom={mapZoom}
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={true}
+          ref={mapRef}
         >
           <MapController center={mapCenter} zoom={mapZoom} />
           
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url={getTileLayerUrl()}
           />
 
           {routeData && (
@@ -288,17 +703,28 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
                 position={[routeData.origin.latitude, routeData.origin.longitude]}
                 icon={originIcon}
               >
-                <Popup>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="bold" color="success.main">
-                      🚢 Origin
+                <Popup maxWidth={300}>
+                  <Box sx={{ p: 1 }}>
+                    <Typography variant="h6" fontWeight="700" color="success.main" gutterBottom>
+                      🚢 Origin Port
                     </Typography>
-                    <Typography variant="caption" display="block">
-                      Lat: {routeData.origin.latitude.toFixed(4)}°
-                    </Typography>
-                    <Typography variant="caption" display="block">
-                      Lon: {routeData.origin.longitude.toFixed(4)}°
-                    </Typography>
+                    <Divider sx={{ my: 1 }} />
+                    <Stack spacing={0.5}>
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography variant="caption" fontWeight="600">Latitude:</Typography>
+                        <Typography variant="caption">{routeData.origin.latitude.toFixed(4)}°</Typography>
+                      </Box>
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography variant="caption" fontWeight="600">Longitude:</Typography>
+                        <Typography variant="caption">{routeData.origin.longitude.toFixed(4)}°</Typography>
+                      </Box>
+                    </Stack>
+                    <Chip
+                      label="Departure Point"
+                      size="small"
+                      color="success"
+                      sx={{ mt: 1, fontWeight: 600 }}
+                    />
                   </Box>
                 </Popup>
               </Marker>
@@ -308,22 +734,33 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
                 position={[routeData.destination.latitude, routeData.destination.longitude]}
                 icon={destinationIcon}
               >
-                <Popup>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="bold" color="error.main">
-                      🏁 Destination
+                <Popup maxWidth={300}>
+                  <Box sx={{ p: 1 }}>
+                    <Typography variant="h6" fontWeight="700" color="error.main" gutterBottom>
+                      🏁 Destination Port
                     </Typography>
-                    <Typography variant="caption" display="block">
-                      Lat: {routeData.destination.latitude.toFixed(4)}°
-                    </Typography>
-                    <Typography variant="caption" display="block">
-                      Lon: {routeData.destination.longitude.toFixed(4)}°
-                    </Typography>
+                    <Divider sx={{ my: 1 }} />
+                    <Stack spacing={0.5}>
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography variant="caption" fontWeight="600">Latitude:</Typography>
+                        <Typography variant="caption">{routeData.destination.latitude.toFixed(4)}°</Typography>
+                      </Box>
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography variant="caption" fontWeight="600">Longitude:</Typography>
+                        <Typography variant="caption">{routeData.destination.longitude.toFixed(4)}°</Typography>
+                      </Box>
+                    </Stack>
+                    <Chip
+                      label="Arrival Point"
+                      size="small"
+                      color="error"
+                      sx={{ mt: 1, fontWeight: 600 }}
+                    />
                   </Box>
                 </Popup>
               </Marker>
 
-              {/* Route Path - Color-coded by safety */}
+              {/* Enhanced Route Path */}
               {routeData.waypoints.map((wp, idx) => {
                 if (idx === 0) return null;
                 const prevWp = routeData.waypoints[idx - 1];
@@ -337,14 +774,15 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
                       [wp.latitude, wp.longitude]
                     ]}
                     color={getRoutePathColor(avgSafety)}
-                    weight={4}
+                    weight={5}
                     opacity={0.8}
+                    dashArray={avgSafety < 40 ? '10, 10' : null}
                   />
                 );
               })}
 
-              {/* Waypoint Markers (every 5th waypoint) */}
-              {routeData.waypoints
+              {/* Enhanced Waypoint Markers */}
+              {showWaypoints && routeData.waypoints
                 .filter((_, idx) => idx % 5 === 0 && idx !== 0 && idx !== routeData.waypoints.length - 1)
                 .map((wp, idx) => {
                   const weatherKey = `${wp.latitude},${wp.longitude}`;
@@ -359,68 +797,147 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
                         click: () => setSelectedWaypoint(wp)
                       }}
                     >
-                      <Popup>
-                        <Box sx={{ minWidth: 200 }}>
-                          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                            📍 Waypoint
-                          </Typography>
-                          
-                          <Divider sx={{ my: 1 }} />
-                          
-                          <Box display="flex" justifyContent="space-between" mb={0.5}>
-                            <Typography variant="caption">Location:</Typography>
-                            <Typography variant="caption" fontWeight="bold">
-                              {wp.latitude.toFixed(2)}°, {wp.longitude.toFixed(2)}°
+                      <Popup maxWidth={350}>
+                        <Box sx={{ p: 1.5 }}>
+                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                            <Typography variant="h6" fontWeight="700" color="primary.main">
+                              📍 Waypoint #{idx + 1}
                             </Typography>
-                          </Box>
-                          
-                          <Box display="flex" justifyContent="space-between" mb={0.5}>
-                            <Typography variant="caption">Safety Score:</Typography>
                             <Chip
-                              label={`${wp.safety_score.toFixed(0)}/100`}
+                              label={`${wp.safety_score.toFixed(0)}%`}
                               size="small"
-                              color={wp.safety_score > 60 ? 'success' : 'warning'}
-                              sx={{ height: 18, fontSize: '0.65rem' }}
+                              color={wp.safety_score > 70 ? 'success' : wp.safety_score > 40 ? 'warning' : 'error'}
+                              sx={{ fontWeight: 700 }}
                             />
                           </Box>
                           
-                          {wp.hazards && wp.hazards.length > 0 && (
-                            <>
-                              <Divider sx={{ my: 1 }} />
-                              <Typography variant="caption" color="warning.main" fontWeight="bold">
-                                ⚠️ Hazards:
-                              </Typography>
-                              {wp.hazards.map((h, i) => (
-                                <Typography key={i} variant="caption" display="block" ml={1}>
-                                  • {h}
+                          <Divider sx={{ my: 1.5 }} />
+                          
+                          {/* Location Info */}
+                          <Box mb={2}>
+                            <Typography variant="caption" color="text.secondary" fontWeight="600" display="block" mb={0.5}>
+                              COORDINATES
+                            </Typography>
+                            <Stack spacing={0.5}>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <LocationOn sx={{ fontSize: 16, color: 'primary.main' }} />
+                                <Typography variant="body2">
+                                  {wp.latitude.toFixed(4)}°, {wp.longitude.toFixed(4)}°
                                 </Typography>
-                              ))}
-                            </>
+                              </Box>
+                            </Stack>
+                          </Box>
+                          
+                          {/* Safety Score Bar */}
+                          <Box mb={2}>
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                              <Typography variant="caption" fontWeight="600" color="text.secondary">
+                                SAFETY SCORE
+                              </Typography>
+                              <Typography variant="caption" fontWeight="700">
+                                {wp.safety_score.toFixed(0)}/100
+                              </Typography>
+                            </Box>
+                            <LinearProgress
+                              variant="determinate"
+                              value={wp.safety_score}
+                              sx={{
+                                height: 8,
+                                borderRadius: 4,
+                                bgcolor: alpha('#000', 0.1),
+                                '& .MuiLinearProgress-bar': {
+                                  bgcolor: getRoutePathColor(wp.safety_score),
+                                  borderRadius: 4,
+                                }
+                              }}
+                            />
+                          </Box>
+                          
+                          {/* Hazards */}
+                          {wp.hazards && wp.hazards.length > 0 && (
+                            <Box mb={2}>
+                              <Typography variant="caption" color="warning.main" fontWeight="700" display="block" mb={1}>
+                                ⚠️ DETECTED HAZARDS
+                              </Typography>
+                              <Stack spacing={0.5}>
+                                {wp.hazards.slice(0, 3).map((h, i) => (
+                                  <Chip
+                                    key={i}
+                                    label={h}
+                                    size="small"
+                                    color="warning"
+                                    variant="outlined"
+                                    sx={{ 
+                                      justifyContent: 'flex-start',
+                                      '& .MuiChip-label': { fontSize: '0.7rem' }
+                                    }}
+                                  />
+                                ))}
+                              </Stack>
+                            </Box>
                           )}
                           
+                          {/* Weather Data */}
                           {weather && (
-                            <>
-                              <Divider sx={{ my: 1 }} />
-                              <Typography variant="caption" fontWeight="bold" gutterBottom>
-                                🌊 Current Conditions:
+                            <Box>
+                              <Typography variant="caption" color="info.main" fontWeight="700" display="block" mb={1}>
+                                🌊 REAL-TIME CONDITIONS
                               </Typography>
-                              {weather.wave_height_m && (
-                                <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                                  <Waves sx={{ fontSize: 14 }} />
-                                  <Typography variant="caption">
-                                    Waves: {weather.wave_height_m.toFixed(1)}m
-                                  </Typography>
-                                </Box>
-                              )}
-                              {weather.current_velocity_ms && (
-                                <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                                  <Air sx={{ fontSize: 14 }} />
-                                  <Typography variant="caption">
-                                    Current: {weather.current_velocity_ms.toFixed(1)} m/s
-                                  </Typography>
-                                </Box>
-                              )}
-                            </>
+                              <Grid container spacing={1}>
+                                {weather.wave_height_m !== undefined && (
+                                  <Grid item xs={6}>
+                                    <Paper elevation={0} sx={{ p: 1, bgcolor: alpha('#2196f3', 0.05), borderRadius: 1 }}>
+                                      <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                                        <Waves sx={{ fontSize: 16, color: 'info.main' }} />
+                                        <Typography variant="caption" fontWeight="600">Waves</Typography>
+                                      </Box>
+                                      <Typography variant="body2" fontWeight="700">
+                                        {weather.wave_height_m.toFixed(1)}m
+                                      </Typography>
+                                    </Paper>
+                                  </Grid>
+                                )}
+                                {weather.current_velocity_ms !== undefined && (
+                                  <Grid item xs={6}>
+                                    <Paper elevation={0} sx={{ p: 1, bgcolor: alpha('#2196f3', 0.05), borderRadius: 1 }}>
+                                      <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                                        <Air sx={{ fontSize: 16, color: 'info.main' }} />
+                                        <Typography variant="caption" fontWeight="600">Current</Typography>
+                                      </Box>
+                                      <Typography variant="body2" fontWeight="700">
+                                        {weather.current_velocity_ms.toFixed(1)} m/s
+                                      </Typography>
+                                    </Paper>
+                                  </Grid>
+                                )}
+                                {weather.sea_temperature_c !== undefined && (
+                                  <Grid item xs={6}>
+                                    <Paper elevation={0} sx={{ p: 1, bgcolor: alpha('#2196f3', 0.05), borderRadius: 1 }}>
+                                      <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                                        <ThermostatAuto sx={{ fontSize: 16, color: 'info.main' }} />
+                                        <Typography variant="caption" fontWeight="600">Sea Temp</Typography>
+                                      </Box>
+                                      <Typography variant="body2" fontWeight="700">
+                                        {weather.sea_temperature_c.toFixed(1)}°C
+                                      </Typography>
+                                    </Paper>
+                                  </Grid>
+                                )}
+                                {weather.wind_speed_ms !== undefined && (
+                                  <Grid item xs={6}>
+                                    <Paper elevation={0} sx={{ p: 1, bgcolor: alpha('#2196f3', 0.05), borderRadius: 1 }}>
+                                      <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                                        <Speed sx={{ fontSize: 16, color: 'info.main' }} />
+                                        <Typography variant="caption" fontWeight="600">Wind</Typography>
+                                      </Box>
+                                      <Typography variant="body2" fontWeight="700">
+                                        {weather.wind_speed_ms.toFixed(1)} m/s
+                                      </Typography>
+                                    </Paper>
+                                  </Grid>
+                                )}
+                              </Grid>
+                            </Box>
                           )}
                         </Box>
                       </Popup>
@@ -428,30 +945,57 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
                   );
                 })}
 
-              {/* Hazard Zones */}
+              {/* Enhanced Hazard Zones */}
               {showHazards && routeData.hazards_detected.map((hazard, idx) => (
                 <Circle
                   key={idx}
                   center={[hazard.location?.lat || 0, hazard.location?.lon || 0]}
-                  radius={50000} // 50km radius
+                  radius={hazard.radius_km ? hazard.radius_km * 1000 : 50000}
                   pathOptions={{
                     color: '#f44336',
                     fillColor: '#f44336',
-                    fillOpacity: 0.2,
-                    weight: 2,
+                    fillOpacity: 0.15,
+                    weight: 3,
+                    dashArray: '5, 10',
                   }}
                 >
-                  <Popup>
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight="bold" color="error">
-                        ⚠️ {hazard.type.toUpperCase()}
-                      </Typography>
-                      <Typography variant="caption" display="block">
+                  <Popup maxWidth={300}>
+                    <Box sx={{ p: 1.5 }}>
+                      <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                        <Warning sx={{ color: 'error.main', fontSize: 24 }} />
+                        <Typography variant="h6" fontWeight="700" color="error.main">
+                          {hazard.type.replace('_', ' ').toUpperCase()}
+                        </Typography>
+                      </Box>
+                      
+                      <Divider sx={{ my: 1.5 }} />
+                      
+                      <Typography variant="body2" mb={2}>
                         {hazard.description}
                       </Typography>
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        Severity: {hazard.severity}
-                      </Typography>
+                      
+                      <Stack spacing={1}>
+                        <Chip
+                          icon={<Warning />}
+                          label={`Severity: ${hazard.severity.toUpperCase()}`}
+                          color="error"
+                          size="small"
+                          sx={{ fontWeight: 700 }}
+                        />
+                        {hazard.location && (
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            <Typography variant="caption" color="text.secondary">
+                              {hazard.location.lat.toFixed(2)}°, {hazard.location.lon.toFixed(2)}°
+                            </Typography>
+                          </Box>
+                        )}
+                        {hazard.radius_km && (
+                          <Typography variant="caption" color="text.secondary">
+                            Radius: {hazard.radius_km} km
+                          </Typography>
+                        )}
+                      </Stack>
                     </Box>
                   </Popup>
                 </Circle>
@@ -461,49 +1005,301 @@ const MaritimeRouteMapView = ({ routeData: externalRouteData, onRouteLoad }) => 
         </MapContainer>
       </Paper>
 
-      {/* AI Recommendations */}
+      {/* AI Recommendations Section */}
       {routeData && routeData.recommendations && (
-        <Paper elevation={2} sx={{ p: 3, mt: 2, bgcolor: 'info.lighter' }}>
-          <Box display="flex" alignItems="center" gap={1} mb={2}>
-            <Info color="info" />
-            <Typography variant="h6" fontWeight="bold">
-              AI Route Recommendations
-            </Typography>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            mt: 3,
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #E3F2FD 0%, #E8F5E9 100%)',
+            border: '2px solid',
+            borderColor: alpha('#1976d2', 0.2),
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 5,
+              background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+            }
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={2} mb={3}>
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+              }}
+            >
+              <Info sx={{ fontSize: 32, color: 'white' }} />
+            </Box>
+            <Box>
+              <Typography variant="h5" fontWeight="800" color="primary.dark">
+                AI-Powered Route Intelligence
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Smart recommendations for optimal voyage planning
+              </Typography>
+            </Box>
           </Box>
-          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+          
+          <Typography
+            variant="body1"
+            sx={{
+              whiteSpace: 'pre-line',
+              lineHeight: 1.8,
+              color: 'text.primary',
+              fontSize: '1.05rem',
+              pl: 2,
+              borderLeft: '4px solid',
+              borderColor: 'primary.main',
+              fontWeight: 500,
+            }}
+          >
             {routeData.recommendations}
           </Typography>
         </Paper>
       )}
 
-      {/* Legend */}
-      <Paper elevation={2} sx={{ p: 2, mt: 2 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          Map Legend
-        </Typography>
+      {/* Enhanced Map Legend */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mt: 3,
+          borderRadius: 3,
+          border: '2px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box display="flex" alignItems="center" gap={1} mb={3}>
+          <Timeline sx={{ color: 'primary.main', fontSize: 28 }} />
+          <Typography variant="h6" fontWeight="700">
+            Route Safety Legend
+          </Typography>
+        </Box>
+        
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: alpha('#4caf50', 0.05),
+                border: '2px solid',
+                borderColor: alpha('#4caf50', 0.3),
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1.5}>
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 6,
+                    bgcolor: '#4caf50',
+                    borderRadius: 1,
+                  }}
+                />
+                <Box>
+                  <Typography variant="body2" fontWeight="700">
+                    Very Safe
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    80-100 Safety Score
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: alpha('#8bc34a', 0.05),
+                border: '2px solid',
+                borderColor: alpha('#8bc34a', 0.3),
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1.5}>
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 6,
+                    bgcolor: '#8bc34a',
+                    borderRadius: 1,
+                  }}
+                />
+                <Box>
+                  <Typography variant="body2" fontWeight="700">
+                    Safe
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    60-80 Safety Score
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: alpha('#ff9800', 0.05),
+                border: '2px solid',
+                borderColor: alpha('#ff9800', 0.3),
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1.5}>
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 6,
+                    bgcolor: '#ff9800',
+                    borderRadius: 1,
+                  }}
+                />
+                <Box>
+                  <Typography variant="body2" fontWeight="700">
+                    Moderate
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    40-60 Safety Score
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: alpha('#f44336', 0.05),
+                border: '2px solid',
+                borderColor: alpha('#f44336', 0.3),
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1.5}>
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 6,
+                    bgcolor: '#f44336',
+                    borderRadius: 1,
+                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,.3) 5px, rgba(255,255,255,.3) 10px)',
+                  }}
+                />
+                <Box>
+                  <Typography variant="body2" fontWeight="700">
+                    Risky
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    0-40 Safety Score
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        <Divider sx={{ my: 3 }} />
+
+        {/* Map Icons Legend */}
+        <Typography variant="subtitle2" fontWeight="700" gutterBottom mb={2}>
+          Map Markers
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={6} sm={4} md={3}>
             <Box display="flex" alignItems="center" gap={1}>
-              <Box sx={{ width: 20, height: 4, bgcolor: '#4caf50', borderRadius: 1 }} />
-              <Typography variant="caption">Safe Route (80-100)</Typography>
+              <Typography sx={{ fontSize: 24 }}>🚢</Typography>
+              <Typography variant="caption" fontWeight="600">Origin Port</Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} sm={4} md={3}>
             <Box display="flex" alignItems="center" gap={1}>
-              <Box sx={{ width: 20, height: 4, bgcolor: '#8bc34a', borderRadius: 1 }} />
-              <Typography variant="caption">Good Route (60-80)</Typography>
+              <Typography sx={{ fontSize: 24 }}>🏁</Typography>
+              <Typography variant="caption" fontWeight="600">Destination Port</Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} sm={4} md={3}>
             <Box display="flex" alignItems="center" gap={1}>
-              <Box sx={{ width: 20, height: 4, bgcolor: '#ff9800', borderRadius: 1 }} />
-              <Typography variant="caption">Moderate Route (40-60)</Typography>
+              <Typography sx={{ fontSize: 24 }}>📍</Typography>
+              <Typography variant="caption" fontWeight="600">Waypoint</Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} sm={4} md={3}>
             <Box display="flex" alignItems="center" gap={1}>
-              <Box sx={{ width: 20, height: 4, bgcolor: '#f44336', borderRadius: 1 }} />
-              <Typography variant="caption">Risky Route (0-40)</Typography>
+              <Typography sx={{ fontSize: 24 }}>⚠️</Typography>
+              <Typography variant="caption" fontWeight="600">Hazard Zone</Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Route Statistics Summary */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mt: 3,
+          borderRadius: 3,
+          border: '2px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="h6" fontWeight="700" gutterBottom mb={3}>
+          Route Statistics
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Box textAlign="center" p={2}>
+              <NavigationIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+              <Typography variant="h4" fontWeight="700" color="primary.main">
+                {routeData.waypoints.length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" fontWeight="600">
+                Total Waypoints
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Box textAlign="center" p={2}>
+              <Speed sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
+              <Typography variant="h4" fontWeight="700" color="secondary.main">
+                {(routeData.total_distance_nm / (routeData.estimated_duration_hours / 24)).toFixed(1)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" fontWeight="600">
+                Avg. Speed (nm/day)
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Box textAlign="center" p={2}>
+              <CheckCircle sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
+              <Typography variant="h4" fontWeight="700" color="success.main">
+                {routeData.waypoints.filter(w => w.safety_score > 70).length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" fontWeight="600">
+                Safe Waypoints
+              </Typography>
             </Box>
           </Grid>
         </Grid>

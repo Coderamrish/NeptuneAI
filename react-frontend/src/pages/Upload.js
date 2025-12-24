@@ -1,51 +1,102 @@
-import React, { useState, useRef } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Button,
-  LinearProgress,
-  Alert,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  IconButton,
-  Chip,
-  Grid,
-  Paper,
-  Divider,
-  CircularProgress,
-} from '@mui/material';
-import {
-  CloudUpload,
-  Delete,
-  CheckCircle,
-  Error,
-  FileUpload,
-  Description,
-  TableChart,
-  BarChart,
-  Map,
-  Download,
-  Refresh,
-} from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import React, { useState, useRef, useEffect } from 'react';
+import { CloudUpload, FileText, CheckCircle, AlertCircle, X, Upload, Zap, Database, BarChart3, TrendingUp, Waves, Globe, Activity } from 'lucide-react';
 
-const Upload = () => {
+const EnhancedUpload = () => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, success, error
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
-  const { user } = useAuth();
+  const canvasRef = useRef(null);
 
-  const handleFileSelect = (event) => {
-    const selectedFiles = Array.from(event.target.files);
+  useEffect(() => {
+    animateBackground();
+  }, []);
+
+  const animateBackground = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = Array.from({ length: 100 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.5,
+      size: Math.random() * 2 + 1,
+    }));
+
+    const animate = () => {
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(6, 182, 212, ${0.5})`;
+        ctx.fill();
+
+        particles.forEach((p2, j) => {
+          if (i !== j) {
+            const dx = p.x - p2.x;
+            const dy = p.y - p2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < 100) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(6, 182, 212, ${0.2 * (1 - dist / 100)})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        });
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleFiles = (selectedFiles) => {
     const newFiles = selectedFiles.map(file => ({
       id: Date.now() + Math.random(),
       file,
@@ -57,78 +108,52 @@ const Upload = () => {
     }));
     
     setFiles(prev => [...prev, ...newFiles]);
-    toast.success(`${selectedFiles.length} file(s) selected`);
   };
 
   const handleRemoveFile = (fileId) => {
     setFiles(prev => prev.filter(f => f.id !== fileId));
-    toast.success('File removed');
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) {
-      toast.error('Please select files to upload');
-      return;
-    }
+    if (files.length === 0) return;
 
     setUploading(true);
-    setUploadStatus('uploading');
     setUploadProgress(0);
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        // Update file status to uploading
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      setFiles(prev => prev.map(f => 
+        f.id === file.id ? { ...f, status: 'uploading' } : f
+      ));
+
+      for (let progress = 0; progress <= 100; progress += 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        setUploadProgress(Math.floor(((i + progress / 100) / files.length) * 100));
         setFiles(prev => prev.map(f => 
-          f.id === file.id ? { ...f, status: 'uploading' } : f
+          f.id === file.id ? { ...f, progress } : f
         ));
-
-        // Simulate upload progress
-        for (let progress = 0; progress <= 100; progress += 10) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          setUploadProgress(progress);
-          setFiles(prev => prev.map(f => 
-            f.id === file.id ? { ...f, progress } : f
-          ));
-        }
-
-        // Simulate successful upload
-        setFiles(prev => prev.map(f => 
-          f.id === file.id ? { ...f, status: 'success', progress: 100 } : f
-        ));
-
-        // Add to uploaded files
-        setUploadedFiles(prev => [...prev, {
-          id: file.id,
-          name: file.name,
-          size: file.size,
-          uploadDate: new Date().toISOString(),
-          status: 'success',
-        }]);
-
-        toast.success(`${file.name} uploaded successfully`);
       }
 
-      setUploadStatus('success');
-      setFiles([]);
-      toast.success('All files uploaded successfully!');
-      
-    } catch (error) {
-      console.error('Upload error:', error);
-      setUploadStatus('error');
-      setFiles(prev => prev.map(f => ({ ...f, status: 'error' })));
-      toast.error('Upload failed. Please try again.');
-    } finally {
-      setUploading(false);
-    }
-  };
+      setFiles(prev => prev.map(f => 
+        f.id === file.id ? { ...f, status: 'success', progress: 100 } : f
+      ));
 
-  const handleClearAll = () => {
-    setFiles([]);
-    setUploadProgress(0);
-    setUploadStatus('idle');
-    toast.success('All files cleared');
+      setUploadedFiles(prev => [...prev, {
+        id: file.id,
+        name: file.name,
+        size: file.size,
+        uploadDate: new Date().toISOString(),
+        status: 'success',
+      }]);
+    }
+
+    setUploadProgress(100);
+    setTimeout(() => {
+      setUploading(false);
+      setFiles([]);
+      setUploadProgress(0);
+    }, 500);
   };
 
   const formatFileSize = (bytes) => {
@@ -139,302 +164,777 @@ const Upload = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (fileType) => {
-    if (fileType.includes('csv') || fileType.includes('excel')) {
-      return <TableChart />;
-    } else if (fileType.includes('json')) {
-      return <BarChart />;
-    } else if (fileType.includes('geojson') || fileType.includes('kml')) {
-      return <Map />;
-    } else {
-      return <Description />;
-    }
+  const getFileIcon = (type) => {
+    if (type.includes('csv') || type.includes('excel')) return '📊';
+    if (type.includes('json')) return '🔧';
+    if (type.includes('image')) return '🖼️';
+    return '📄';
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'success': return 'success';
-      case 'error': return 'error';
-      case 'uploading': return 'primary';
-      default: return 'default';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'success': return <CheckCircle />;
-      case 'error': return <Error />;
-      case 'uploading': return <CircularProgress size={16} />;
-      default: return <FileUpload />;
-    }
-  };
+  const stats = [
+    { label: 'Total Uploaded', value: uploadedFiles.length, icon: Database, color: '#06b6d4', gradient: 'from-cyan-500 to-blue-500' },
+    { label: 'Success Rate', value: '98.5%', icon: TrendingUp, color: '#14b8a6', gradient: 'from-teal-500 to-emerald-500' },
+    { label: 'Processing', value: uploading ? files.length : '0', icon: Activity, color: '#ec4899', gradient: 'from-pink-500 to-rose-500' },
+    { label: 'Storage Used', value: '2.4 GB', icon: BarChart3, color: '#8b5cf6', gradient: 'from-purple-500 to-violet-500' }
+  ];
 
   return (
-    <Box sx={{ p: 3, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: '#1976d2' }}>
-              Upload Ocean Data 📁
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Upload your ocean data files for analysis and visualization
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={() => window.location.reload()}
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <canvas ref={canvasRef} style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        opacity: 0.4,
+        zIndex: 0
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 1, padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '20px',
+          padding: '2rem',
+          marginBottom: '2rem',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          animation: 'slideDown 0.5s ease-out'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h1 style={{
+                fontSize: '2.5rem',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <CloudUpload size={40} />
+                Upload Ocean Data
+              </h1>
+              <p style={{ color: '#94a3b8', fontSize: '1rem' }}>
+                Upload and manage your ocean research datasets with ease
+              </p>
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(20, 184, 166, 0.2) 100%)',
+              borderRadius: '12px',
+              border: '1px solid rgba(6, 182, 212, 0.3)'
+            }}>
+              <Waves size={24} color="#06b6d4" />
+              <div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#06b6d4' }}>
+                  {uploadedFiles.length}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Files Uploaded
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '1.5rem',
+          marginBottom: '2rem'
+        }}>
+          {stats.map((stat, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                position: 'relative',
+                overflow: 'hidden',
+                animation: `slideUp 0.5s ease-out ${idx * 0.1}s both`,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-5px)';
+                e.currentTarget.style.borderColor = stat.color;
+                e.currentTarget.style.boxShadow = `0 12px 40px ${stat.color}40`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
-              Refresh
-            </Button>
-          </Box>
-        </Box>
-      </motion.div>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '150px',
+                height: '150px',
+                background: `radial-gradient(circle, ${stat.color}20 0%, transparent 70%)`,
+                pointerEvents: 'none'
+              }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                <div style={{
+                  padding: '0.75rem',
+                  background: `${stat.color}20`,
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <stat.icon size={24} color={stat.color} />
+                </div>
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: '#e2e8f0', marginBottom: '0.5rem' }}>
+                {stat.value}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
 
-      <Grid container spacing={3}>
-        {/* Upload Area */}
-        <Grid item xs={12} md={8}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CloudUpload color="primary" />
-                  Upload Files
-                </Typography>
-                
-                {/* Drop Zone */}
-                <Paper
-                  sx={{
-                    p: 4,
-                    textAlign: 'center',
-                    border: '2px dashed #1976d2',
-                    borderRadius: 2,
-                    bgcolor: 'rgba(25, 118, 210, 0.05)',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      bgcolor: 'rgba(25, 118, 210, 0.1)',
-                      borderColor: '#1565c0',
-                    },
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <CloudUpload sx={{ fontSize: 48, color: '#1976d2', mb: 2 }} />
-                  <Typography variant="h6" sx={{ mb: 1, color: '#1976d2' }}>
-                    Drop files here or click to browse
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Support CSV, JSON, Excel, GeoJSON, and other data formats
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<FileUpload />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    Select Files
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".csv,.json,.xlsx,.xls,.geojson,.kml,.txt"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
-                </Paper>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+          {/* Upload Area */}
+          <div>
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              style={{
+                background: dragActive 
+                  ? 'rgba(6, 182, 212, 0.1)' 
+                  : 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(10px)',
+                border: dragActive 
+                  ? '2px dashed #06b6d4' 
+                  : '2px dashed rgba(255, 255, 255, 0.2)',
+                borderRadius: '20px',
+                padding: '3rem',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                marginBottom: '2rem',
+                animation: 'fadeIn 0.6s ease-out',
+                boxShadow: dragActive ? '0 12px 40px rgba(6, 182, 212, 0.3)' : 'none'
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div style={{
+                width: '100px',
+                height: '100px',
+                margin: '0 auto 1.5rem',
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(20, 184, 166, 0.2) 100%)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                animation: dragActive ? 'pulse 1s ease-in-out infinite' : 'none'
+              }}>
+                <CloudUpload size={50} color="#06b6d4" />
+              </div>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: '#e2e8f0',
+                marginBottom: '0.75rem'
+              }}>
+                {dragActive ? 'Drop files here' : 'Drag & Drop Files'}
+              </h3>
+              <p style={{
+                color: '#94a3b8',
+                fontSize: '1rem',
+                marginBottom: '1.5rem'
+              }}>
+                or click to browse from your computer
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+                style={{
+                  padding: '0.875rem 2rem',
+                  background: 'linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
+                }}
+              >
+                <Upload size={20} />
+                Select Files
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".csv,.json,.xlsx,.xls,.geojson,.kml,.txt"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+              <p style={{
+                color: '#64748b',
+                fontSize: '0.875rem',
+                marginTop: '1rem'
+              }}>
+                Supports: CSV, JSON, Excel, GeoJSON, KML (Max 100MB per file)
+              </p>
+            </div>
 
-                {/* Upload Progress */}
-                {uploading && (
-                  <Box sx={{ mt: 3 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Uploading files... {uploadProgress}%
-                    </Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={uploadProgress} 
-                      sx={{ height: 8, borderRadius: 4 }}
-                    />
-                  </Box>
-                )}
+            {/* Upload Progress */}
+            {uploading && (
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                marginBottom: '2rem',
+                animation: 'slideUp 0.3s ease-out'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Zap size={20} color="#06b6d4" />
+                    <span style={{ color: '#e2e8f0', fontWeight: 600 }}>Uploading files...</span>
+                  </div>
+                  <span style={{ color: '#06b6d4', fontWeight: 700, fontSize: '1.25rem' }}>
+                    {uploadProgress}%
+                  </span>
+                </div>
+                <div style={{
+                  height: '8px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #06b6d4 0%, #0ea5e9 100%)',
+                    width: `${uploadProgress}%`,
+                    transition: 'width 0.3s ease',
+                    boxShadow: '0 0 10px rgba(6, 182, 212, 0.5)'
+                  }} />
+                </div>
+              </div>
+            )}
 
-                {/* Upload Status */}
-                {uploadStatus === 'success' && (
-                  <Alert severity="success" sx={{ mt: 2 }}>
-                    All files uploaded successfully!
-                  </Alert>
-                )}
-                {uploadStatus === 'error' && (
-                  <Alert severity="error" sx={{ mt: 2 }}>
-                    Upload failed. Please try again.
-                  </Alert>
-                )}
-
-                {/* File List */}
-                {files.length > 0 && (
-                  <Box sx={{ mt: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">
-                        Selected Files ({files.length})
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        onClick={handleClearAll}
-                      >
-                        Clear All
-                      </Button>
-                    </Box>
-                    <List>
-                      {files.map((file) => (
-                        <ListItem key={file.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1 }}>
-                          <ListItemIcon>
-                            {getFileIcon(file.type)}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={file.name}
-                            secondary={`${formatFileSize(file.size)} • ${file.type}`}
-                          />
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {file.status === 'uploading' && (
-                              <Box sx={{ width: 100 }}>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={file.progress} 
-                                  size="small"
-                                />
-                              </Box>
-                            )}
-                            <Chip
-                              icon={getStatusIcon(file.status)}
-                              label={file.status}
-                              color={getStatusColor(file.status)}
-                              size="small"
-                            />
-                            <IconButton
-                              size="small"
-                              onClick={() => handleRemoveFile(file.id)}
-                              disabled={file.status === 'uploading'}
-                            >
-                              <Delete />
-                            </IconButton>
-                          </Box>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                )}
-
-                {/* Upload Button */}
-                {files.length > 0 && (
-                  <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-                    <Button
-                      variant="contained"
+            {/* Files List */}
+            {files.length > 0 && (
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '20px',
+                padding: '1.5rem',
+                animation: 'slideUp 0.3s ease-out'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#e2e8f0' }}>
+                    Selected Files ({files.length})
+                  </h3>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setFiles([])}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '8px',
+                        color: '#ef4444',
+                        fontSize: '0.875rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                      }}
+                    >
+                      Clear All
+                    </button>
+                    <button
                       onClick={handleUpload}
                       disabled={uploading}
-                      startIcon={uploading ? <CircularProgress size={20} /> : <CloudUpload />}
-                      sx={{ flexGrow: 1 }}
+                      style={{
+                        padding: '0.5rem 1.5rem',
+                        background: uploading 
+                          ? 'rgba(148, 163, 184, 0.2)' 
+                          : 'linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        cursor: uploading ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s ease',
+                        boxShadow: uploading ? 'none' : '0 4px 12px rgba(6, 182, 212, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!uploading) {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.4)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = uploading ? 'none' : '0 4px 12px rgba(6, 182, 212, 0.3)';
+                      }}
                     >
-                      {uploading ? 'Uploading...' : `Upload ${files.length} File(s)`}
-                    </Button>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
+                      <Upload size={16} />
+                      Upload All
+                    </button>
+                  </div>
+                </div>
 
-        {/* Uploaded Files & Info */}
-        <Grid item xs={12} md={4}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            {/* Uploaded Files */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CheckCircle color="success" />
-                  Recently Uploaded
-                </Typography>
-                {uploadedFiles.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                    No files uploaded yet
-                  </Typography>
-                ) : (
-                  <List dense>
-                    {uploadedFiles.slice(0, 5).map((file) => (
-                      <ListItem key={file.id} sx={{ px: 0 }}>
-                        <ListItemIcon>
-                          {getFileIcon(file.type || 'text/plain')}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={file.name}
-                          secondary={`${formatFileSize(file.size)} • ${new Date(file.uploadDate).toLocaleDateString()}`}
-                        />
-                        <Chip
-                          icon={<CheckCircle />}
-                          label="Uploaded"
-                          color="success"
-                          size="small"
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Supported Formats */}
-            <Card>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Description color="primary" />
-                  Supported Formats
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {[
-                    { format: 'CSV', description: 'Comma-separated values', icon: <TableChart /> },
-                    { format: 'JSON', description: 'JavaScript Object Notation', icon: <BarChart /> },
-                    { format: 'Excel', description: 'Microsoft Excel files', icon: <TableChart /> },
-                    { format: 'GeoJSON', description: 'Geographic data format', icon: <Map /> },
-                    { format: 'KML', description: 'Keyhole Markup Language', icon: <Map /> },
-                  ].map((item, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
-                      <Box sx={{ color: 'primary.main' }}>{item.icon}</Box>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {item.format}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.description}
-                        </Typography>
-                      </Box>
-                    </Box>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {files.map((file, idx) => (
+                    <div
+                      key={file.id}
+                      style={{
+                        padding: '1rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        animation: `slideUp 0.3s ease-out ${idx * 0.05}s both`,
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                      }}
+                    >
+                      <div style={{ fontSize: '2rem' }}>
+                        {getFileIcon(file.type)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          color: '#e2e8f0',
+                          fontWeight: 600,
+                          marginBottom: '0.25rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {file.name}
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                          {formatFileSize(file.size)}
+                        </div>
+                        {file.status === 'uploading' && (
+                          <div style={{
+                            marginTop: '0.5rem',
+                            height: '4px',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            borderRadius: '2px',
+                            overflow: 'hidden'
+                          }}>
+                            <div style={{
+                              height: '100%',
+                              background: 'linear-gradient(90deg, #06b6d4 0%, #0ea5e9 100%)',
+                              width: `${file.progress}%`,
+                              transition: 'width 0.3s ease'
+                            }} />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {file.status === 'success' && (
+                          <CheckCircle size={24} color="#14b8a6" />
+                        )}
+                        {file.status === 'uploading' && (
+                          <div className="spinner" />
+                        )}
+                        {file.status === 'pending' && (
+                          <button
+                            onClick={() => handleRemoveFile(file.id)}
+                            style={{
+                              padding: '0.5rem',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: 'none',
+                              borderRadius: '8px',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'all 0.3s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                            }}
+                          >
+                            <X size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-      </Grid>
-    </Box>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Recent Uploads */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '20px',
+              padding: '1.5rem',
+              animation: 'slideRight 0.5s ease-out'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                color: '#e2e8f0',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <CheckCircle size={20} color="#14b8a6" />
+                Recent Uploads
+              </h3>
+              
+              {uploadedFiles.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '2rem 0',
+                  color: '#64748b'
+                }}>
+                  No files uploaded yet
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
+                  {uploadedFiles.slice(0, 10).map((file, idx) => (
+                    <div
+                      key={file.id}
+                      style={{
+                        padding: '0.875rem',
+                        background: 'rgba(20, 184, 166, 0.1)',
+                        border: '1px solid rgba(20, 184, 166, 0.2)',
+                        borderRadius: '10px',
+                        animation: `slideUp 0.3s ease-out ${idx * 0.05}s both`
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        marginBottom: '0.5rem'
+                      }}>
+                        <div style={{ fontSize: '1.5rem' }}>
+                          {getFileIcon(file.name)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            color: '#e2e8f0',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {file.name}
+                          </div>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: '#94a3b8'
+                          }}>
+                            {formatFileSize(file.size)} • {new Date(file.uploadDate).toLocaleString()}
+                          </div>
+                        </div>
+                        <CheckCircle size={16} color="#14b8a6" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* File Types */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '20px',
+              padding: '1.5rem',
+              animation: 'slideRight 0.5s ease-out 0.1s both'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                color: '#e2e8f0',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <FileText size={20} color="#06b6d4" />
+                Supported Formats
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                {[
+                  { icon: '📊', name: 'CSV Files', desc: 'Comma-separated values', color: '#06b6d4' },
+                  { icon: '🔧', name: 'JSON', desc: 'JavaScript Object Notation', color: '#14b8a6' },
+                  { icon: '📈', name: 'Excel', desc: 'XLSX, XLS spreadsheets', color: '#8b5cf6' },
+                  { icon: '🗺️', name: 'GeoJSON', desc: 'Geographic data format', color: '#ec4899' },
+                  { icon: '📍', name: 'KML', desc: 'Keyhole Markup Language', color: '#f59e0b' }
+                ].map((format, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.875rem',
+                      padding: '0.875rem',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.borderColor = format.color;
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    <div style={{
+                      fontSize: '1.75rem',
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: `${format.color}20`,
+                      borderRadius: '10px'
+                    }}>
+                      {format.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        color: '#e2e8f0',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        marginBottom: '0.125rem'
+                      }}>
+                        {format.name}
+                      </div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#94a3b8'
+                      }}>
+                        {format.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tips */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(20, 184, 166, 0.1) 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              borderRadius: '20px',
+              padding: '1.5rem',
+              animation: 'slideRight 0.5s ease-out 0.2s both'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                color: '#06b6d4',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <Zap size={20} />
+                Pro Tips
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[
+                  'Compress large files before uploading',
+                  'Use descriptive file names',
+                  'Validate data format beforehand',
+                  'Maximum file size: 100MB'
+                ].map((tip, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem',
+                      color: '#cbd5e1'
+                    }}
+                  >
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#06b6d4',
+                      flexShrink: 0
+                    }} />
+                    {tip}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slideRight {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+          }
+        }
+
+        .spinner {
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(6, 182, 212, 0.3);
+          border-top-color: #06b6d4;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: rgba(6, 182, 212, 0.3);
+          border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(6, 182, 212, 0.5);
+        }
+      `}</style>
+    </div>
   );
 };
 
-export default Upload;
+export default EnhancedUpload;

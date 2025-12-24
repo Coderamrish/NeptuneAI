@@ -31,7 +31,7 @@ const Home = () => {
       icon: <Analytics />,
       title: 'Real-time Analytics',
       description: 'Monitor ocean data in real-time with advanced analytics and visualizations.',
-      color: '#1976d2'
+      color: '#1484b8ff'
     },
     {
       icon: <Psychology />,

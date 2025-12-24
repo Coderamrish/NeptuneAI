@@ -10,7 +10,8 @@ from pathlib import Path
 # Import our custom modules
 from netcdf_processor import ARGONetCDFProcessor
 from vector_store import ARGOVectorStore
-from mcp_integration import MCPHandler, MCPClient, ToolType
+from mcp_integration import EnhancedMCPHandler, MCPClient, ToolType  # FIXED: Changed MCPHandler to EnhancedMCPHandler
+
 from geospatial_viz import ARGOGeospatialVisualizer
 from data_export import ARGODataExporter
 from query_engine import get_db_engine, get_unique_regions, query_by_region
@@ -48,11 +49,10 @@ class EnhancedRAGPipeline:
         self.geospatial_viz = ARGOGeospatialVisualizer()
         self.data_exporter = ARGODataExporter(export_path)
         
-        # Initialize MCP handler (query_engine can be set later if needed)
-        self.mcp_handler = MCPHandler(
-            query_engine=None,
-            vector_store=self.vector_store,
-            visualization_engine=self.geospatial_viz
+        # Initialize MCP handler - FIXED: Use EnhancedMCPHandler
+        self.mcp_handler = EnhancedMCPHandler(
+            vector_store_path=vector_store_path,
+            enable_vector_store=True
         )
         self.mcp_client = MCPClient(self.mcp_handler)
         
@@ -248,7 +248,7 @@ class EnhancedRAGPipeline:
         """
         user_lower = user_input.lower()
         
-        #  Handle Greetings
+        # Handle Greetings
         greetings = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "greetings"]
         if any(g in user_lower for g in greetings):
             name = None
@@ -274,12 +274,12 @@ class EnhancedRAGPipeline:
             greeting_response += "What would you like to explore today?"
             return greeting_response
         
-        #  Handle Thank You Messages
+        # Handle Thank You Messages
         thanks = ["thank", "thanks", "appreciate", "grateful"]
         if any(t in user_lower for t in thanks):
             return "You're very welcome! 😊 I'm always here to help you explore ocean science. Feel free to ask anything else!"
         
-        #  Try Groq AI for Intelligent Responses
+        # Try Groq AI for Intelligent Responses
         try:
             from groq import Groq
             
@@ -442,20 +442,25 @@ Generate a natural, informative response that answers the user's question using 
             
             # Determine which visualization to create based on keywords
             if any(word in user_lower for word in ['dashboard', 'overview', 'summary', 'all']):
-                return create_profiler_dashboard(db_data, region_name=region)
-            
+                fig = create_profiler_dashboard(db_data, region_name=region)
+                
             elif any(word in user_lower for word in ['map', 'geographic', 'location', 'where', 'scatter']):
-                return create_geographic_scatter_plot(db_data, region_name=region)
-            
+                fig = create_geographic_scatter_plot(db_data, region_name=region)
+                
             elif any(word in user_lower for word in ['monthly', 'month', 'time', 'trend', 'seasonal']):
-                return create_monthly_distribution_plot(db_data, region_name=region)
-            
+                fig = create_monthly_distribution_plot(db_data, region_name=region)
+                
             elif any(word in user_lower for word in ['profiler', 'instrument', 'deployment', 'type', 'distribution']):
-                return create_profiler_distribution_plot(db_data, region_name=region)
-            
+                fig = create_profiler_distribution_plot(db_data, region_name=region)
+                
             else:
                 # Default to comprehensive dashboard
-                return create_profiler_dashboard(db_data, region_name=region)
+                fig = create_profiler_dashboard(db_data, region_name=region)
+            
+            # Convert Plotly figure to JSON format for frontend
+            if fig:
+                return json.loads(fig.to_json())
+            return None
                 
         except Exception as e:
             logger.error(f"Error generating visualization: {e}", exc_info=True)
@@ -500,9 +505,9 @@ Generate a natural, informative response that answers the user's question using 
 
 def main():
     """Example usage of the EnhancedRAGPipeline."""
-    print(" Initializing Enhanced RAG Pipeline...")
+    print("🌊 Initializing Enhanced RAG Pipeline...")
     pipeline = EnhancedRAGPipeline()
-    print(" Components loaded: NetCDF, Vector Store, Geospatial Viz, Data Export.")
+    print("✅ Components loaded: NetCDF, Vector Store, Geospatial Viz, Data Export.")
     
     # Example 1: Process a query
     print("\n--- Processing an example query ---")
@@ -523,7 +528,7 @@ def main():
     print("\n--- Fetching system statistics ---")
     stats = pipeline.get_system_stats()
     print(json.dumps(stats, indent=2))
-    print("\n Pipeline demonstration complete.")
+    print("\n✅ Pipeline demonstration complete.")
 
 if __name__ == "__main__":
     main()

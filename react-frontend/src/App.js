@@ -20,7 +20,7 @@ import Analytics from './pages/Analytics';
 import Datasets from './pages/Datasets';
 import Upload from './pages/Upload';
 import AIInsights from './pages/AIInsights';
-import Profile from './pages/Profile';
+import EnhancedProfile from './pages/EnhancedProfile';
 import MaritimeRoutePlanning from './pages/MaritimeRoutePlanning';
 
 // Context
@@ -311,14 +311,14 @@ const AppContent = () => {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/home" element={<Home />} />
                 <Route path="/about" element={<About />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/data-explorer" element={<DataExplorer />} />
-                <Route path="/datasets" element={<Datasets />} />
-                <Route path="/upload" element={<Upload />} />
-                <Route path="/ai-insights" element={<AIInsights />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/maritime" element={<MaritimeRoutePlanning />} />
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+                <Route path="/data-explorer" element={<ProtectedRoute><DataExplorer /></ProtectedRoute>} />
+                <Route path="/datasets" element={<ProtectedRoute><Datasets /></ProtectedRoute>} />
+                <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
+                <Route path="/ai-insights" element={<ProtectedRoute><AIInsights /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><EnhancedProfile /></ProtectedRoute>} />
+                <Route path="/maritime" element={<ProtectedRoute><MaritimeRoutePlanning /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AnimatePresence>
